@@ -1,0 +1,116 @@
+package models
+
+import (
+	"errors"
+
+	pkgClaims "isme/pkg/claims"
+
+	"github.com/vukyn/kuery/validator"
+)
+
+type GetMeResponse struct {
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Email string `json:"email"`
+}
+
+type SignUpRequest struct {
+	Name     string `json:"name"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+func (r SignUpRequest) Validate() error {
+	if r.Name == "" {
+		return errors.New("name is required")
+	}
+	if r.Email == "" {
+		return errors.New("email is required")
+	}
+	if !validator.IsEmail(r.Email) {
+		return errors.New("invalid email")
+	}
+	if r.Password == "" {
+		return errors.New("password is required")
+	}
+	return nil
+}
+
+type SignUpResponse struct {
+	ID string `json:"id"`
+}
+
+type LoginRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+func (r LoginRequest) Validate() error {
+	if r.Email == "" {
+		return errors.New("invalid email or password")
+	}
+	if !validator.IsEmail(r.Email) {
+		return errors.New("invalid email or password")
+	}
+	if r.Password == "" {
+		return errors.New("invalid email or password")
+	}
+	return nil
+}
+
+type LoginResponse struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+	ExpiresAt    string `json:"expires_at"`
+}
+
+type RefreshTokenRequest struct {
+	RefreshToken string `json:"refresh_token"`
+}
+
+func (r RefreshTokenRequest) Validate() error {
+	if r.RefreshToken == "" {
+		return errors.New("refresh token is required")
+	}
+	return nil
+}
+
+type RefreshTokenResponse struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+	ExpiresAt    string `json:"expires_at"`
+}
+
+type VerifyTokenRequest struct {
+	Token string `json:"token"`
+}
+
+func (r VerifyTokenRequest) Validate() error {
+	if r.Token == "" {
+		return errors.New("token is required")
+	}
+	return nil
+}
+
+type VerifyTokenResponse struct {
+	Ok     bool             `json:"ok"`
+	Claims pkgClaims.Claims `json:"claims"`
+}
+
+type ChangePasswordRequest struct {
+	OldPassword string `json:"old_password"`
+	NewPassword string `json:"new_password"`
+}
+
+func (r ChangePasswordRequest) Validate() error {
+	if r.OldPassword == "" {
+		return errors.New("old password is required")
+	}
+	if r.NewPassword == "" {
+		return errors.New("new password is required")
+	}
+	if len(r.NewPassword) < 6 {
+		return errors.New("new password must be at least 6 characters")
+	}
+	return nil
+}

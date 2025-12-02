@@ -1,0 +1,16 @@
+package constants
+
+const (
+	// Singleton
+	CONTAINER_NAME_CONFIG     = "config"
+	CONTAINER_NAME_LOGGER     = "logger"
+	CONTAINER_NAME_DB         = "db"
+	CONTAINER_NAME_MIDDLEWARE = "middleware"
+
+	// Repositories
+	CONTAINER_NAME_USER_REPOSITORY         = "user_repository"
+	CONTAINER_NAME_USER_SESSION_REPOSITORY = "user_session_repository"
+
+	// Usecases
+	CONTAINER_NAME_AUTH_USECASE = "auth_usecase"
+)

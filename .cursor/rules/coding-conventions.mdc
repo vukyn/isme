@@ -1,0 +1,224 @@
+---
+type: "Always"
+description: "Coding conventions, naming patterns, and style guidelines for the Rainy Go project"
+globs: ["**/*.go"]
+alwaysApply: true
+---
+
+# Rainy Project - Coding Conventions
+
+## Naming Conventions
+
+### Packages
+
+-   Use lowercase, single word (e.g., `entity`, `usecase`, `repository`)
+-   Avoid underscores and mixedCaps
+-   Be descriptive but concise
+
+### Interfaces
+
+-   Prefix with `I` (e.g., `IRepository`, `IUseCase`)
+-   Use descriptive names that indicate purpose
+-   Keep interfaces small and focused
+
+### Structs
+
+-   PascalCase (e.g., `User`, `SignUpRequest`, `GetMeResponse`)
+-   Use descriptive names
+-   Include context when needed
+
+### Functions
+
+-   PascalCase for public functions
+-   camelCase for private functions
+-   Use verb-noun pattern (e.g., `GetUser`, `CreateOrder`)
+
+### Variables
+
+-   camelCase for all variables
+-   Use descriptive names
+-   Avoid abbreviations unless widely understood
+
+### Constants
+
+-   PascalCase or UPPER_SNAKE_CASE
+-   Group related constants
+-   Use descriptive names
+
+### Data types
+
+-   Using `any` for generic type instead of `interface{}`.
+
+### Files
+
+-   snake_case (e.g., `auth_middleware.go`, `di_config.go`)
+-   Use descriptive names that indicate purpose
+-   Group related functionality
+
+## Code Style Guidelines
+
+### Function Structure
+
+```go
+func (r *Repository) GetUserByID(ctx context.Context, id string) (*entity.User, error) {
+    // Input validation
+    if id == "" {
+        return nil, errors.New("id is required")
+    }
+
+    // Business logic
+    user, err := r.db.NewSelect().Model(&entity.User{}).Where("id = ?", id).Scan(ctx)
+    if err != nil {
+        return nil, err
+    }
+
+    // Return result
+    return user, nil
+}
+```
+
+### Error Handling
+
+-   Always handle errors explicitly
+-   Use descriptive error messages
+-   Return errors from functions, don't log them
+-   Use custom error types for domain-specific errors
+
+### Context Usage
+
+-   Always pass context as first parameter
+-   Use context for cancellation and timeouts
+-   Don't store context in structs
+
+### Comments
+
+-   Add comments for public APIs
+-   Use `//` for single-line comments
+-   Use `/* */` for multi-line comments
+-   Write comments that explain "why", not "what"
+
+## Import Organization
+
+```go
+import (
+    // Standard library imports (alphabetical)
+    "context"
+    "errors"
+    "time"
+
+    // Third-party imports (alphabetical)
+    "github.com/gofiber/fiber/v2"
+    "github.com/golang-jwt/jwt/v5"
+    "github.com/uptrace/bun"
+
+    // Internal imports (grouped by domain, alphabetical, with alias)
+    userEntity "rainy/internal/domains/user/entity"
+    userModel "rainy/internal/domains/user/models"
+    pkgCtx "rainy/pkg/ctx"
+    pkgHttp "rainy/pkg/http"
+)
+```
+
+## Variable Declarations
+
+### Prefer Short Declarations
+
+```go
+// Good
+user := &userEntity.User{}
+err := r.db.NewSelect().Model(user).Where("id = ?", id).Scan(ctx)
+
+// Avoid
+var user *userEntity.User
+user = &userEntity.User{}
+var err error
+err = r.db.NewSelect().Model(user).Where("id = ?", id).Scan(ctx)
+```
+
+### Use Meaningful Names
+
+```go
+// Good
+userRepository := idi.GetUserRepository(ctn)
+signUpRequest := userModel.SignUpRequest{}
+
+// Avoid
+repo := idi.GetUserRepository(ctn)
+req := userModel.SignUpRequest{}
+```
+
+## Struct Tags
+
+### Bun ORM Tags
+
+```go
+type User struct {
+    bun.BaseModel `bun:"table:users,alias:usr"`
+    ID            string    `bun:"id,pk,notnull"`
+    Name          string    `bun:"name,notnull"`
+    Email         string    `bun:"email,unique"`
+    CreatedAt     time.Time `bun:"created_at,default:current_timestamp"`
+    DeletedAt     time.Time `bun:"deleted_at,soft_delete,nullzero"`
+}
+```
+
+### JSON Tags
+
+```go
+type SignUpRequest struct {
+    Name     string `json:"name"`
+    Email    string `json:"email"`
+    Password string `json:"password"`
+}
+```
+
+### Query Tags
+
+-   Use `query` tag for query parameters.
+-   Only for request structs with GET method.
+-   Compatible with fiber `QueryParser` function.
+-   Can combine with `JSON` tag.
+
+```go
+type SignUpRequest struct {
+    Name     string `json:"name" query:"name"`
+    Email    string `json:"email" query:"email"`
+    Password string `json:"password" query:"password"`
+}
+```
+
+## Function Guidelines
+
+### Keep Functions Small
+
+-   Aim for functions under 20 lines
+-   Single responsibility principle
+-   Extract complex logic into helper functions
+
+### Use Early Returns
+
+```go
+func (u *UseCase) GetUser(ctx context.Context, id string) (*userEntity.User, error) {
+    if id == "" {
+        return nil, errors.New("id is required")
+    }
+
+    user, err := u.repo.GetByID(ctx, id)
+    if err != nil {
+        return nil, err
+    }
+
+    if user == nil {
+        return nil, errors.New("user not found")
+    }
+
+    return user, nil
+}
+```
+
+## References
+
+-   `internal/domains/user/entity/entity.go` - Entity structure example
+-   `internal/domains/user/models/auth.go` - Model structure example
+-   `internal/domains/user/repository/irepository.go` - Interface example
+-   `internal/domains/user/handlers/http/handler.go` - Handler example

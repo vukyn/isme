@@ -1,0 +1,278 @@
+---
+type: "Agent Requested"
+description: "Technology stack, libraries, and framework usage patterns for the Rainy Go project"
+alwaysApply: false
+---
+
+# Rainy Project - Technology Stack
+
+## Core Technologies
+
+### Go Version
+- **Go 1.25.0** - Latest stable version
+- Use modern Go features and idioms
+- Follow Go best practices and conventions
+
+### Web Framework
+- **Fiber v2.52.9** - High-performance HTTP framework
+- Express.js-inspired API
+- Built on fasthttp for performance
+
+### Database & ORM
+- **SQLite** - Embedded database for development
+- **Bun ORM** - Type-safe ORM with excellent performance
+- **Migration System** - Custom migration runner
+
+### Authentication
+- **JWT (golang-jwt/jwt/v5)** - JSON Web Tokens
+- Access and refresh token pattern
+- Stateless authentication
+
+## Key Libraries
+
+### Dependency Injection
+- **sarulabs/di/v2** - Dependency injection container
+- Enhanced builder for better error handling
+- Request-scoped containers
+
+### Configuration
+- **envconfig** - Environment variable binding
+- **godotenv** - .env file loading
+- Structured configuration management
+
+### Logging & Validation
+- **vukyn/kuery** - Custom logging and validation utilities
+- Structured logging with levels
+- Custom validation functions
+
+### Graceful Shutdown
+- **Custom graceful package** - Graceful shutdown handling
+- Signal handling and cleanup
+- Configurable timeouts
+
+## Framework Usage Patterns
+
+### Fiber Web Framework
+
+#### Route Setup
+```go
+func SetupUserRoutes(router fiber.Router) {
+    user := router.Group("/user")
+    user.Post("/signup", SignUp)
+    user.Post("/login", Login)
+    user.Get("/me", middleware.AuthMiddleware, GetMe)
+}
+```
+
+#### Middleware Integration
+```go
+func (m *Middleware) AuthMiddleware(c *fiber.Ctx) error {
+    authorization := c.Get("Authorization")
+    if authorization == "" {
+        return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+            "error": "Unauthorized",
+        })
+    }
+    // JWT validation logic...
+    return c.Next()
+}
+```
+
+#### Response Handling
+```go
+func SignUp(c *fiber.Ctx) error {
+    // ... business logic
+    return pkgHttp.OK(c, signUpResponse)
+}
+```
+
+### Bun ORM Usage
+
+#### Entity Definition
+```go
+type User struct {
+    bun.BaseModel `bun:"table:users,alias:usr"`
+    ID            string    `bun:"id,pk,notnull"`
+    Name          string    `bun:"name,notnull"`
+    Email         string    `bun:"email,unique"`
+    CreatedAt     time.Time `bun:"created_at,default:current_timestamp"`
+    DeletedAt     time.Time `bun:"deleted_at,soft_delete,nullzero"`
+}
+```
+
+#### Query Patterns
+```go
+// Select with conditions
+user := &entity.User{}
+err := r.db.NewSelect().Model(user).Where("id = ?", id).Scan(ctx)
+
+// Insert with hooks
+_, err := r.db.NewInsert().Model(user).Exec(ctx)
+
+// Update with soft delete
+_, err := r.db.NewUpdate().Model(user).Where("id = ?", id).Exec(ctx)
+```
+
+#### Migration System
+```go
+// Migration runner
+func main() {
+    if len(os.Args) < 2 {
+        log.Fatal("Usage: go run migrate.go [up|down|reset]")
+    }
+    
+    command := os.Args[1]
+    switch command {
+    case "up":
+        runMigrations()
+    case "down":
+        rollbackMigrations()
+    case "reset":
+        resetMigrations()
+    }
+}
+```
+
+### JWT Authentication
+
+#### Token Generation
+```go
+func GenerateJWT(secretKey string, expireIn int, userID, email string) (string, error) {
+    claims := claims.NewClaims(userID, email, int64(expireIn))
+    token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+    tokenString, err := token.SignedString([]byte(secretKey))
+    if err != nil {
+        return "", err
+    }
+    return tokenString, nil
+}
+```
+
+#### Claims Structure
+```go
+type Claims struct {
+    UserID    string `json:"user_id"`
+    Email     string `json:"email"`
+    ExpiresAt int64  `json:"exp"`
+    jwt.RegisteredClaims
+}
+```
+
+#### Token Validation
+```go
+func (m *Middleware) AuthMiddleware(c *fiber.Ctx) error {
+    token, err := jwt.ParseWithClaims(tokenStr, &claims, func(token *jwt.Token) (any, error) {
+        if token.Method.Alg() != jwt.SigningMethodHS256.Name {
+            return nil, errors.New("invalid token")
+        }
+        return []byte(m.cfg.Auth.AccessTokenSecretKey), nil
+    })
+    // ... validation logic
+}
+```
+
+### Context Management
+
+#### Context Utilities
+```go
+func NewContextFromFiberCtx(fiberCtx *fiber.Ctx) context.Context {
+    userID := fiberCtx.Locals(string(UserIDKey))
+    email := fiberCtx.Locals(string(EmailKey))
+    
+    ctx := context.Background()
+    ctx = context.WithValue(ctx, UserIDKey, userID)
+    ctx = context.WithValue(ctx, EmailKey, email)
+    return ctx
+}
+```
+
+#### Context Keys
+```go
+var (
+    UserIDKey             ContextKey = "user_id"
+    EmailKey              ContextKey = "email"
+    DiContainerRequestKey ContextKey = "di_container_request"
+)
+```
+
+### Logging System
+
+#### Logger Initialization
+```go
+err = log.Init(log.Config{
+    Mode:  Config.Logger.Mode,
+    Level: Config.Logger.Level,
+})
+```
+
+#### Logging Usage
+```go
+log.New().Info("Logger initialized")
+log.New().Error("Failed to stop server", err)
+log.New().Debugf("Invalid token: %v", err)
+```
+
+### Validation System
+
+#### Model Validation
+```go
+func (r SignUpRequest) Validate() error {
+    if r.Name == "" {
+        return errors.New("name is required")
+    }
+    if !validator.IsEmail(r.Email) {
+        return errors.New("invalid email")
+    }
+    return nil
+}
+```
+
+## Build & Development
+
+### Makefile Commands
+```makefile
+run:
+    go run cmd/main.go
+
+migrate-up:
+    go run db/migrate.go up
+
+migrate-down:
+    go run db/migrate.go down
+
+build:
+    go build -o bin/rainy cmd/main.go
+```
+
+### Development Workflow
+1. Use `make run` for development
+2. Use `make migrate-up` for database migrations
+3. Use `make build` for production builds
+4. Use graceful shutdown for clean exits
+
+## Performance Considerations
+
+### Database
+- Use connection pooling
+- Implement proper indexing
+- Use soft deletes for audit trails
+- Optimize queries with Bun ORM
+
+### HTTP
+- Use Fiber's performance optimizations
+- Implement proper middleware ordering
+- Use context for request cancellation
+- Handle timeouts appropriately
+
+### Memory
+- Use request-scoped DI containers
+- Implement proper cleanup
+- Use graceful shutdown for resource cleanup
+
+## References
+- `go.mod` - Dependencies and versions
+- `cmd/main.go` - Application entry point
+- `internal/server/server.go` - Server setup
+- `pkg/jwt/jwt.go` - JWT utilities
+- `pkg/ctx/context.go` - Context utilities
+- `db/migrate.go` - Migration system

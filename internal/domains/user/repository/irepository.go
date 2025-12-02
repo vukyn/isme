@@ -1,0 +1,20 @@
+package repository
+
+import (
+	"context"
+	"isme/internal/domains/user/entity"
+	"isme/internal/domains/user/models"
+)
+
+type IRepository interface {
+	// Create user
+	Create(ctx context.Context, req models.CreateRequest) (string, error)
+	// Get user by ID
+	GetByID(ctx context.Context, id string) (entity.User, error)
+	// Get user by email
+	GetByEmail(ctx context.Context, email string) (entity.User, error)
+	// Set password for user
+	SetPassword(ctx context.Context, id string, password string) error
+	// Update last login to current time for user (only for successful login)
+	UpdateLastLogin(ctx context.Context, id string) error
+}

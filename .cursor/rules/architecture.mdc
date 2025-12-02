@@ -1,0 +1,119 @@
+---
+type: "Always"
+description: "Clean Architecture patterns and project structure for the Rainy Go API project"
+globs: ["internal/**/*", "cmd/**/*", "pkg/**/*"]
+alwaysApply: true
+---
+
+# Rainy Project - Architecture & Structure
+
+## Project Overview
+Go-based web API using Clean Architecture principles with dependency injection and domain-driven design.
+
+## Project Structure
+
+```
+cmd/                    # Application entry point
+├── main.go            # Main application bootstrap
+
+internal/              # Private application code
+├── app/               # Application initialization
+├── config/            # Configuration management
+├── di/                # Dependency injection setup
+├── domains/           # Domain-driven design
+│   └── {domain}/      # Each domain has its own structure
+│       ├── entity/    # Domain entities
+│       ├── models/    # Request/Response models
+│       ├── repository/ # Data access interfaces & implementations
+│       ├── usecase/   # Business logic interfaces & implementations
+│       ├── handlers/  # HTTP handlers
+│       └── exceptions/ # Domain-specific exceptions
+├── middleware/        # HTTP middleware
+├── middlewares/       # Middleware DI setup
+└── server/           # HTTP server setup
+
+pkg/                   # Shared packages
+├── claims/           # JWT claims
+├── ctx/              # Context utilities
+├── graceful/         # Graceful shutdown
+├── http/             # HTTP utilities
+└── jwt/              # JWT utilities
+
+db/                    # Database related
+├── app.db           # SQLite database file
+├── history/         # Migration history
+└── migrate.go       # Migration runner
+```
+
+## Clean Architecture Layers
+
+### 1. Domain Layer (entities/)
+- Core business entities
+- No external dependencies
+- Pure business logic
+
+### 2. Application Layer (usecase/)
+- Business use cases
+- Orchestrates domain entities
+- Defines application interfaces
+
+### 3. Infrastructure Layer (repository/)
+- Data access implementations
+- External service integrations
+- Implements domain interfaces
+
+### 4. Interface Layer (handlers/)
+- HTTP handlers
+- Request/response models
+- Input validation
+
+## Key Architectural Principles
+
+1. **Dependency Inversion**: Dependencies point inward toward the domain
+2. **Separation of Concerns**: Each layer has a single responsibility
+3. **Domain-Driven Design**: Business logic is organized by domains
+4. **Dependency Injection**: All dependencies are injected, not instantiated
+5. **Interface Segregation**: Small, focused interfaces
+
+## File Organization Rules
+
+- **One interface per file** in repository and usecase packages
+- **One entity per file** in entity packages
+- **Group related models** in models package
+- **Separate handlers** by functionality
+- **DI definitions** in separate files by concern
+
+## Import Organization
+
+```go
+import (
+    // Standard library
+    "context"
+    "time"
+    
+    // Third-party packages
+    "github.com/gofiber/fiber/v2"
+    "github.com/golang-jwt/jwt/v5"
+    
+    // Internal packages (grouped by domain)
+    "rainy/internal/domains/user/entity"
+    "rainy/internal/domains/user/models"
+    "rainy/pkg/ctx"
+)
+```
+
+## Domain Structure Pattern
+
+Each domain follows this structure:
+- `entity/` - Domain entities with business logic
+- `models/` - Request/response DTOs with validation
+- `repository/` - Data access interfaces and implementations
+- `usecase/` - Business logic interfaces and implementations
+- `handlers/` - HTTP handlers for the domain
+- `exceptions/` - Domain-specific error types
+
+## References
+- `cmd/main.go` - Application entry point
+- `internal/app/app.go` - Application initialization
+- `internal/server/server.go` - HTTP server setup
+- `internal/domains/user/` - Example domain implementation

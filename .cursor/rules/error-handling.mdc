@@ -1,0 +1,319 @@
+---
+type: "Auto Attached"
+description: "Error handling patterns, custom exceptions, and logging strategies for the Rainy project"
+globs: **/exceptions/**/*,**/handlers/**/*,pkg/http/**/*
+alwaysApply: false
+---
+
+# Rainy Project - Error Handling
+
+## Error Handling Philosophy
+
+### Principles
+
+1. **Explicit Error Handling**: Always handle errors explicitly
+2. **Descriptive Messages**: Provide clear, actionable error messages
+3. **Error Propagation**: Return errors from functions, don't log them
+4. **Custom Error Types**: Use domain-specific error types
+5. **Structured Logging**: Use structured logging for error tracking
+
+## Custom Error Types
+
+### Domain Exceptions
+
+```go
+type AuthException struct {
+    Message string
+    Code    string
+}
+
+func (e *AuthException) Error() string {
+    return e.Message
+}
+
+func NewInvalidCredentialsError() *AuthException {
+    return &AuthException{
+        Message: "Invalid email or password",
+        Code:    "INVALID_CREDENTIALS",
+    }
+}
+
+func NewUserNotFoundError() *AuthException {
+    return &AuthException{
+        Message: "User not found",
+        Code:    "USER_NOT_FOUND",
+    }
+}
+```
+
+### Error Guidelines
+
+-   Create domain-specific error types
+-   Include error codes for API responses
+-   Use descriptive error messages
+-   Group related exceptions in same file
+-   Implement the `error` interface
+
+## HTTP Error Handling
+
+### Standardized Error Responses
+
+```go
+func Err(c *fiber.Ctx, err error) error {
+    // Log the error
+    log.New().Error("Request error", err)
+
+    // Return appropriate HTTP status and error message
+    return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+        "error": err.Error(),
+    })
+}
+```
+
+### Handler Error Pattern
+
+```go
+func SignUp(c *fiber.Ctx) error {
+    ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
+    defer ctn.Delete()
+
+    uc, err := idi.GetUserUsecase(ctn)
+    if err != nil {
+        return pkgHttp.Err(c, err)
+    }
+
+    signUpRequest := models.SignUpRequest{}
+    if err := c.BodyParser(&signUpRequest); err != nil {
+        return pkgHttp.Err(c, err)
+    }
+
+    signUpResponse, err := uc.SignUp(pkgCtx.NewContextFromFiberCtx(c), signUpRequest)
+    if err != nil {
+        return pkgHttp.Err(c, err)
+    }
+
+    return pkgHttp.OK(c, signUpResponse)
+}
+```
+
+### Middleware Error Handling
+
+```go
+func (m *Middleware) AuthMiddleware(c *fiber.Ctx) error {
+    authorization := c.Get("Authorization")
+    if authorization == "" {
+        return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+            "error": "Unauthorized",
+        })
+    }
+
+    // Token validation...
+    if !token.Valid {
+        return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+            "error": "Unauthorized",
+        })
+    }
+
+    return c.Next()
+}
+```
+
+## Repository Error Handling
+
+### Database Error Patterns
+
+```go
+func (r *Repository) GetByID(ctx context.Context, id string) (*entity.User, error) {
+    if id == "" {
+        return nil, errors.New("id is required")
+    }
+
+    user := &entity.User{}
+    err := r.db.NewSelect().Model(user).Where("id = ?", id).Scan(ctx)
+    if err != nil {
+        if errors.Is(err, sql.ErrNoRows) {
+            return nil, exceptions.NewUserNotFoundError()
+        }
+        return nil, err
+    }
+
+    return user, nil
+}
+```
+
+### Repository Guidelines
+
+-   Validate input parameters
+-   Handle database-specific errors
+-   Return domain-specific exceptions
+-   Don't log errors in repository layer
+-   Use context for cancellation
+
+## UseCase Error Handling
+
+### Business Logic Error Patterns
+
+```go
+func (u *UseCase) SignUp(ctx context.Context, req models.SignUpRequest) (models.SignUpResponse, error) {
+    if err := req.Validate(); err != nil {
+        return models.SignUpResponse{}, err
+    }
+
+    // Check if user already exists
+    existingUser, err := u.repo.GetByEmail(ctx, req.Email)
+    if err != nil && !errors.Is(err, exceptions.NewUserNotFoundError()) {
+        return models.SignUpResponse{}, err
+    }
+
+    if existingUser != nil {
+        return models.SignUpResponse{}, exceptions.NewUserAlreadyExistsError()
+    }
+
+    // Create user
+    userID, err := u.repo.Create(ctx, req.Name, req.Email)
+    if err != nil {
+        return models.SignUpResponse{}, err
+    }
+
+    return models.SignUpResponse{ID: userID}, nil
+}
+```
+
+### UseCase Guidelines
+
+-   Validate input models
+-   Handle business rule violations
+-   Return appropriate error types
+-   Don't log errors in usecase layer
+-   Use context for cancellation
+
+## Validation Error Handling
+
+### Model Validation
+
+```go
+func (r SignUpRequest) Validate() error {
+    if r.Name == "" {
+        return errors.New("name is required")
+    }
+    if r.Email == "" {
+        return errors.New("email is required")
+    }
+    if !validator.IsEmail(r.Email) {
+        return errors.New("invalid email format")
+    }
+    if r.Password == "" {
+        return errors.New("password is required")
+    }
+    if len(r.Password) < 8 {
+        return errors.New("password must be at least 8 characters")
+    }
+    return nil
+}
+```
+
+### Validation Guidelines
+
+-   Validate all input data
+-   Return descriptive error messages
+-   Use custom validation functions
+-   Validate at the model level
+-   Don't expose internal validation logic
+
+## Logging Strategy
+
+### Structured Logging
+
+```go
+// Info logging
+log.New().Info("User created successfully", "userID", userID)
+
+// Error logging
+log.New().Error("Failed to create user", "error", err, "email", req.Email)
+
+// Debug logging
+log.New().Debugf("Processing request: %+v", req)
+
+// Fatal logging
+log.New().Fatal("Failed to initialize application", err)
+```
+
+### Logging Guidelines
+
+-   Use structured logging with key-value pairs
+-   Log at appropriate levels (Info, Debug, Error, Fatal)
+-   Include context in log messages
+-   Don't log sensitive information
+-   Use consistent log message format
+
+## Error Recovery
+
+### Graceful Degradation
+
+```go
+func (s *Server) Start() {
+    log.New().Info("Starting server")
+
+    s.app = fiber.New()
+
+    // Setup routes with error recovery
+    s.app.Use(recover.New())
+
+    // ... rest of setup
+}
+```
+
+### Panic Recovery
+
+```go
+func (s *Server) Start() {
+    defer func() {
+        if r := recover(); r != nil {
+            log.New().Error("Server panic recovered", "panic", r)
+        }
+    }()
+
+    // ... server startup
+}
+```
+
+## Testing Error Scenarios
+
+### Error Testing Patterns
+
+```go
+func TestSignUp_InvalidEmail(t *testing.T) {
+    // Setup
+    uc := usecase.NewUseCase(mockRepo, mockConfig)
+
+    // Test
+    req := models.SignUpRequest{
+        Name:     "Test User",
+        Email:    "invalid-email",
+        Password: "password123",
+    }
+
+    _, err := uc.SignUp(context.Background(), req)
+
+    // Assert
+    assert.Error(t, err)
+    assert.Contains(t, err.Error(), "invalid email")
+}
+```
+
+## Best Practices
+
+1. **Fail Fast**: Validate inputs early
+2. **Error Wrapping**: Wrap errors with context when needed
+3. **Error Codes**: Use consistent error codes for API responses
+4. **Logging**: Log errors at appropriate levels
+5. **Recovery**: Implement panic recovery where needed
+6. **Testing**: Test error scenarios thoroughly
+7. **Documentation**: Document expected error conditions
+
+## References
+
+-   `internal/domains/user/exceptions/auth_exception.go` - Custom exceptions
+-   `internal/domains/user/handlers/http/handler.go` - Handler error handling
+-   `pkg/http/fiber/response.go` - HTTP response utilities
+-   `internal/middleware/auth_middleware.go` - Middleware error handling

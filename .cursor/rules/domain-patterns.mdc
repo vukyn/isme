@@ -1,0 +1,252 @@
+---
+type: "Auto Attached"
+description: "Domain-driven design patterns and layer implementations for entities, repositories, usecases, and handlers"
+globs: internal/domains/**/*
+alwaysApply: false
+---
+
+# Rainy Project - Domain Patterns
+
+## Domain Structure
+
+Each domain follows this consistent structure:
+
+```
+domains/{domain}/
+├── entity/           # Domain entities
+├── models/           # Request/Response DTOs
+├── repository/       # Data access layer
+├── usecase/          # Business logic layer
+├── handlers/         # HTTP interface layer
+└── exceptions/       # Domain-specific errors
+```
+
+## Entity Layer
+
+### Entity Structure
+
+```go
+type User struct {
+    bun.BaseModel `bun:"table:users,alias:usr"`
+    ID            string    `bun:"id,pk,notnull"`
+    Name          string    `bun:"name,notnull"`
+    Email         string    `bun:"email,unique"`
+    Password      string    `bun:"password,notnull"`
+    Status        int32     `bun:"status,notnull"`
+    LastLoginAt   time.Time `bun:"last_login_at,nullzero"`
+    CreatedAt     time.Time `bun:"created_at,default:current_timestamp"`
+    CreatedBy     int64     `bun:"created_by,nullzero"`
+    UpdatedAt     time.Time `bun:"updated_at,default:current_timestamp"`
+    UpdatedBy     int64     `bun:"updated_by,nullzero"`
+    DeletedAt     time.Time `bun:"deleted_at,soft_delete,nullzero"`
+    DeletedBy     int64     `bun:"deleted_by,nullzero"`
+}
+```
+
+### Entity Guidelines
+
+-   Use Bun ORM tags for database mapping
+-   Include audit fields: `CreatedAt`, `CreatedBy`, `UpdatedAt`, `UpdatedBy`, `DeletedAt`, `DeletedBy`
+-   Implement `BeforeAppendModel` hook for automatic timestamp management
+-   Use `bun.BaseModel` for ORM integration
+-   One entity per file
+
+### Entity Hooks
+
+```go
+func (u *User) BeforeAppendModel(ctx context.Context, query bun.Query) error {
+    switch q := query.(type) {
+    case *bun.InsertQuery:
+        u.CreatedAt = time.Now().UTC()
+    case *bun.UpdateQuery:
+        q.Column("updated_at")
+        u.UpdatedAt = time.Now().UTC()
+    }
+    return nil
+}
+```
+
+## Repository Layer
+
+### Interface Definition
+
+```go
+type IRepository interface {
+    Create(ctx context.Context, name, email string) (string, error)
+    GetByID(ctx context.Context, id string) (*entity.User, error)
+    GetByEmail(ctx context.Context, email string) (*entity.User, error)
+    SetPassword(ctx context.Context, id string, password string) error
+}
+```
+
+### Repository Guidelines
+
+-   Define interface in `irepository.go`
+-   Implement in `repository.go`
+-   Use context as first parameter
+-   Return domain entities, not DTOs
+-   Handle database errors appropriately
+-   Use descriptive method names
+
+### Repository Implementation Pattern
+
+```go
+func (r *Repository) GetByID(ctx context.Context, id string) (*entity.User, error) {
+    user := &entity.User{}
+    err := r.db.NewSelect().Model(user).Where("id = ?", id).Scan(ctx)
+    if err != nil {
+        return nil, err
+    }
+    return user, nil
+}
+```
+
+## UseCase Layer
+
+### Interface Definition
+
+```go
+type IUseCase interface {
+    GetMe(ctx context.Context) (models.GetMeResponse, error)
+    SignUp(ctx context.Context, req models.SignUpRequest) (models.SignUpResponse, error)
+    Login(ctx context.Context, req models.LoginRequest) (models.LoginResponse, error)
+}
+```
+
+### UseCase Guidelines
+
+-   Define interface in `iusecase.go`
+-   Implement in `usecase.go`
+-   Use models for request/response
+-   Include validation in models
+-   Handle business logic and orchestration
+-   Return appropriate error types
+
+### UseCase Implementation Pattern
+
+```go
+func (u *UseCase) SignUp(ctx context.Context, req models.SignUpRequest) (models.SignUpResponse, error) {
+    if err := req.Validate(); err != nil {
+        return models.SignUpResponse{}, err
+    }
+
+    // Business logic here
+    userID, err := u.repo.Create(ctx, req.Name, req.Email)
+    if err != nil {
+        return models.SignUpResponse{}, err
+    }
+
+    return models.SignUpResponse{ID: userID}, nil
+}
+```
+
+## Handler Layer
+
+### Handler Pattern
+
+```go
+func SignUp(c *fiber.Ctx) error {
+    ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
+    defer ctn.Delete()
+
+    uc, err := idi.GetUserUsecase(ctn)
+    if err != nil {
+        return pkgHttp.Err(c, err)
+    }
+
+    signUpRequest := models.SignUpRequest{}
+    if err := c.BodyParser(&signUpRequest); err != nil {
+        return pkgHttp.Err(c, err)
+    }
+
+    signUpResponse, err := uc.SignUp(pkgCtx.NewContextFromFiberCtx(c), signUpRequest)
+    if err != nil {
+        return pkgHttp.Err(c, err)
+    }
+
+    return pkgHttp.OK(c, signUpResponse)
+}
+```
+
+### Handler Guidelines
+
+-   Use Fiber context
+-   Extract DI container from context
+-   Parse request body into models
+-   Call usecase methods
+-   Return standardized responses using `pkg/http/fiber`
+-   Always defer container deletion
+-   Handle errors consistently
+
+## Models Layer
+
+### Request/Response Models
+
+```go
+type SignUpRequest struct {
+    Name     string `json:"name"`
+    Email    string `json:"email"`
+    Password string `json:"password"`
+}
+
+func (r SignUpRequest) Validate() error {
+    if r.Name == "" {
+        return errors.New("name is required")
+    }
+    if r.Email == "" {
+        return errors.New("email is required")
+    }
+    if !validator.IsEmail(r.Email) {
+        return errors.New("invalid email")
+    }
+    if r.Password == "" {
+        return errors.New("password is required")
+    }
+    return nil
+}
+```
+
+### Model Guidelines
+
+-   Use JSON tags for serialization
+-   Implement validation methods
+-   Use descriptive field names
+-   Group related models in same file
+-   Return descriptive error messages
+
+## Exception Layer
+
+### Custom Error Types
+
+```go
+type AuthException struct {
+    Message string
+    Code    string
+}
+
+func (e *AuthException) Error() string {
+    return e.Message
+}
+
+func NewInvalidCredentialsError() *AuthException {
+    return &AuthException{
+        Message: "Invalid email or password",
+        Code:    "INVALID_CREDENTIALS",
+    }
+}
+```
+
+### Exception Guidelines
+
+-   Create domain-specific error types
+-   Include error codes for API responses
+-   Use descriptive error messages
+-   Group related exceptions in same file
+
+## References
+
+-   `internal/domains/user/entity/entity.go` - Entity example
+-   `internal/domains/user/repository/` - Repository pattern
+-   `internal/domains/user/usecase/` - UseCase pattern
+-   `internal/domains/user/handlers/http/` - Handler pattern
+-   `internal/domains/user/models/auth.go` - Model examples
