@@ -61,7 +61,7 @@ func (u *usecase) VerifyToken(ctx context.Context, req models.VerifyTokenRequest
 	}
 
 	// validate token
-	claims, err := jwt.ValidateJWT(req.Token, u.cfg.Auth.AccessTokenSecretKey)
+	claims, err := jwt.ValidateJWTWithRSAPublicKey(req.Token, u.cfg.Auth.AccessTokenPublicKey)
 	if err != nil {
 		return models.VerifyTokenResponse{}, pkgErr.InvalidRequest("invalid token")
 	}

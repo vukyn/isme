@@ -11,7 +11,7 @@ import (
 
 func (u *usecase) generateAccessTokens(userID, email string) (string, pkgClaims.Claims, error) {
 	authCfg := u.cfg.Auth
-	accessToken, claims, err := jwt.GenerateJWT(authCfg.AccessTokenSecretKey, authCfg.AccessTokenExpireIn, userID, email)
+	accessToken, claims, err := jwt.GenerateJWTWithRSAPrivateKey(authCfg.AccessTokenPrivateKey, authCfg.AccessTokenExpireIn, userID, email)
 	if err != nil {
 		return "", pkgClaims.Claims{}, err
 	}

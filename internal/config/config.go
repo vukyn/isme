@@ -11,6 +11,8 @@ type Config struct {
 		Level string `envconfig:"LOGGER_LEVEL"`
 	}
 	Auth struct {
+		AccessTokenPrivateKey string `envconfig:"AUTH_ACCESS_TOKEN_PRIVATE_KEY"`
+		AccessTokenPublicKey  string `envconfig:"AUTH_ACCESS_TOKEN_PUBLIC_KEY"`
 		AccessTokenSecretKey  string `envconfig:"AUTH_ACCESS_TOKEN_SECRET_KEY"`
 		RefreshTokenSecretKey string `envconfig:"AUTH_REFRESH_TOKEN_SECRET_KEY"`
 		AccessTokenExpireIn   int    `envconfig:"AUTH_ACCESS_TOKEN_EXPIRE_IN"`
