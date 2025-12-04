@@ -3,6 +3,7 @@ package server
 import (
 	iapp "isme/internal/app"
 	authHandlers "isme/internal/domains/auth/handlers/http"
+	"os"
 
 	pkgCtx "isme/pkg/ctx"
 
@@ -47,7 +48,11 @@ func (s *Server) Start() {
 
 	// start server
 	go func() {
-		s.app.Listen(":8080")
+		err := s.app.Listen(":8080")
+		if err != nil {
+			log.New().Errorf("Failed to start server: %v", err)
+			os.Exit(1)
+		}
 	}()
 }
 

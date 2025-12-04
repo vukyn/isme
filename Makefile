@@ -15,3 +15,16 @@ migrate-reset:
 gen-key-rsa256:
 	openssl genpkey -algorithm RSA -out certs/private.pem -pkeyopt rsa_keygen_bits:2048
 	openssl rsa -pubout -in certs/private.pem -out certs/public.pem
+
+init-ui:
+	npm create vite@latest ui
+	cd ui && npm i @chakra-ui/react @emotion/react
+	cd ui && npx @chakra-ui/cli snippet add
+
+run-ui:
+	cd ui && npm run dev
+
+build-ui:	
+	cd ui && npm run build
+	rm -rf ./rainy-ui
+	mv ./ui/dist ./rainy-ui
