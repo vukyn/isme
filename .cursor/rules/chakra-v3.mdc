@@ -1,6 +1,6 @@
 ---
 description: Chakra UI v3 Development Rules
-globs: "*.tsx"
+globs: *.tsx
 alwaysApply: false
 ---
 
