@@ -7,4 +7,5 @@ export type {
 	RefreshTokenRequest,
 	RefreshTokenResponse,
 	GetMeResponse,
+	LogoutResponse,
 } from "./auth";

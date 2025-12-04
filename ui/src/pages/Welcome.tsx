@@ -56,7 +56,7 @@ export const Welcome = () => {
 		<Box w="full" h="100vh" bg="bg" position="relative">
 			{/* Header with logout button */}
 			<Box w="full" p="4" display="flex" justifyContent="flex-end" borderBottom="1px solid" borderColor="border">
-				<Button variant="outline" disabled onClick={() => logout()} opacity={0.6} cursor="not-allowed">
+				<Button variant="outline" onClick={() => logout()}>
 					Log out
 				</Button>
 			</Box>

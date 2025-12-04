@@ -1,13 +1,13 @@
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { login as loginApi, signup as signupApi, getCurrentUser } from "@/apis/auth";
+import { login as loginApi, signup as signupApi, getCurrentUser, logout as logoutApi } from "@/apis/auth";
 import { saveTokens, clearTokens, getTokens } from "@/utils/axios";
 import type { LoginRequest, SignupRequest } from "@/types";
 
 interface UseAuthReturn {
 	login: (data: LoginRequest) => Promise<void>;
 	signup: (data: SignupRequest) => Promise<void>;
-	logout: () => void;
+	logout: () => Promise<void>;
 	refreshToken: () => Promise<void>;
 	getCurrentUser: () => Promise<unknown>;
 	isAuthenticated: boolean;
@@ -61,9 +61,20 @@ export const useAuth = (): UseAuthReturn => {
 		[navigate]
 	);
 
-	const logout = useCallback(() => {
-		clearTokens();
-		navigate("/login");
+	const logout = useCallback(async () => {
+		try {
+			setLoading(true);
+			setError(null);
+			await logoutApi();
+		} catch (err: any) {
+			// Even if API call fails, we should still clear tokens and log out locally
+			const errorMessage = err?.response?.data?.message || err?.message || "Logout failed";
+			setError(new Error(errorMessage));
+		} finally {
+			clearTokens();
+			navigate("/login");
+			setLoading(false);
+		}
 	}, [navigate]);
 
 	const refreshToken = useCallback(async () => {

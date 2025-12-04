@@ -35,6 +35,12 @@ export interface RefreshTokenResponse {
 	};
 }
 
+export interface LogoutResponse {
+	data: {
+		message: string;
+	};
+}
+
 export interface AuthTokens {
 	access_token: string;
 	refresh_token: string;
