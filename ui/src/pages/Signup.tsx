@@ -1,38 +1,46 @@
 "use client";
 
 import { useState } from "react";
-import { Box, Stack, Text, Separator, Field } from "@chakra-ui/react";
-import { useNavigate } from "react-router-dom";
+import { Box, Stack, Text, Field } from "@chakra-ui/react";
 import { useAuth } from "@/hooks/useAuth";
-import { loginSchema, type LoginFormData } from "@/validators";
+import { signupSchema, type SignupFormData } from "@/validators";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Link } from "@/components/ui/link";
 import { toaster } from "@/components/ui/toaster";
-import { LuMail, LuLock } from "react-icons/lu";
+import { LuMail, LuLock, LuUser } from "react-icons/lu";
 
-export const Login = () => {
-	const { login, loading, error } = useAuth();
-	const navigate = useNavigate();
-	const [formData, setFormData] = useState<LoginFormData>({
+export const Signup = () => {
+	const { signup, loading, error } = useAuth();
+	const [formData, setFormData] = useState<SignupFormData>({
+		name: "",
 		email: "",
 		password: "",
 	});
-	const [formErrors, setFormErrors] = useState<Partial<Record<keyof LoginFormData, string>>>({});
-	const [rememberMe, setRememberMe] = useState(false);
+	const [formErrors, setFormErrors] = useState<Partial<Record<keyof SignupFormData, string>>>({});
+	const [agreeToTerms, setAgreeToTerms] = useState(false);
+	const [termsError, setTermsError] = useState("");
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 		setFormErrors({});
+		setTermsError("");
+
+		// Validate terms acceptance
+		if (!agreeToTerms) {
+			setTermsError("You must agree to the Terms and Conditions");
+			return;
+		}
 
 		// Validate form
-		const result = loginSchema.safeParse(formData);
+		const result = signupSchema.safeParse(formData);
 		if (!result.success) {
-			const errors: Partial<Record<keyof LoginFormData, string>> = {};
+			const errors: Partial<Record<keyof SignupFormData, string>> = {};
 			result.error.issues.forEach((err) => {
 				if (err.path[0]) {
-					errors[err.path[0] as keyof LoginFormData] = err.message;
+					errors[err.path[0] as keyof SignupFormData] = err.message;
 				}
 			});
 			setFormErrors(errors);
@@ -40,23 +48,23 @@ export const Login = () => {
 		}
 
 		try {
-			await login(formData);
+			await signup(formData);
 			toaster.create({
-				title: "Login successful",
-				description: "Welcome back!",
+				title: "Signup successful",
+				description: "Your account has been created. Please login.",
 				type: "success",
 			});
 		} catch (err) {
 			// Error is handled by useAuth hook
 			toaster.create({
-				title: "Login failed",
-				description: error?.message || "Please check your credentials",
+				title: "Signup failed",
+				description: error?.message || "Please check your information and try again",
 				type: "error",
 			});
 		}
 	};
 
-	const handleChange = (field: keyof LoginFormData) => (e: React.ChangeEvent<HTMLInputElement>) => {
+	const handleChange = (field: keyof SignupFormData) => (e: React.ChangeEvent<HTMLInputElement>) => {
 		setFormData((prev) => ({ ...prev, [field]: e.target.value }));
 		if (formErrors[field]) {
 			setFormErrors((prev) => ({ ...prev, [field]: undefined }));
@@ -84,10 +92,22 @@ export const Login = () => {
 			<Card w="full" maxW="md" p="8" bg="bg" rounded="xl" shadow="xl" position="relative" zIndex="1">
 				<Stack gap="6" as="form" onSubmit={handleSubmit}>
 					<Text fontSize="2xl" fontWeight="bold" textAlign="center" color="fg">
-						Login
+						Register
 					</Text>
 
 					<Stack gap="4">
+						<Field.Root invalid={!!formErrors.name}>
+							<Field.Label>Name</Field.Label>
+							<Input
+								type="text"
+								placeholder="Name"
+								value={formData.name}
+								onChange={handleChange("name")}
+								startElement={<LuUser />}
+							/>
+							{formErrors.name && <Field.ErrorText>{formErrors.name}</Field.ErrorText>}
+						</Field.Root>
+
 						<Field.Root invalid={!!formErrors.email}>
 							<Field.Label>Email</Field.Label>
 							<Input
@@ -113,7 +133,27 @@ export const Login = () => {
 						</Field.Root>
 					</Stack>
 
-					<Checkbox checked={rememberMe} onCheckedChange={(e) => setRememberMe(!!e.checked)} label="Remember me" />
+					<Box>
+						<Checkbox
+							checked={agreeToTerms}
+							onCheckedChange={(e) => {
+								setAgreeToTerms(!!e.checked);
+								if (termsError) {
+									setTermsError("");
+								}
+							}}
+						>
+							I agree the{" "}
+							<Text as="span" fontWeight="bold">
+								Terms and Conditions
+							</Text>
+						</Checkbox>
+						{termsError && (
+							<Text color="red.500" fontSize="sm" mt="1">
+								{termsError}
+							</Text>
+						)}
+					</Box>
 
 					<Button
 						type="submit"
@@ -130,38 +170,15 @@ export const Login = () => {
 							gradientTo: "brand.700",
 						}}
 					>
-						Login
-					</Button>
-
-					<Box position="relative" py="2">
-						<Separator />
-						<Text
-							position="absolute"
-							top="50%"
-							left="50%"
-							transform="translate(-50%, -50%)"
-							bg="bg"
-							px="4"
-							color="fg.muted"
-							textStyle="sm"
-						>
-							or
-						</Text>
-					</Box>
-
-					<Button
-						type="button"
-						variant="solid"
-						w="full"
-						bg="gray.solid"
-						color="gray.contrast"
-						_hover={{
-							bg: "gray.emphasized",
-						}}
-						onClick={() => navigate("/signup")}
-					>
 						Sign up
 					</Button>
+
+					<Text textAlign="center" color="fg.muted" textStyle="sm">
+						Already have an account?{" "}
+						<Link to="/login" color="brand.500" fontWeight="medium" _hover={{ color: "brand.600" }}>
+							Login
+						</Link>
+					</Text>
 				</Stack>
 			</Card>
 		</Box>
