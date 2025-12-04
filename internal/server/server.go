@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	iapp "isme/internal/app"
 	authHandlers "isme/internal/domains/auth/handlers/http"
 	"os"
@@ -48,7 +49,7 @@ func (s *Server) Start() {
 
 	// start server
 	go func() {
-		err := s.app.Listen(":8080")
+		err := s.app.Listen(fmt.Sprintf(":%d", iapp.Config.App.Port))
 		if err != nil {
 			log.New().Errorf("Failed to start server: %v", err)
 			os.Exit(1)

@@ -6,6 +6,11 @@ import (
 )
 
 type Config struct {
+	App struct {
+		Name string `envconfig:"APP_NAME"`
+		Port int    `envconfig:"APP_PORT"`
+		Env  string `envconfig:"APP_ENV"`
+	}
 	Logger struct {
 		Mode  string `envconfig:"LOGGER_MODE"`
 		Level string `envconfig:"LOGGER_LEVEL"`
