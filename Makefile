@@ -27,5 +27,5 @@ run-ui:
 
 build-ui:	
 	cd ui && npm run build
-	rm -rf ./rainy-ui
-	mv ./ui/dist ./rainy-ui
+	rm -rf ./ui
+	mv ./ui/dist ./ui
