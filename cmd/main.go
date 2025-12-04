@@ -16,7 +16,7 @@ func init() {
 
 func main() {
 	// start server
-	server := server.NewServer()
+	server := server.NewServer(app.Config)
 	server.Start()
 
 	// graceful shutdown

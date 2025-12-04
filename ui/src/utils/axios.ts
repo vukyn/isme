@@ -1,6 +1,7 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
 import { API_ENDPOINTS } from "@/consts";
 import { getCookie, setCookie, deleteCookie } from "./cookies";
+import { getApiBaseUrl } from "./config";
 
 const STORAGE_KEYS = {
 	ACCESS_TOKEN: "access_token",
@@ -50,7 +51,7 @@ export const isTokenExpired = (): boolean => {
  * Create axios instance
  */
 export const apiClient = axios.create({
-	baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8080",
+	baseURL: getApiBaseUrl(),
 	headers: {
 		"Content-Type": "application/json",
 	},
@@ -131,7 +132,7 @@ apiClient.interceptors.response.use(
 
 			try {
 				const response = await axios.post(
-					`${import.meta.env.VITE_API_BASE_URL || "http://localhost:8080"}${API_ENDPOINTS.AUTH_REFRESH}`,
+					`${getApiBaseUrl()}${API_ENDPOINTS.AUTH_REFRESH}`,
 					{
 						refresh_token: tokens.refresh_token,
 					}

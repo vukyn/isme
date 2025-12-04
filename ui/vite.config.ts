@@ -20,7 +20,7 @@ export default defineConfig({
 			output: {
 				// Group only a few large vendor chunks to avoid many tiny or empty chunks
 				manualChunks(id) {
-					const libraries = ["@chakra-ui", "shiki"];
+					const libraries = ["@chakra-ui"];
 					if (libraries.some((lib) => id.includes(`node_modules/${lib}`))) {
 						return id.toString().split("node_modules/")[1].split("/")[0].toString();
 					}

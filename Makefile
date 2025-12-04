@@ -26,6 +26,6 @@ run-ui:
 	cd ui && npm run dev
 
 build-ui:	
-	cd ui && npm run build
-	rm -rf ./ui
-	mv ./ui/dist ./ui
+	cd ui && npm install && npm run build
+	rm -rf ./internal/ui
+	mv ./ui/dist ./internal/ui

@@ -35,6 +35,9 @@ type Config struct {
 		StepDelay             int  `envconfig:"GRACEFUL_STEP_DELAY"`
 		ServerShutdownTimeout int  `envconfig:"GRACEFUL_SERVER_SHUTDOWN_TIMEOUT"`
 	}
+	Vite struct {
+		BaseURL string `envconfig:"VITE_API_BASE_URL"`
+	}
 }
 
 func LoadConfig(envFiles ...string) (*Config, error) {
