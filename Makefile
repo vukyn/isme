@@ -13,6 +13,7 @@ migrate-reset:
 	go run db/migrate.go $(DB) reset
 
 gen-key-rsa256:
+	mkdir -p certs
 	openssl genpkey -algorithm RSA -out certs/private.pem -pkeyopt rsa_keygen_bits:2048
 	openssl rsa -pubout -in certs/private.pem -out certs/public.pem
 
