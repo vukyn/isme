@@ -5,6 +5,7 @@ const (
 	CONTAINER_NAME_CONFIG     = "config"
 	CONTAINER_NAME_LOGGER     = "logger"
 	CONTAINER_NAME_DB         = "db"
+	CONTAINER_NAME_CACHE      = "cache"
 	CONTAINER_NAME_MIDDLEWARE = "middleware"
 
 	// Repositories
