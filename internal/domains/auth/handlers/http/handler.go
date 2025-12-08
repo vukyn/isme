@@ -130,3 +130,25 @@ func Logout(c *fiber.Ctx) error {
 
 	return pkgHttp.OK(c, map[string]string{"message": "Logged out successfully"})
 }
+
+func RequestLogin(c *fiber.Ctx) error {
+	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
+	defer ctn.Delete()
+
+	uc, err := idi.GetAuthUsecase(ctn)
+	if err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	requestLoginRequest := models.RequestLoginRequest{}
+	if err := c.BodyParser(&requestLoginRequest); err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	requestLoginResponse, err := uc.RequestLogin(pkgCtx.NewContextFromFiberCtx(c), requestLoginRequest)
+	if err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	return pkgHttp.OK(c, requestLoginResponse)
+}

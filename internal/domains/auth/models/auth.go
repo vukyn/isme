@@ -114,3 +114,26 @@ func (r ChangePasswordRequest) Validate() error {
 	}
 	return nil
 }
+
+type RequestLoginRequest struct {
+	AppCode   string `json:"app_code"`
+	AppSecret string `json:"app_secret"`
+	CtxInfo   string `json:"ctx_info"`
+}
+
+func (r RequestLoginRequest) Validate() error {
+	if r.AppCode == "" {
+		return errors.New("app_code is required")
+	}
+	if r.AppSecret == "" {
+		return errors.New("app_secret is required")
+	}
+	if r.CtxInfo == "" {
+		return errors.New("ctx_info is required")
+	}
+	return nil
+}
+
+type RequestLoginResponse struct {
+	RedirectURL string `json:"redirect_url"`
+}

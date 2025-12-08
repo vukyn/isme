@@ -13,4 +13,5 @@ type IUseCase interface {
 	VerifyToken(ctx context.Context, req models.VerifyTokenRequest) (models.VerifyTokenResponse, error)
 	ChangePassword(ctx context.Context, req models.ChangePasswordRequest) error
 	Logout(ctx context.Context) error
+	RequestLogin(ctx context.Context, req models.RequestLoginRequest) (models.RequestLoginResponse, error)
 }

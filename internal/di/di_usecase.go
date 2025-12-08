@@ -1,6 +1,7 @@
 package di
 
 import (
+	"isme/cache"
 	"isme/internal/config"
 	"isme/internal/constants"
 	appServiceUsecase "isme/internal/domains/app_service/usecase"
@@ -31,8 +32,13 @@ func defineAuthUsecase() *di.Def {
 				return nil, err
 			}
 			cfg := ctn.Get(constants.CONTAINER_NAME_CONFIG).(*config.Config)
+			cache := ctn.Get(constants.CONTAINER_NAME_CACHE).(*cache.Cache)
+			appServiceRepo, err := GetAppServiceRepository(ctn)
+			if err != nil {
+				return nil, err
+			}
 			log.New().Debug("Auth usecase initialized")
-			return authUsecase.NewUsecase(userRepo, userSessionRepo, cfg), nil
+			return authUsecase.NewUsecase(cfg, cache, userRepo, userSessionRepo, appServiceRepo), nil
 		},
 		Close: func(obj any) error {
 			log.New().Debug("Auth usecase destroyed")

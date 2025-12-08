@@ -2,7 +2,11 @@ package usecase
 
 import (
 	"context"
+	"fmt"
+	"isme/cache"
 	"isme/internal/config"
+	"isme/internal/constants"
+	appServiceRepo "isme/internal/domains/app_service/repository"
 	"isme/internal/domains/auth/models"
 	userConstants "isme/internal/domains/user/constants"
 	userModels "isme/internal/domains/user/models"
@@ -10,6 +14,7 @@ import (
 	userSessionConstants "isme/internal/domains/user_session/constants"
 	userSessionRepo "isme/internal/domains/user_session/repository"
 	pkgClaims "isme/pkg/claims"
+	"isme/pkg/cryp/aes"
 	pkgCtx "isme/pkg/ctx"
 	pkgErr "isme/pkg/http/errors"
 	"isme/pkg/jwt"
@@ -20,19 +25,25 @@ import (
 
 type usecase struct {
 	cfg             *config.Config
+	cache           *cache.Cache
 	userRepo        userRepo.IRepository
 	userSessionRepo userSessionRepo.IRepository
+	appServiceRepo  appServiceRepo.IRepository
 }
 
 func NewUsecase(
+	cfg *config.Config,
+	cache *cache.Cache,
 	userRepo userRepo.IRepository,
 	userSessionRepo userSessionRepo.IRepository,
-	cfg *config.Config,
+	appServiceRepo appServiceRepo.IRepository,
 ) IUseCase {
 	return &usecase{
 		cfg:             cfg,
+		cache:           cache,
 		userRepo:        userRepo,
 		userSessionRepo: userSessionRepo,
+		appServiceRepo:  appServiceRepo,
 	}
 }
 
@@ -329,4 +340,48 @@ func (u *usecase) Logout(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (u *usecase) RequestLogin(ctx context.Context, req models.RequestLoginRequest) (models.RequestLoginResponse, error) {
+	// validation
+	if err := req.Validate(); err != nil {
+		return models.RequestLoginResponse{}, pkgErr.InvalidRequest(err.Error())
+	}
+
+	// get app service by code
+	appService, err := u.appServiceRepo.GetByCode(ctx, req.AppCode)
+	if err != nil {
+		return models.RequestLoginResponse{}, err
+	}
+
+	if appService.ID == "" {
+		return models.RequestLoginResponse{}, pkgErr.InvalidRequest("app service not found")
+	}
+
+	// verify ctx_info matches
+	if req.CtxInfo != appService.CtxInfo {
+		return models.RequestLoginResponse{}, pkgErr.InvalidRequest("invalid ctx_info")
+	}
+
+	// decrypt app_secret from request and database
+	decryptedSecret, err := aes.Decrypt(req.AppSecret, u.cfg.AES.Secret, req.CtxInfo)
+	if err != nil {
+		return models.RequestLoginResponse{}, err
+	}
+	decryptedSecret2, err := aes.Decrypt(appService.AppSecret, u.cfg.AES.Secret, req.CtxInfo)
+	if err != nil {
+		return models.RequestLoginResponse{}, err
+	}
+	if decryptedSecret != decryptedSecret2 {
+		return models.RequestLoginResponse{}, pkgErr.InvalidRequest("invalid app_secret")
+	}
+
+	// generate session ID and set to cache
+	sessionID := cryp.ULID()
+	u.cache.Set(sessionID, appService.ID, time.Duration(u.cfg.Auth.ExternalAuthSessionTTL)*time.Minute)
+
+	// return response
+	return models.RequestLoginResponse{
+		RedirectURL: fmt.Sprintf("%s?session_id=%s", constants.AUTH_WEB_ENDPOINT_SSO_LOGIN, sessionID),
+	}, nil
 }

@@ -1,7 +1,7 @@
 package di
 
 import (
-	"isme/internal/cache"
+	"isme/cache"
 	"isme/internal/constants"
 
 	"github.com/sarulabs/di/v2"
