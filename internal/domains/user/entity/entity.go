@@ -14,7 +14,7 @@ type User struct {
 	Email         string    `bun:"email,unique"`
 	Password      string    `bun:"password,notnull"`
 	Status        int32     `bun:"status,notnull"`
-	IsAdmin       bool      `bun:"is_admin,nullzero"`
+	IsAdmin       bool      `bun:"is_admin,default:false"`
 	LastLoginAt   time.Time `bun:"last_login_at,nullzero"`
 	CreatedAt     time.Time `bun:"created_at,default:current_timestamp"`
 	CreatedBy     int64     `bun:"created_by,nullzero"`

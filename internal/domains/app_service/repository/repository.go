@@ -6,6 +6,7 @@ import (
 	"errors"
 	"isme/internal/domains/app_service/entity"
 
+	pkgCtx "isme/pkg/ctx"
 	pkgErr "isme/pkg/http/errors"
 
 	"github.com/uptrace/bun"
@@ -23,6 +24,7 @@ func NewRepository(
 }
 
 func (r *repository) Create(ctx context.Context, req entity.CreateRequest) (string, error) {
+	userID := pkgCtx.GetUserId(ctx)
 	appService := &entity.AppService{
 		ID:          cryp.ULID(),
 		AppCode:     req.AppCode,
@@ -31,6 +33,7 @@ func (r *repository) Create(ctx context.Context, req entity.CreateRequest) (stri
 		RedirectURL: req.RedirectURL,
 		CtxInfo:     req.CtxInfo,
 		Status:      req.Status,
+		CreatedBy:   userID,
 	}
 	_, err := r.db.NewInsert().
 		Model(appService).
