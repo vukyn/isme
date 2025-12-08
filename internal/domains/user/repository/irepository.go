@@ -17,4 +17,8 @@ type IRepository interface {
 	SetPassword(ctx context.Context, id string, password string) error
 	// Update last login to current time for user (only for successful login)
 	UpdateLastLogin(ctx context.Context, id string) error
+	// Promote admin: update isAdmin to 1
+	PromoteAdmin(ctx context.Context, id string) error
+	// IsAdmin: check if isAdmin equals 1
+	IsAdmin(ctx context.Context, id string) (bool, error)
 }

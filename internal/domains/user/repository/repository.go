@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"isme/internal/domains/user/constants"
-		"isme/internal/domains/user/entity"
+	"isme/internal/domains/user/entity"
 	"isme/internal/domains/user/models"
 	"time"
 
@@ -122,4 +122,44 @@ func (r *repository) UpdateLastLogin(ctx context.Context, id string) error {
 		return pkgErr.DatabaseError(err.Error())
 	}
 	return nil
+}
+
+func (r *repository) PromoteAdmin(ctx context.Context, id string) error {
+	if id == "" {
+		return pkgErr.InvalidRequest("id is required")
+	}
+
+	user := &entity.User{
+		ID:      id,
+		IsAdmin: true,
+	}
+	_, err := r.db.NewUpdate().
+		Model(user).
+		Column("is_admin").
+		Where("id = ?", id).
+		Exec(ctx)
+	if err != nil {
+		return pkgErr.DatabaseError(err.Error())
+	}
+	return nil
+}
+
+func (r *repository) IsAdmin(ctx context.Context, id string) (bool, error) {
+	if id == "" {
+		return false, pkgErr.InvalidRequest("id is required")
+	}
+
+	user := entity.User{}
+	err := r.db.NewSelect().
+		Model(&user).
+		Where("id = ?", id).
+		Scan(ctx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, pkgErr.InvalidRequest("user not found")
+		}
+		return false, pkgErr.DatabaseError(err.Error())
+	}
+
+	return user.IsAdmin, nil
 }
