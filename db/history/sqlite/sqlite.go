@@ -20,11 +20,11 @@ var Migrations = []models.Migration{
 					status INTEGER NOT NULL,
 					last_login_at DATETIME DEFAULT NULL,
 					created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-					created_by INTEGER DEFAULT 0,
+					created_by TEXT DEFAULT '',
 					updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-					updated_by INTEGER DEFAULT 0,
+					updated_by TEXT DEFAULT '',
 					deleted_at DATETIME,
-					deleted_by INTEGER DEFAULT 0
+					deleted_by TEXT DEFAULT ''
 				)
 			`)
 			return err
@@ -100,7 +100,13 @@ var Migrations = []models.Migration{
 					app_secret TEXT NOT NULL,
 					redirect_url TEXT NOT NULL,
 					ctx_info TEXT NOT NULL,
-					status INTEGER DEFAULT 1 NOT NULL
+					status INTEGER DEFAULT 1 NOT NULL,
+					created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+					created_by TEXT DEFAULT '',
+					updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+					updated_by TEXT DEFAULT '',
+					deleted_at DATETIME,
+					deleted_by TEXT DEFAULT ''
 				)
 			`)
 			if err != nil {
