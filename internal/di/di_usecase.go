@@ -59,9 +59,13 @@ func defineAppServiceUsecase() *di.Def {
 			if err != nil {
 				return nil, err
 			}
+			userRepo, err := GetUserRepository(ctn)
+			if err != nil {
+				return nil, err
+			}
 			cfg := ctn.Get(constants.CONTAINER_NAME_CONFIG).(*config.Config)
 			log.New().Debug("App service usecase initialized")
-			return appServiceUsecase.NewUsecase(appServiceRepo, cfg), nil
+			return appServiceUsecase.NewUsecase(appServiceRepo, userRepo, cfg), nil
 		},
 		Close: func(obj any) error {
 			log.New().Debug("App service usecase destroyed")

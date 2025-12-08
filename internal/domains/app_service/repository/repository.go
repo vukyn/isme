@@ -62,3 +62,37 @@ func (r *repository) GetByCode(ctx context.Context, code string) (entity.AppServ
 	}
 	return appService, nil
 }
+
+func (r *repository) Update(ctx context.Context, req entity.UpdateRequest) error {
+	// validation
+	if req.ID == "" {
+		return pkgErr.InvalidRequest("id is required")
+	}
+
+	appService := &entity.AppService{
+		ID: req.ID,
+	}
+	fields := []string{}
+
+	if req.AppSecret != nil {
+		appService.AppSecret = *req.AppSecret
+		fields = append(fields, "app_secret")
+	}
+
+	if len(fields) > 0 {
+		userID := pkgCtx.GetUserId(ctx)
+		appService.UpdatedBy = userID
+		fields = append(fields, "updated_by")
+
+		_, err := r.db.NewUpdate().
+			Model(appService).
+			Column(fields...).
+			Where("id = ?", req.ID).
+			Exec(ctx)
+		if err != nil {
+			return pkgErr.DatabaseError(err.Error())
+		}
+	}
+
+	return nil
+}

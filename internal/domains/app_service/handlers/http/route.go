@@ -12,4 +12,5 @@ func SetupAppServiceRoutes(router fiber.Router) {
 	rAppService := router.Group("/app-service")
 	rAppService.Post("/register", middleware.AuthMiddleware, RegisterApp)
 	rAppService.Post("/verify", VerifyApp)
+	rAppService.Post("/refresh", middleware.AuthMiddleware, RefreshApp)
 }

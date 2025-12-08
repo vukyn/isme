@@ -52,3 +52,25 @@ func VerifyApp(c *fiber.Ctx) error {
 
 	return pkgHttp.OK(c, verifyResponse)
 }
+
+func RefreshApp(c *fiber.Ctx) error {
+	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
+	defer ctn.Delete()
+
+	uc, err := idi.GetAppServiceUsecase(ctn)
+	if err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	refreshRequest := models.RefreshRequest{}
+	if err := c.BodyParser(&refreshRequest); err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	refreshResponse, err := uc.RefreshApp(pkgCtx.NewContextFromFiberCtx(c), refreshRequest)
+	if err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	return pkgHttp.OK(c, refreshResponse)
+}

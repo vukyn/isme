@@ -10,4 +10,6 @@ type IRepository interface {
 	Create(ctx context.Context, req entity.CreateRequest) (string, error)
 	// Get app service by code
 	GetByCode(ctx context.Context, code string) (entity.AppService, error)
+	// Update app service
+	Update(ctx context.Context, req entity.UpdateRequest) error
 }

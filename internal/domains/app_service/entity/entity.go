@@ -33,6 +33,11 @@ type CreateRequest struct {
 	Status      int32
 }
 
+type UpdateRequest struct {
+	ID        string
+	AppSecret *string
+}
+
 // === Hooks ===
 
 func (a *AppService) BeforeAppendModel(ctx context.Context, query bun.Query) error {

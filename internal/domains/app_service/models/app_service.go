@@ -53,3 +53,26 @@ func (r VerifyRequest) Validate() error {
 type VerifyResponse struct {
 	Ok bool `json:"ok"`
 }
+
+type RefreshRequest struct {
+	AppCode   string `json:"app_code"`
+	AppSecret string `json:"app_secret"`
+	CtxInfo   string `json:"ctx_info"`
+}
+
+func (r RefreshRequest) Validate() error {
+	if r.AppCode == "" {
+		return errors.New("app_code is required")
+	}
+	if r.AppSecret == "" {
+		return errors.New("app_secret is required")
+	}
+	if r.CtxInfo == "" {
+		return errors.New("ctx_info is required")
+	}
+	return nil
+}
+
+type RefreshResponse struct {
+	AppSecret string `json:"app_secret"`
+}

@@ -7,23 +7,27 @@ import (
 	"isme/internal/domains/app_service/entity"
 	"isme/internal/domains/app_service/models"
 	appServiceRepo "isme/internal/domains/app_service/repository"
+	userRepo "isme/internal/domains/user/repository"
 	"isme/pkg/cryp/aes"
-	"isme/pkg/cryp/rand"
+	pkgCtx "isme/pkg/ctx"
 	pkgErr "isme/pkg/http/errors"
 )
 
 type usecase struct {
 	cfg            *config.Config
 	appServiceRepo appServiceRepo.IRepository
+	userRepo       userRepo.IRepository
 }
 
 func NewUsecase(
 	appServiceRepo appServiceRepo.IRepository,
+	userRepo userRepo.IRepository,
 	cfg *config.Config,
 ) IUseCase {
 	return &usecase{
 		cfg:            cfg,
 		appServiceRepo: appServiceRepo,
+		userRepo:       userRepo,
 	}
 }
 
@@ -48,15 +52,9 @@ func (u *usecase) RegisterApp(ctx context.Context, req models.RegisterRequest) (
 	}
 
 	// generate app_secret
-	appSecret := rand.RandMixedString(8, true, true)
-	if appSecret == "" {
-		return models.RegisterResponse{}, pkgErr.InvalidRequest("failed to generate app_secret")
-	}
-
-	// encrypt app_secret with AES
-	encryptedSecret, err := aes.Encrypt(appSecret, u.cfg.AES.Secret, req.CtxInfo)
+	encryptedSecret, err := generateAndEncryptAppSecret(u.cfg.AES.Secret, req.CtxInfo)
 	if err != nil {
-		return models.RegisterResponse{}, pkgErr.InvalidRequest("failed to encrypt app_secret: " + err.Error())
+		return models.RegisterResponse{}, err
 	}
 
 	// create app service
@@ -124,5 +122,71 @@ func (u *usecase) VerifyApp(ctx context.Context, req models.VerifyRequest) (mode
 
 	return models.VerifyResponse{
 		Ok: true,
+	}, nil
+}
+
+func (u *usecase) RefreshApp(ctx context.Context, req models.RefreshRequest) (models.RefreshResponse, error) {
+	// validation
+	if err := req.Validate(); err != nil {
+		return models.RefreshResponse{}, pkgErr.InvalidRequest(err.Error())
+	}
+
+	// get user ID from context
+	userID := pkgCtx.GetUserId(ctx)
+	if userID == "" {
+		return models.RefreshResponse{}, pkgErr.InvalidRequest("user not authenticated")
+	}
+
+	// get app service by code
+	appService, err := u.appServiceRepo.GetByCode(ctx, req.AppCode)
+	if err != nil {
+		return models.RefreshResponse{}, err
+	}
+
+	// check if app_code is valid
+	if appService.ID == "" {
+		return models.RefreshResponse{}, pkgErr.InvalidRequest("app_code not found")
+	}
+
+	// verify ctx_info matches
+	if req.CtxInfo != appService.CtxInfo {
+		return models.RefreshResponse{}, pkgErr.InvalidRequest("invalid ctx_info")
+	}
+
+	// decrypt app_secret from request and database
+	ok, err := compareAppSecret(req.AppSecret, appService.AppSecret, u.cfg.AES.Secret, req.CtxInfo)
+	if err != nil {
+		return models.RefreshResponse{}, err
+	}
+	if !ok {
+		return models.RefreshResponse{}, pkgErr.InvalidRequest("invalid app_secret")
+	}
+
+	// check authorization: user must be admin OR creator
+	isAdmin, err := u.userRepo.IsAdmin(ctx, userID)
+	if err != nil {
+		return models.RefreshResponse{}, err
+	}
+	if !isAdmin && userID != appService.CreatedBy {
+		return models.RefreshResponse{}, pkgErr.InvalidRequest("unauthorized: only admin or creator can refresh app secret")
+	}
+
+	// generate new app_secret
+	encryptedSecret, err := generateAndEncryptAppSecret(u.cfg.AES.Secret, req.CtxInfo)
+	if err != nil {
+		return models.RefreshResponse{}, err
+	}
+
+	// update app service with new secret
+	err = u.appServiceRepo.Update(ctx, entity.UpdateRequest{
+		ID:        appService.ID,
+		AppSecret: &encryptedSecret,
+	})
+	if err != nil {
+		return models.RefreshResponse{}, err
+	}
+
+	return models.RefreshResponse{
+		AppSecret: encryptedSecret,
 	}, nil
 }
