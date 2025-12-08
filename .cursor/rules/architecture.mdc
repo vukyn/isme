@@ -1,11 +1,11 @@
 ---
 type: "Always"
-description: "Clean Architecture patterns and project structure for the Rainy Go API project"
+description: "Clean Architecture patterns and project structure for the Go API project"
 globs: ["internal/**/*", "cmd/**/*", "pkg/**/*"]
 alwaysApply: true
 ---
 
-# Rainy Project - Architecture & Structure
+# Project - Architecture & Structure
 
 ## Project Overview
 Go-based web API using Clean Architecture principles with dependency injection and domain-driven design.

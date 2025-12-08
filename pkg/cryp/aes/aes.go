@@ -12,13 +12,14 @@ import (
 	"golang.org/x/crypto/hkdf"
 )
 
+const (
+	SALT = "ZAjrbWED"
+)
+
 // deriveKey derives a 32-byte AES key from the secret using HKDF or SHA-256
-func deriveKey(secret, salt, ctxInfo string) ([]byte, error) {
+func deriveKey(secret, ctxInfo string) ([]byte, error) {
 	if secret == "" {
 		return nil, errors.New("secret is required")
-	}
-	if salt == "" {
-		return nil, errors.New("salt is required")
 	}
 	if ctxInfo == "" {
 		return nil, errors.New("ctxInfo is required")
@@ -27,8 +28,8 @@ func deriveKey(secret, salt, ctxInfo string) ([]byte, error) {
 	secretBytes := []byte(secret)
 
 	// If both salt and ctxInfo are provided, use HKDF
-	if salt != "" && ctxInfo != "" {
-		saltBytes := []byte(salt)
+	if ctxInfo != "" {
+		saltBytes := []byte(SALT)
 		info := []byte(ctxInfo)
 
 		// Use HKDF with SHA-256 to derive a 32-byte key
@@ -49,13 +50,13 @@ func deriveKey(secret, salt, ctxInfo string) ([]byte, error) {
 }
 
 // Encrypt encrypts the plaintext using AES-GCM
-func Encrypt(text, secret, salt, ctxInfo string) (string, error) {
+func Encrypt(text, secret, ctxInfo string) (string, error) {
 	if text == "" {
 		return "", errors.New("text is required")
 	}
 
 	// Derive the encryption key
-	key, err := deriveKey(secret, salt, ctxInfo)
+	key, err := deriveKey(secret, ctxInfo)
 	if err != nil {
 		return "", err
 	}
@@ -89,19 +90,19 @@ func Encrypt(text, secret, salt, ctxInfo string) (string, error) {
 }
 
 // Decrypt decrypts the Base64 encoded ciphertext using AES-GCM
-func Decrypt(text, secret, salt, ctxInfo string) (string, error) {
+func Decrypt(text, secret, ctxInfo string) (string, error) {
 	if text == "" {
 		return "", errors.New("text is required")
 	}
 
 	// Decode Base64 input
-	ciphertext, err := base64.URLEncoding.DecodeString(text)
+	ciphertext, err := base64.StdEncoding.DecodeString(text)
 	if err != nil {
 		return "", errors.New("failed to decode Base64: " + err.Error())
 	}
 
 	// Derive the decryption key (same as encryption)
-	key, err := deriveKey(secret, salt, ctxInfo)
+	key, err := deriveKey(secret, ctxInfo)
 	if err != nil {
 		return "", err
 	}

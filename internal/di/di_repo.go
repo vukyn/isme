@@ -2,6 +2,7 @@ package di
 
 import (
 	"isme/internal/constants"
+	appServiceRepo "isme/internal/domains/app_service/repository"
 	userRepo "isme/internal/domains/user/repository"
 	userSessionRepo "isme/internal/domains/user_session/repository"
 
@@ -14,6 +15,7 @@ func defineRepository() []*di.Def {
 	return []*di.Def{
 		defineUserRepository(),
 		defineUserSessionRepository(),
+		defineAppServiceRepository(),
 	}
 }
 
@@ -65,4 +67,29 @@ func GetUserSessionRepository(ctn di.Container) (userSessionRepo.IRepository, er
 		return nil, err
 	}
 	return repo.(userSessionRepo.IRepository), nil
+}
+
+func defineAppServiceRepository() *di.Def {
+	def := &di.Def{
+		Name:  constants.CONTAINER_NAME_APP_SERVICE_REPOSITORY,
+		Scope: di.Request,
+		Build: func(ctn di.Container) (any, error) {
+			db := ctn.Get(constants.CONTAINER_NAME_DB).(*bun.DB)
+			log.New().Debug("App service repository initialized")
+			return appServiceRepo.NewRepository(db), nil
+		},
+		Close: func(obj any) error {
+			log.New().Debug("App service repository destroyed")
+			return nil
+		},
+	}
+	return def
+}
+
+func GetAppServiceRepository(ctn di.Container) (appServiceRepo.IRepository, error) {
+	repo, err := ctn.SafeGet(constants.CONTAINER_NAME_APP_SERVICE_REPOSITORY)
+	if err != nil {
+		return nil, err
+	}
+	return repo.(appServiceRepo.IRepository), nil
 }

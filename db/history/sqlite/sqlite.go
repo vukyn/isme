@@ -98,7 +98,8 @@ var Migrations = []models.Migration{
 					app_code TEXT UNIQUE NOT NULL,
 					app_name TEXT NOT NULL,
 					app_secret TEXT NOT NULL,
-					callback_url TEXT NOT NULL,
+					redirect_url TEXT NOT NULL,
+					ctx_info TEXT NOT NULL,
 					status INTEGER DEFAULT 1 NOT NULL
 				)
 			`)

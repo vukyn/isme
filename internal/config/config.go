@@ -38,6 +38,9 @@ type Config struct {
 	Vite struct {
 		BaseURL string `envconfig:"VITE_API_BASE_URL"`
 	}
+	AES struct {
+		Secret string `envconfig:"AES_SECRET"`
+	}
 }
 
 func LoadConfig(envFiles ...string) (*Config, error) {

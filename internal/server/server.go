@@ -4,6 +4,7 @@ import (
 	"fmt"
 	iapp "isme/internal/app"
 	"isme/internal/config"
+	appServiceHandlers "isme/internal/domains/app_service/handlers/http"
 	authHandlers "isme/internal/domains/auth/handlers/http"
 	"net/http"
 	"os"
@@ -64,6 +65,7 @@ func (s *Server) Start() {
 	// api/v1
 	apiV1 := s.app.Group("/api/v1")
 	authHandlers.SetupAuthRoutes(apiV1)
+	appServiceHandlers.SetupAppServiceRoutes(apiV1)
 
 	// web routes
 	s.webRoutes(s.app)
