@@ -29,3 +29,13 @@ build-ui:
 	cd ui && npm install && npm run build
 	rm -rf ./internal/ui
 	mv ./ui/dist ./internal/ui
+
+v-tag:
+	git tag -l --sort=-version:refname
+
+v-tag-latest:
+	git tag -l --sort=-version:refname | head -n 1
+
+tag:
+	git tag -a v$(VERSION) -m "Release version $(VERSION)"
+	git push origin v$(VERSION)

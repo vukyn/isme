@@ -3,6 +3,7 @@ package constants
 import "time"
 
 const (
-	API_AUTH_REQUEST_SSO_LOGIN = "/sso/request-login" // POST
-	DEFAULT_TIMEOUT            = 30 * time.Second
+	API_AUTH_REQUEST_LOGIN = "/request-login" // POST
+	API_AUTH_EXCHANGE_CODE = "/exchange-code" // POST
+	DEFAULT_TIMEOUT        = 30 * time.Second
 )

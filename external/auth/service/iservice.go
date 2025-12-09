@@ -6,5 +6,6 @@ import (
 )
 
 type IService interface {
-	RequestSSOLogin(ctx context.Context, req *models.RequestSSOLoginRequest) (*models.RequestSSOLoginResponse, error)
+	RequestLogin(ctx context.Context, req *models.RequestLoginRequest) (*models.RequestLoginResponse, error)
+	ExchangeCode(ctx context.Context, req *models.ExchangeCodeRequest) (*models.ExchangeCodeResponse, error)
 }

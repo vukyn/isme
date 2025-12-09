@@ -38,23 +38,56 @@ func (s *service) restWithDebug(ctx context.Context, retry int, retryInterval, t
 		EnableTrace()
 }
 
-func (s *service) RequestSSOLogin(ctx context.Context, req *models.RequestSSOLoginRequest) (*models.RequestSSOLoginResponse, error) {
-	client := s.rest(ctx, req.Retry, req.RetryInterval, req.Timeout).
-		SetHeader("Content-Type", "application/json")
+func (s *service) RequestLogin(ctx context.Context, req *models.RequestLoginRequest) (*models.RequestLoginResponse, error) {
+	var client *resty.Client
+	if req.Debug {
+		client = s.restWithDebug(ctx, req.Retry, req.RetryInterval, req.Timeout)
+	} else {
+		client = s.rest(ctx, req.Retry, req.RetryInterval, req.Timeout)
+	}
+	client.SetHeader("Content-Type", "application/json")
 
-	apiResponse := &models.RequestSSOLoginResponse{}
+	apiResponse := &models.RequestLoginResponse{}
 	resp, err := client.R().
 		SetBody(req).
 		SetResult(apiResponse).
-		Post(constants.API_AUTH_REQUEST_SSO_LOGIN)
+		Post(constants.API_AUTH_REQUEST_LOGIN)
 
 	if err != nil {
-		log.New().Errorf("Error request SSO login from external auth: %v", err)
+		log.New().Errorf("Error request login from external auth: %v", err)
 		return nil, pkgErr.InternalServerError(err.Error())
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		log.New().Errorf("Error request SSO login from external auth: %v", resp.String())
+		log.New().Errorf("Error request login from external auth: %v", resp.String())
+		return nil, pkgErr.InternalServerError(resp.String())
+	}
+
+	return apiResponse, nil
+}
+
+func (s *service) ExchangeCode(ctx context.Context, req *models.ExchangeCodeRequest) (*models.ExchangeCodeResponse, error) {
+	var client *resty.Client
+	if req.Debug {
+		client = s.restWithDebug(ctx, req.Retry, req.RetryInterval, req.Timeout)
+	} else {
+		client = s.rest(ctx, req.Retry, req.RetryInterval, req.Timeout)
+	}
+	client.SetHeader("Content-Type", "application/json")
+
+	apiResponse := &models.ExchangeCodeResponse{}
+	resp, err := client.R().
+		SetBody(req).
+		SetResult(apiResponse).
+		Post(constants.API_AUTH_EXCHANGE_CODE)
+
+	if err != nil {
+		log.New().Errorf("Error exchange code from external auth: %v", err)
+		return nil, pkgErr.InternalServerError(err.Error())
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		log.New().Errorf("Error exchange code from external auth: %v", resp.String())
 		return nil, pkgErr.InternalServerError(resp.String())
 	}
 
