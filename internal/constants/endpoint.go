@@ -10,6 +10,7 @@ const (
 	AUTH_ENDPOINT_LOGOUT          = "/logout"
 	AUTH_ENDPOINT_CHANGE_PASSWORD = "/change-password"
 	AUTH_ENDPOINT_REQUEST_LOGIN   = "/request-login"
+	AUTH_ENDPOINT_EXCHANGE_CODE   = "/exchange-code"
 
 	// App service
 	APP_SERVICE_GROUP_NAME        = "app-service"

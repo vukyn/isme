@@ -14,4 +14,5 @@ type IUseCase interface {
 	ChangePassword(ctx context.Context, req models.ChangePasswordRequest) error
 	Logout(ctx context.Context) error
 	RequestLogin(ctx context.Context, req models.RequestLoginRequest) (models.RequestLoginResponse, error)
+	ExchangeCode(ctx context.Context, req models.ExchangeCodeRequest) (models.ExchangeCodeResponse, error)
 }

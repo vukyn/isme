@@ -222,7 +222,7 @@ func (u *usecase) Login(ctx context.Context, req models.LoginRequest) (models.Lo
 	// if login from external app service, need exchange authorization code for tokens
 	var authorizationCode string
 	if appServiceID != "" {
-		// clear session ID from cache
+		// clear session ID from cache (one-time use)
 		u.cache.Delete(req.SessionID)
 
 		// generate authorization code
@@ -421,6 +421,46 @@ func (u *usecase) RequestLogin(ctx context.Context, req models.RequestLoginReque
 	// return response
 	return models.RequestLoginResponse{
 		RedirectURL: fmt.Sprintf("%s?session_id=%s", constants.AUTH_ENDPOINT_LOGIN, sessionID),
+	}, nil
+}
+
+func (u *usecase) ExchangeCode(ctx context.Context, req models.ExchangeCodeRequest) (models.ExchangeCodeResponse, error) {
+	// validation
+	if err := req.Validate(); err != nil {
+		return models.ExchangeCodeResponse{}, pkgErr.InvalidRequest(err.Error())
+	}
+
+	// get access token from cache
+	accessTokenKey := keyAuthorizationCodeAccessToken(req.AuthorizationCode)
+	accessToken, ok := u.cache.Get(accessTokenKey)
+	if !ok {
+		return models.ExchangeCodeResponse{}, pkgErr.InvalidRequest("invalid authorization code")
+	}
+
+	// get refresh token from cache
+	refreshTokenKey := keyAuthorizationCodeRefreshToken(req.AuthorizationCode)
+	refreshToken, ok := u.cache.Get(refreshTokenKey)
+	if !ok {
+		return models.ExchangeCodeResponse{}, pkgErr.InvalidRequest("invalid authorization code")
+	}
+
+	// get expires at from cache
+	expiresAtKey := keyAuthorizationCodeExpiresAt(req.AuthorizationCode)
+	expiresAt, ok := u.cache.Get(expiresAtKey)
+	if !ok {
+		return models.ExchangeCodeResponse{}, pkgErr.InvalidRequest("invalid authorization code")
+	}
+
+	// delete cache entries after successful retrieval (one-time use)
+	u.cache.Delete(accessTokenKey)
+	u.cache.Delete(refreshTokenKey)
+	u.cache.Delete(expiresAtKey)
+
+	// return response
+	return models.ExchangeCodeResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		ExpiresAt:    expiresAt,
 	}, nil
 }
 

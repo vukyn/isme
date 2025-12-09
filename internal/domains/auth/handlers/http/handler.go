@@ -152,3 +152,25 @@ func RequestLogin(c *fiber.Ctx) error {
 
 	return pkgHttp.OK(c, requestLoginResponse)
 }
+
+func ExchangeCode(c *fiber.Ctx) error {
+	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
+	defer ctn.Delete()
+
+	uc, err := idi.GetAuthUsecase(ctn)
+	if err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	exchangeCodeRequest := models.ExchangeCodeRequest{}
+	if err := c.BodyParser(&exchangeCodeRequest); err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	exchangeCodeResponse, err := uc.ExchangeCode(pkgCtx.NewContextFromFiberCtx(c), exchangeCodeRequest)
+	if err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	return pkgHttp.OK(c, exchangeCodeResponse)
+}

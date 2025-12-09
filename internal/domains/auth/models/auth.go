@@ -140,3 +140,20 @@ func (r RequestLoginRequest) Validate() error {
 type RequestLoginResponse struct {
 	RedirectURL string `json:"redirect_url"`
 }
+
+type ExchangeCodeRequest struct {
+	AuthorizationCode string `json:"authorization_code"`
+}
+
+func (r ExchangeCodeRequest) Validate() error {
+	if r.AuthorizationCode == "" {
+		return errors.New("authorization_code is required")
+	}
+	return nil
+}
+
+type ExchangeCodeResponse struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+	ExpiresAt    string `json:"expires_at"`
+}
