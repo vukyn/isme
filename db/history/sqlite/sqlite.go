@@ -1,7 +1,7 @@
 package history
 
 import (
-	"isme/internal/domains/migration/models"
+	"github.com/vukyn/isme/internal/domains/migration/models"
 
 	"github.com/uptrace/bun"
 )

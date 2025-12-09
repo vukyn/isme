@@ -2,8 +2,9 @@ package http
 
 import (
 	"net/http"
-	pkgBase "isme/pkg/base"
-	pkgErr "isme/pkg/http/errors"
+
+	pkgBase "github.com/vukyn/isme/pkg/base"
+	pkgErr "github.com/vukyn/isme/pkg/http/errors"
 
 	"github.com/gofiber/fiber/v2"
 )

@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"time"
 
-	"isme/external/auth/constants"
-	"isme/external/auth/models"
-	pkgErr "isme/pkg/http/errors"
+	"github.com/vukyn/isme/external/auth/constants"
+	"github.com/vukyn/isme/external/auth/models"
+	pkgErr "github.com/vukyn/isme/pkg/http/errors"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/vukyn/kuery/log"

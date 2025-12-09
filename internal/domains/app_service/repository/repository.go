@@ -4,10 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"isme/internal/domains/app_service/entity"
 
-	pkgCtx "isme/pkg/ctx"
-	pkgErr "isme/pkg/http/errors"
+	"github.com/vukyn/isme/internal/domains/app_service/entity"
+
+	pkgCtx "github.com/vukyn/isme/pkg/ctx"
+	pkgErr "github.com/vukyn/isme/pkg/http/errors"
 
 	"github.com/uptrace/bun"
 	"github.com/vukyn/kuery/cryp"

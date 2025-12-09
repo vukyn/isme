@@ -1,11 +1,11 @@
 package di
 
 import (
-	"isme/cache"
-	"isme/internal/config"
-	"isme/internal/constants"
-	appServiceUsecase "isme/internal/domains/app_service/usecase"
-	authUsecase "isme/internal/domains/auth/usecase"
+	"github.com/vukyn/isme/cache"
+	"github.com/vukyn/isme/internal/config"
+	"github.com/vukyn/isme/internal/constants"
+	appServiceUsecase "github.com/vukyn/isme/internal/domains/app_service/usecase"
+	authUsecase "github.com/vukyn/isme/internal/domains/auth/usecase"
 
 	"github.com/sarulabs/di/v2"
 	"github.com/vukyn/kuery/log"

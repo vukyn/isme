@@ -2,11 +2,12 @@ package usecase
 
 import (
 	"context"
-	userSessionModels "isme/internal/domains/user_session/models"
-	pkgClaims "isme/pkg/claims"
-	pkgCtx "isme/pkg/ctx"
-	"isme/pkg/jwt"
 	"time"
+
+	userSessionModels "github.com/vukyn/isme/internal/domains/user_session/models"
+	pkgClaims "github.com/vukyn/isme/pkg/claims"
+	pkgCtx "github.com/vukyn/isme/pkg/ctx"
+	"github.com/vukyn/isme/pkg/jwt"
 )
 
 func (u *usecase) generateAccessTokens(userID, email string) (string, pkgClaims.Claims, error) {

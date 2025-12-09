@@ -2,7 +2,8 @@ package services
 
 import (
 	"context"
-	"isme/external/auth/models"
+
+	"github.com/vukyn/isme/external/auth/models"
 )
 
 type IService interface {

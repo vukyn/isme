@@ -1,8 +1,8 @@
 package di
 
 import (
-	"isme/internal/config"
-	"isme/internal/constants"
+	"github.com/vukyn/isme/internal/config"
+	"github.com/vukyn/isme/internal/constants"
 
 	"fmt"
 

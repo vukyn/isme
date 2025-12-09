@@ -1,8 +1,8 @@
 package di
 
 import (
-	"isme/cache"
-	"isme/internal/constants"
+	"github.com/vukyn/isme/cache"
+	"github.com/vukyn/isme/internal/constants"
 
 	"github.com/sarulabs/di/v2"
 )

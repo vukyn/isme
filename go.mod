@@ -1,4 +1,4 @@
-module isme
+module github.com/vukyn/isme
 
 go 1.25.0
 

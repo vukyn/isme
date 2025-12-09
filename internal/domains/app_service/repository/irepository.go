@@ -2,7 +2,8 @@ package repository
 
 import (
 	"context"
-	"isme/internal/domains/app_service/entity"
+
+	"github.com/vukyn/isme/internal/domains/app_service/entity"
 )
 
 type IRepository interface {

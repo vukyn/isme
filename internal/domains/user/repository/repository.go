@@ -4,12 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"isme/internal/domains/user/constants"
-	"isme/internal/domains/user/entity"
-	"isme/internal/domains/user/models"
 	"time"
 
-	pkgErr "isme/pkg/http/errors"
+	"github.com/vukyn/isme/internal/domains/user/constants"
+	"github.com/vukyn/isme/internal/domains/user/entity"
+	"github.com/vukyn/isme/internal/domains/user/models"
+
+	pkgErr "github.com/vukyn/isme/pkg/http/errors"
 
 	"github.com/uptrace/bun"
 	"github.com/vukyn/kuery/cryp"

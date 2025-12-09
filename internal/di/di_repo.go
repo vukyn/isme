@@ -1,10 +1,10 @@
 package di
 
 import (
-	"isme/internal/constants"
-	appServiceRepo "isme/internal/domains/app_service/repository"
-	userRepo "isme/internal/domains/user/repository"
-	userSessionRepo "isme/internal/domains/user_session/repository"
+	"github.com/vukyn/isme/internal/constants"
+	appServiceRepo "github.com/vukyn/isme/internal/domains/app_service/repository"
+	userRepo "github.com/vukyn/isme/internal/domains/user/repository"
+	userSessionRepo "github.com/vukyn/isme/internal/domains/user_session/repository"
 
 	"github.com/sarulabs/di/v2"
 	"github.com/uptrace/bun"

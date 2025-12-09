@@ -1,8 +1,8 @@
 package middlewares
 
 import (
-	"isme/internal/config"
-	authUC "isme/internal/domains/auth/usecase"
+	"github.com/vukyn/isme/internal/config"
+	authUC "github.com/vukyn/isme/internal/domains/auth/usecase"
 )
 
 type Middleware struct {

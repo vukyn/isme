@@ -3,7 +3,7 @@ package models
 import (
 	"errors"
 
-	pkgClaims "isme/pkg/claims"
+	pkgClaims "github.com/vukyn/isme/pkg/claims"
 
 	"github.com/vukyn/kuery/validator"
 )

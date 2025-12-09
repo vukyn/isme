@@ -2,10 +2,11 @@ package main
 
 import (
 	"context"
-	"isme/internal/app"
-	"isme/internal/server"
-	"isme/pkg/graceful"
 	"time"
+
+	"github.com/vukyn/isme/internal/app"
+	"github.com/vukyn/isme/internal/server"
+	"github.com/vukyn/isme/pkg/graceful"
 
 	"github.com/vukyn/kuery/log"
 )

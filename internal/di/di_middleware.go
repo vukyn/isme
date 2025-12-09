@@ -1,9 +1,9 @@
 package di
 
 import (
-	"isme/internal/config"
-	"isme/internal/constants"
-	"isme/internal/middlewares"
+	"github.com/vukyn/isme/internal/config"
+	"github.com/vukyn/isme/internal/constants"
+	"github.com/vukyn/isme/internal/middlewares"
 
 	"github.com/sarulabs/di/v2"
 	"github.com/vukyn/kuery/log"

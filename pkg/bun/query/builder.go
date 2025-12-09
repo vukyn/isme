@@ -1,8 +1,9 @@
 package query
 
 import (
-	pkgBase "isme/pkg/base"
 	"strings"
+
+	pkgBase "github.com/vukyn/isme/pkg/base"
 
 	"github.com/uptrace/bun"
 )

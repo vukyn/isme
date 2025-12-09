@@ -1,12 +1,13 @@
 package middlewares
 
 import (
-	authModels "isme/internal/domains/auth/models"
 	"strings"
+
+	authModels "github.com/vukyn/isme/internal/domains/auth/models"
 
 	"github.com/vukyn/kuery/log"
 
-	pkgCtx "isme/pkg/ctx"
+	pkgCtx "github.com/vukyn/isme/pkg/ctx"
 
 	"github.com/gofiber/fiber/v2"
 )

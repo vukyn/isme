@@ -2,7 +2,8 @@ package usecase
 
 import (
 	"context"
-	"isme/internal/domains/app_service/models"
+
+	"github.com/vukyn/isme/internal/domains/app_service/models"
 )
 
 type IUseCase interface {

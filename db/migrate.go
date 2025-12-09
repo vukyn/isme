@@ -9,9 +9,9 @@ import (
 	"slices"
 	"time"
 
-	sqliteHistory "isme/db/history/sqlite"
-	migrationEntity "isme/internal/domains/migration/entity"
-	migrationModels "isme/internal/domains/migration/models"
+	sqliteHistory "github.com/vukyn/isme/db/history/sqlite"
+	migrationEntity "github.com/vukyn/isme/internal/domains/migration/entity"
+	migrationModels "github.com/vukyn/isme/internal/domains/migration/models"
 
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/sqlitedialect"

@@ -2,8 +2,9 @@ package di
 
 import (
 	"database/sql"
-	"isme/internal/constants"
-	pkgBunHooks "isme/pkg/bun/hooks"
+
+	"github.com/vukyn/isme/internal/constants"
+	pkgBunHooks "github.com/vukyn/isme/pkg/bun/hooks"
 
 	"github.com/sarulabs/di/v2"
 	"github.com/uptrace/bun"

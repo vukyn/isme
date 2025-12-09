@@ -2,14 +2,15 @@ package server
 
 import (
 	"fmt"
-	iapp "isme/internal/app"
-	"isme/internal/config"
-	appServiceHandlers "isme/internal/domains/app_service/handlers/http"
-	authHandlers "isme/internal/domains/auth/handlers/http"
 	"net/http"
 	"os"
 
-	pkgCtx "isme/pkg/ctx"
+	iapp "github.com/vukyn/isme/internal/app"
+	"github.com/vukyn/isme/internal/config"
+	appServiceHandlers "github.com/vukyn/isme/internal/domains/app_service/handlers/http"
+	authHandlers "github.com/vukyn/isme/internal/domains/auth/handlers/http"
+
+	pkgCtx "github.com/vukyn/isme/pkg/ctx"
 
 	"github.com/gofiber/contrib/fiberzerolog"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -17,7 +18,7 @@ import (
 	"github.com/gofiber/template/html/v2"
 	"github.com/vukyn/kuery/log"
 
-	pkgRecover "isme/pkg/recover"
+	pkgRecover "github.com/vukyn/isme/pkg/recover"
 
 	"github.com/gofiber/fiber/v2"
 )

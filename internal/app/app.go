@@ -3,8 +3,8 @@ package app
 import (
 	"github.com/vukyn/kuery/log"
 
-	"isme/internal/config"
-	idi "isme/internal/di"
+	"github.com/vukyn/isme/internal/config"
+	idi "github.com/vukyn/isme/internal/di"
 
 	"github.com/sarulabs/di/v2"
 )

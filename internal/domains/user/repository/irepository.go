@@ -2,8 +2,9 @@ package repository
 
 import (
 	"context"
-	"isme/internal/domains/user/entity"
-	"isme/internal/domains/user/models"
+
+	"github.com/vukyn/isme/internal/domains/user/entity"
+	"github.com/vukyn/isme/internal/domains/user/models"
 )
 
 type IRepository interface {

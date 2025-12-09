@@ -1,9 +1,9 @@
 package handlers
 
 import (
-	iapp "isme/internal/app"
-	"isme/internal/constants"
-	idi "isme/internal/di"
+	iapp "github.com/vukyn/isme/internal/app"
+	"github.com/vukyn/isme/internal/constants"
+	idi "github.com/vukyn/isme/internal/di"
 
 	"github.com/gofiber/fiber/v2"
 )

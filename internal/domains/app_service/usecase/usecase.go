@@ -2,15 +2,16 @@ package usecase
 
 import (
 	"context"
-	"isme/internal/config"
-	"isme/internal/domains/app_service/constants"
-	"isme/internal/domains/app_service/entity"
-	"isme/internal/domains/app_service/models"
-	appServiceRepo "isme/internal/domains/app_service/repository"
-	userRepo "isme/internal/domains/user/repository"
-	"isme/pkg/cryp/aes"
-	pkgCtx "isme/pkg/ctx"
-	pkgErr "isme/pkg/http/errors"
+
+	"github.com/vukyn/isme/internal/config"
+	"github.com/vukyn/isme/internal/domains/app_service/constants"
+	"github.com/vukyn/isme/internal/domains/app_service/entity"
+	"github.com/vukyn/isme/internal/domains/app_service/models"
+	appServiceRepo "github.com/vukyn/isme/internal/domains/app_service/repository"
+	userRepo "github.com/vukyn/isme/internal/domains/user/repository"
+	"github.com/vukyn/isme/pkg/cryp/aes"
+	pkgCtx "github.com/vukyn/isme/pkg/ctx"
+	pkgErr "github.com/vukyn/isme/pkg/http/errors"
 )
 
 type usecase struct {

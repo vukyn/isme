@@ -3,7 +3,7 @@ package ctx
 import (
 	"context"
 
-	pkgClaims "isme/pkg/claims"
+	pkgClaims "github.com/vukyn/isme/pkg/claims"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/sarulabs/di/v2"

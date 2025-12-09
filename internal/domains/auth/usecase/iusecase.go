@@ -2,7 +2,8 @@ package usecase
 
 import (
 	"context"
-	"isme/internal/domains/auth/models"
+
+	"github.com/vukyn/isme/internal/domains/auth/models"
 )
 
 type IUseCase interface {

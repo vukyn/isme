@@ -5,7 +5,8 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
-	pkgClaims "isme/pkg/claims"
+
+	pkgClaims "github.com/vukyn/isme/pkg/claims"
 
 	"github.com/golang-jwt/jwt/v5"
 )

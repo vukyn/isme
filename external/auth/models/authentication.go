@@ -1,7 +1,7 @@
 package models
 
 import (
-	"isme/external/models"
+	"github.com/vukyn/isme/external/models"
 )
 
 type RequestLoginRequest struct {
