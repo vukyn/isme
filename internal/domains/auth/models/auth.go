@@ -41,8 +41,9 @@ type SignUpResponse struct {
 }
 
 type LoginRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Email     string `json:"email"`
+	Password  string `json:"password"`
+	SessionID string `json:"session_id"`
 }
 
 func (r LoginRequest) Validate() error {
@@ -59,9 +60,11 @@ func (r LoginRequest) Validate() error {
 }
 
 type LoginResponse struct {
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
-	ExpiresAt    string `json:"expires_at"`
+	AccessToken       string `json:"access_token"`
+	RefreshToken      string `json:"refresh_token"`
+	ExpiresAt         string `json:"expires_at"`
+	RedirectURL       string `json:"redirect_url,omitempty"`
+	AuthorizationCode string `json:"authorization_code,omitempty"`
 }
 
 type RefreshTokenRequest struct {

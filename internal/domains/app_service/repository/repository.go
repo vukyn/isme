@@ -44,6 +44,25 @@ func (r *repository) Create(ctx context.Context, req entity.CreateRequest) (stri
 	return appService.ID, nil
 }
 
+func (r *repository) GetByID(ctx context.Context, id string) (entity.AppService, error) {
+	if id == "" {
+		return entity.AppService{}, pkgErr.InvalidRequest("id is required")
+	}
+
+	appService := entity.AppService{}
+	err := r.db.NewSelect().
+		Model(&appService).
+		Where("id = ?", id).
+		Scan(ctx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return entity.AppService{}, nil
+		}
+		return entity.AppService{}, pkgErr.DatabaseError(err.Error())
+	}
+	return appService, nil
+}
+
 func (r *repository) GetByCode(ctx context.Context, code string) (entity.AppService, error) {
 	if code == "" {
 		return entity.AppService{}, pkgErr.InvalidRequest("code is required")

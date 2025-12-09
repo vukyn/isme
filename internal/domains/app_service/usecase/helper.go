@@ -6,16 +6,16 @@ import (
 	pkgErr "isme/pkg/http/errors"
 )
 
-func generateAndEncryptAppSecret(aesSecret string, ctxInfo string) (string, error) {
+func generateAndEncryptAppSecret(aesSecret string, ctxInfo string) (string, string, error) {
 	appSecret := rand.RandMixedString(8, true, true)
 	if appSecret == "" {
-		return "", pkgErr.InvalidRequest("failed to generate app_secret")
+		return "", "", pkgErr.InvalidRequest("failed to generate app_secret")
 	}
 	encryptedAppSecret, err := aes.Encrypt(appSecret, aesSecret, ctxInfo)
 	if err != nil {
-		return "", pkgErr.InvalidRequest("failed to encrypt app_secret: " + err.Error())
+		return "", "", pkgErr.InvalidRequest("failed to encrypt app_secret: " + err.Error())
 	}
-	return encryptedAppSecret, nil
+	return appSecret, encryptedAppSecret, nil
 }
 
 func compareAppSecret(appSecret1 string, appSecret2 string, aesSecret string, ctxInfo string) (bool, error) {

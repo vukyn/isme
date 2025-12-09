@@ -158,6 +158,25 @@ func (u *usecase) Login(ctx context.Context, req models.LoginRequest) (models.Lo
 		return models.LoginResponse{}, pkgErr.InvalidRequest(err.Error())
 	}
 
+	// check if session ID is valid
+	var redirectURL, appServiceID string
+	if req.SessionID != "" {
+		cacheAppServiceID, ok := u.cache.Get(req.SessionID)
+		if !ok {
+			return models.LoginResponse{}, pkgErr.InvalidRequest("invalid session_id")
+		} else {
+			appServiceID = cacheAppServiceID
+		}
+		appService, err := u.appServiceRepo.GetByID(ctx, appServiceID)
+		if err != nil {
+			return models.LoginResponse{}, err
+		}
+		if appService.ID == "" {
+			return models.LoginResponse{}, pkgErr.InvalidRequest("invalid session_id")
+		}
+		redirectURL = appService.RedirectURL
+	}
+
 	// check if user exists
 	user, err := u.userRepo.GetByEmail(ctx, req.Email)
 	if err != nil {
@@ -180,6 +199,7 @@ func (u *usecase) Login(ctx context.Context, req models.LoginRequest) (models.Lo
 	if err != nil {
 		return models.LoginResponse{}, err
 	}
+	expiresAt := accessTokenClaims.GetExpiredAt().Format(time.RFC3339)
 
 	// generate refresh tokens
 	refreshToken, _, err := u.generateRefreshTokens(user.ID, user.Email)
@@ -199,10 +219,32 @@ func (u *usecase) Login(ctx context.Context, req models.LoginRequest) (models.Lo
 		return models.LoginResponse{}, err
 	}
 
+	// if login from external app service, need exchange authorization code for tokens
+	var authorizationCode string
+	if appServiceID != "" {
+		// clear session ID from cache
+		u.cache.Delete(req.SessionID)
+
+		// generate authorization code
+		authorizationCode = cryp.ULID()
+
+		// set tokens to cache for exchange token
+		u.cache.Set(keyAuthorizationCodeAccessToken(authorizationCode), accessToken, time.Duration(u.cfg.Auth.ExternalExchangeCodeTTL)*time.Second)
+		u.cache.Set(keyAuthorizationCodeRefreshToken(authorizationCode), refreshToken, time.Duration(u.cfg.Auth.ExternalExchangeCodeTTL)*time.Second)
+		u.cache.Set(keyAuthorizationCodeExpiresAt(authorizationCode), expiresAt, time.Duration(u.cfg.Auth.ExternalExchangeCodeTTL)*time.Second)
+
+		// sanitize tokens info
+		accessToken = ""
+		refreshToken = ""
+		expiresAt = ""
+	}
+
 	return models.LoginResponse{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-		ExpiresAt:    accessTokenClaims.GetExpiredAt().Format(time.RFC3339),
+		AccessToken:       accessToken,
+		RefreshToken:      refreshToken,
+		ExpiresAt:         expiresAt,
+		RedirectURL:       redirectURL,
+		AuthorizationCode: authorizationCode,
 	}, nil
 }
 
@@ -364,24 +406,32 @@ func (u *usecase) RequestLogin(ctx context.Context, req models.RequestLoginReque
 	}
 
 	// decrypt app_secret from request and database
-	decryptedSecret, err := aes.Decrypt(req.AppSecret, u.cfg.AES.Secret, req.CtxInfo)
+	decryptedAppSecret, err := aes.Decrypt(appService.AppSecret, u.cfg.AES.Secret, appService.CtxInfo)
 	if err != nil {
 		return models.RequestLoginResponse{}, err
 	}
-	decryptedSecret2, err := aes.Decrypt(appService.AppSecret, u.cfg.AES.Secret, req.CtxInfo)
-	if err != nil {
-		return models.RequestLoginResponse{}, err
-	}
-	if decryptedSecret != decryptedSecret2 {
+	if decryptedAppSecret != req.AppSecret {
 		return models.RequestLoginResponse{}, pkgErr.InvalidRequest("invalid app_secret")
 	}
 
 	// generate session ID and set to cache
 	sessionID := cryp.ULID()
-	u.cache.Set(sessionID, appService.ID, time.Duration(u.cfg.Auth.ExternalAuthSessionTTL)*time.Minute)
+	u.cache.Set(sessionID, appService.ID, time.Duration(u.cfg.Auth.ExternalLoginSessionTTL)*time.Second)
 
 	// return response
 	return models.RequestLoginResponse{
-		RedirectURL: fmt.Sprintf("%s?session_id=%s", constants.AUTH_WEB_ENDPOINT_SSO_LOGIN, sessionID),
+		RedirectURL: fmt.Sprintf("%s?session_id=%s", constants.AUTH_ENDPOINT_LOGIN, sessionID),
 	}, nil
+}
+
+func keyAuthorizationCodeAccessToken(authorizationCode string) string {
+	return fmt.Sprintf("auth:external:code:%s:access_token", authorizationCode)
+}
+
+func keyAuthorizationCodeRefreshToken(authorizationCode string) string {
+	return fmt.Sprintf("auth:external:code:%s:refresh_token", authorizationCode)
+}
+
+func keyAuthorizationCodeExpiresAt(authorizationCode string) string {
+	return fmt.Sprintf("auth:external:code:%s:expires_at", authorizationCode)
 }

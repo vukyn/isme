@@ -52,7 +52,7 @@ func (u *usecase) RegisterApp(ctx context.Context, req models.RegisterRequest) (
 	}
 
 	// generate app_secret
-	encryptedSecret, err := generateAndEncryptAppSecret(u.cfg.AES.Secret, req.CtxInfo)
+	appSecret, encryptedSecret, err := generateAndEncryptAppSecret(u.cfg.AES.Secret, req.CtxInfo)
 	if err != nil {
 		return models.RegisterResponse{}, err
 	}
@@ -71,7 +71,7 @@ func (u *usecase) RegisterApp(ctx context.Context, req models.RegisterRequest) (
 	}
 
 	return models.RegisterResponse{
-		AppSecret: encryptedSecret,
+		AppSecret: appSecret,
 	}, nil
 }
 
@@ -101,23 +101,17 @@ func (u *usecase) VerifyApp(ctx context.Context, req models.VerifyRequest) (mode
 		}, nil
 	}
 
-	// decrypt app_secret from request and database
-	decryptedSecret1, err := aes.Decrypt(req.AppSecret, u.cfg.AES.Secret, req.CtxInfo)
+	// decrypt app_secret from database
+	decryptedAppSecret, err := aes.Decrypt(appService.AppSecret, u.cfg.AES.Secret, appService.CtxInfo)
 	if err != nil {
 		return models.VerifyResponse{
 			Ok: false,
 		}, nil
 	}
-	decryptedSecret2, err := aes.Decrypt(appService.AppSecret, u.cfg.AES.Secret, req.CtxInfo)
-	if err != nil {
+	if decryptedAppSecret != req.AppSecret {
 		return models.VerifyResponse{
 			Ok: false,
 		}, nil
-	}
-	if decryptedSecret1 != decryptedSecret2 {
-		return models.VerifyResponse{
-			Ok: false,
-		}, pkgErr.InvalidRequest("invalid app_secret")
 	}
 
 	return models.VerifyResponse{
@@ -172,7 +166,7 @@ func (u *usecase) RefreshApp(ctx context.Context, req models.RefreshRequest) (mo
 	}
 
 	// generate new app_secret
-	encryptedSecret, err := generateAndEncryptAppSecret(u.cfg.AES.Secret, req.CtxInfo)
+	appSecret, encryptedSecret, err := generateAndEncryptAppSecret(u.cfg.AES.Secret, req.CtxInfo)
 	if err != nil {
 		return models.RefreshResponse{}, err
 	}
@@ -187,6 +181,6 @@ func (u *usecase) RefreshApp(ctx context.Context, req models.RefreshRequest) (mo
 	}
 
 	return models.RefreshResponse{
-		AppSecret: encryptedSecret,
+		AppSecret: appSecret,
 	}, nil
 }
