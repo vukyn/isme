@@ -35,7 +35,8 @@ func (s *service) rest(_ context.Context, retry int, retryInterval, timeout time
 func (s *service) restWithDebug(ctx context.Context, retry int, retryInterval, timeout time.Duration) *resty.Client {
 	return s.rest(ctx, retry, retryInterval, timeout).
 		SetDebug(true).
-		EnableTrace()
+		SetLogger(log.New()).
+		EnableGenerateCurlOnDebug() // Enable this to generate curl command on debug
 }
 
 func (s *service) RequestLogin(ctx context.Context, req *models.RequestLoginRequest) (*models.RequestLoginResponse, error) {

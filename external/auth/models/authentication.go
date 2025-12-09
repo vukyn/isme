@@ -6,9 +6,9 @@ import (
 
 type RequestLoginRequest struct {
 	models.ApiRequest
-	AppCode   string
-	AppSecret string
-	CtxInfo   string
+	AppCode   string `json:"app_code"`
+	AppSecret string `json:"app_secret"`
+	CtxInfo   string `json:"ctx_info"`
 }
 
 type RequestLoginResponse struct {
