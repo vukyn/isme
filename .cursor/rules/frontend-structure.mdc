@@ -1,0 +1,651 @@
+---
+type: "Agent Requested"
+description: "Frontend UI structure, folder organization, and code organization patterns for the React/TypeScript UI"
+alwaysApply: false
+---
+
+# Frontend UI - Source Structure & Organization
+
+## Overview
+
+The `ui/src` directory follows a feature-based and layer-based organization pattern, combining domain-driven design principles with React best practices. Each folder has a specific purpose and contains related functionality.
+
+## Directory Structure
+
+```
+src/
+├── apis/              # API client functions
+├── assets/            # Static assets (images, icons, etc.)
+├── components/        # Reusable React components
+│   └── ui/           # Base UI components (Chakra UI wrappers)
+├── consts/           # Constants and configuration values
+├── hooks/            # Custom React hooks
+├── pages/            # Page-level components (routes)
+├── theme/            # Chakra UI theme configuration
+├── types/            # TypeScript type definitions
+├── utils/            # Utility functions and helpers
+├── validators/       # Form validation schemas (Zod)
+├── App.tsx           # Main application component with routing
+├── main.tsx          # Application entry point
+├── index.css         # Global styles
+└── App.css           # App-specific styles
+```
+
+## Folder Details
+
+### `apis/` - API Client Functions
+
+**Purpose**: Contains all API client functions that communicate with the backend.
+
+**Organization**:
+- One file per domain/resource (e.g., `auth.ts`, `user.ts`)
+- Each file exports async functions that make HTTP requests
+- Functions use the `apiClient` from `@/utils/axios`
+- All functions are typed with request/response types from `@/types`
+
+**Code Pattern**:
+```typescript
+import type { LoginRequest, LoginResponse } from "@/types";
+import { API_ENDPOINTS } from "@/consts";
+import { apiClient } from "@/utils/axios";
+
+export const login = async (data: LoginRequest): Promise<LoginResponse> => {
+  const response = await apiClient.post<LoginResponse>(API_ENDPOINTS.AUTH_LOGIN, data);
+  return response.data;
+};
+```
+
+**Rules**:
+- Functions should be pure and only handle API communication
+- No business logic or state management in API functions
+- Always use typed request/response interfaces
+- Export all functions from `index.ts` for easy importing
+- Use `API_ENDPOINTS` constants from `@/consts` for URLs
+
+**Files**:
+- `auth.ts` - Authentication-related API calls (login, signup, logout, refresh token, get current user)
+- `index.ts` - Barrel export for all API functions
+
+### `assets/` - Static Assets
+
+**Purpose**: Contains static files like images, icons, SVGs, and other media files.
+
+**Organization**:
+- Images: `.png`, `.jpg`, `.svg` files
+- Icons: Icon files or icon sets
+- Other static resources
+
+**Rules**:
+- Keep assets organized by type or feature
+- Use descriptive file names
+- Optimize images before adding to this folder
+- Reference assets using import statements or public paths
+
+### `components/` - React Components
+
+**Purpose**: Contains reusable React components used throughout the application.
+
+**Organization**:
+- **Root level**: Feature-specific or layout components (e.g., `ProtectedRoute.tsx`)
+- **`ui/` subfolder**: Base UI components that wrap Chakra UI primitives
+
+**Component Types**:
+
+1. **Feature Components** (root level):
+   - Components that implement specific features
+   - Examples: `ProtectedRoute.tsx` - Route protection wrapper
+
+2. **UI Components** (`components/ui/`):
+   - Wrapper components around Chakra UI primitives
+   - Provide consistent styling and behavior
+   - Examples: `button.tsx`, `input.tsx`, `card.tsx`, `checkbox.tsx`
+
+**Code Pattern for UI Components**:
+```typescript
+"use client";
+
+import { Button as ChakraButton, type ButtonProps } from "@chakra-ui/react";
+import { forwardRef } from "react";
+
+export interface ButtonComponentProps extends ButtonProps {}
+
+export const Button = forwardRef<HTMLButtonElement, ButtonComponentProps>(
+  function Button(props, ref) {
+    const { variant = "primary", ...rest } = props;
+    const chakraVariant = variant === "primary" ? "solid" : variant;
+    const colorPalette = variant === "primary" ? "brand" : undefined;
+    
+    return (
+      <ChakraButton
+        ref={ref}
+        variant={chakraVariant}
+        colorPalette={colorPalette}
+        {...rest}
+      />
+    );
+  }
+);
+```
+
+**Rules**:
+- Use `"use client"` directive for client components
+- Use `forwardRef` for components that need ref forwarding
+- Extend Chakra UI props for type safety
+- Apply consistent theming and variants
+- Export components as named exports
+- Keep components focused and single-purpose
+
+**Files**:
+- `ProtectedRoute.tsx` - Route protection component that checks authentication
+- `ui/button.tsx` - Button component wrapper
+- `ui/card.tsx` - Card component wrapper
+- `ui/input.tsx` - Input component wrapper
+- `ui/checkbox.tsx` - Checkbox component wrapper
+- `ui/provider.tsx` - Chakra UI provider setup
+- `ui/toaster.tsx` - Toast notification component
+- `ui/tooltip.tsx` - Tooltip component wrapper
+- `ui/color-mode.tsx` - Color mode toggle component
+- `ui/link.tsx` - Link component wrapper
+
+### `consts/` - Constants
+
+**Purpose**: Contains application-wide constants, configuration values, and enums.
+
+**Organization**:
+- One file per constant category
+- Export all constants from `index.ts` for easy importing
+
+**Code Pattern**:
+```typescript
+// endpoints.ts
+export const API_ENDPOINTS = {
+  AUTH_LOGIN: "/api/v1/auth/login",
+  AUTH_SIGNUP: "/api/v1/auth/signup",
+  // ...
+} as const;
+
+// values.ts
+export const PAGE_SIZE_OPTIONS: PageSizeOption[] = [
+  { value: 10, label: "10" },
+  { value: 20, label: "20" },
+  // ...
+];
+```
+
+**Rules**:
+- Use `as const` for readonly objects
+- Group related constants together
+- Use descriptive constant names in UPPER_SNAKE_CASE
+- Export from `index.ts` for barrel exports
+
+**Files**:
+- `endpoints.ts` - API endpoint URLs
+- `values.ts` - Application constant values (pagination options, etc.)
+- `index.ts` - Barrel export for all constants
+
+### `hooks/` - Custom React Hooks
+
+**Purpose**: Contains custom React hooks that encapsulate reusable stateful logic.
+
+**Organization**:
+- One file per hook
+- Hooks follow the `use*` naming convention
+- Hooks can combine multiple React hooks and API calls
+
+**Code Pattern**:
+```typescript
+import { useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { login as loginApi } from "@/apis/auth";
+import type { LoginRequest, LoginResponse } from "@/types";
+
+interface UseAuthReturn {
+  login: (data: LoginRequest) => Promise<LoginResponse>;
+  loading: boolean;
+  error: Error | null;
+}
+
+export const useAuth = (): UseAuthReturn => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+  const navigate = useNavigate();
+
+  const login = useCallback(async (data: LoginRequest) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await loginApi(data);
+      // Handle success...
+      return response;
+    } catch (err) {
+      // Handle error...
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  }, [navigate]);
+
+  return { login, loading, error };
+};
+```
+
+**Rules**:
+- Hooks should be pure functions (no side effects in the hook body)
+- Use `useCallback` and `useMemo` appropriately for performance
+- Return an object with all hook values and functions
+- Handle loading and error states
+- Export hooks as named exports
+
+**Files**:
+- `useAuth.ts` - Authentication hook (login, signup, logout, token management)
+
+### `pages/` - Page Components
+
+**Purpose**: Contains page-level components that represent routes in the application.
+
+**Organization**:
+- One file per page/route
+- Pages are top-level components that compose other components
+- Pages handle their own form state and validation
+
+**Code Pattern**:
+```typescript
+"use client";
+
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { loginSchema, type LoginFormData } from "@/validators";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+
+export const Login = () => {
+  const { login, loading, error } = useAuth();
+  const navigate = useNavigate();
+  const [formData, setFormData] = useState<LoginFormData>({
+    email: "",
+    password: "",
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    // Validation and submission logic...
+  };
+
+  return (
+    <Box>
+      <Card>
+        {/* Form content */}
+      </Card>
+    </Box>
+  );
+};
+```
+
+**Rules**:
+- Use `"use client"` directive for client components
+- Pages should be self-contained and handle their own state
+- Use custom hooks for business logic
+- Use validators from `@/validators` for form validation
+- Export pages as named exports
+- Keep pages focused on UI composition
+
+**Files**:
+- `Login.tsx` - Login page
+- `Signup.tsx` - Signup page
+- `SSOLogin.tsx` - SSO login page
+- `Welcome.tsx` - Welcome/home page (protected)
+- `Home.tsx` - Home page
+- `NotFound.tsx` - 404 error page
+
+### `theme/` - Theme Configuration
+
+**Purpose**: Contains Chakra UI theme configuration and customization.
+
+**Organization**:
+- Single `index.ts` file that exports the theme system
+- Defines colors, semantic tokens, gradients, and other design tokens
+
+**Code Pattern**:
+```typescript
+import { createSystem, defaultConfig, defineConfig } from "@chakra-ui/react";
+
+const config = defineConfig({
+  theme: {
+    tokens: {
+      colors: {
+        brand: {
+          500: { value: "#a855f7" },
+          // ...
+        },
+      },
+    },
+    semanticTokens: {
+      colors: {
+        bg: {
+          value: {
+            _light: "{colors.surface.light.primary}",
+            _dark: "{colors.surface.dark.primary}",
+          },
+        },
+      },
+    },
+  },
+});
+
+export const system = createSystem(defaultConfig, config);
+```
+
+**Rules**:
+- Use semantic tokens for theme-aware colors
+- Support both light and dark modes
+- Define brand colors and custom color palettes
+- Export the theme system for use in Provider
+
+**Files**:
+- `index.ts` - Complete theme configuration with colors, semantic tokens, and gradients
+
+### `types/` - TypeScript Type Definitions
+
+**Purpose**: Contains TypeScript interfaces, types, and type utilities.
+
+**Organization**:
+- One file per domain/resource (e.g., `auth.ts`, `user.ts`)
+- Base types in `base.ts`
+- Export all types from `index.ts` for easy importing
+
+**Code Pattern**:
+```typescript
+// auth.ts
+export interface LoginRequest {
+  email: string;
+  password: string;
+  session_id?: string;
+}
+
+export interface LoginResponse {
+  data: {
+    access_token: string;
+    refresh_token: string;
+    expires_at: string;
+  };
+}
+
+// index.ts
+export type { LoginRequest, LoginResponse } from "./auth";
+export type { BasePaginationResponse, PageSizeOption } from "./base";
+```
+
+**Rules**:
+- Use `interface` for object types
+- Use descriptive names that indicate request/response
+- Group related types in the same file
+- Export all types from `index.ts` for barrel exports
+- Use optional properties (`?`) for optional fields
+
+**Files**:
+- `auth.ts` - Authentication-related types (LoginRequest, LoginResponse, AuthTokens, etc.)
+- `user.ts` - User-related types (User interface)
+- `base.ts` - Base types used across the app (BasePaginationResponse, PageSizeOption)
+- `index.ts` - Barrel export for all types
+
+### `utils/` - Utility Functions
+
+**Purpose**: Contains utility functions, helpers, and shared logic.
+
+**Organization**:
+- One file per utility category
+- Pure functions that don't depend on React
+- Export all utilities from `index.ts` for easy importing
+
+**Code Pattern**:
+```typescript
+// axios.ts
+import axios from "axios";
+import { getCookie, setCookie } from "./cookies";
+
+export const apiClient = axios.create({
+  baseURL: getApiBaseUrl(),
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
+
+export const getTokens = () => {
+  return {
+    access_token: getCookie("access_token"),
+    refresh_token: getCookie("refresh_token"),
+  };
+};
+
+// cookies.ts
+export const setCookie = (name: string, value: string, days?: number): void => {
+  // Cookie setting logic...
+};
+
+export const getCookie = (name: string): string | null => {
+  // Cookie getting logic...
+};
+```
+
+**Rules**:
+- Keep functions pure and testable
+- One responsibility per function
+- Use descriptive function names
+- Export from `index.ts` for barrel exports
+- Document complex functions with JSDoc comments
+
+**Files**:
+- `axios.ts` - Axios instance configuration, token management, interceptors
+- `cookies.ts` - Cookie utility functions (setCookie, getCookie, deleteCookie)
+- `config.ts` - Configuration utilities (getApiBaseUrl, runtime config)
+- `endpoint.ts` - Endpoint-related utilities
+- `time.ts` - Time/date utility functions
+- `index.ts` - Barrel export for all utilities
+
+### `validators/` - Form Validation Schemas
+
+**Purpose**: Contains Zod validation schemas for form validation.
+
+**Organization**:
+- Single `index.ts` file that exports all validation schemas
+- Schemas are organized by form/feature
+
+**Code Pattern**:
+```typescript
+import { z } from "zod";
+
+const passwordSchema = z
+  .string()
+  .min(6, "Password must be at least 6 characters")
+  .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+  .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+  .regex(/[0-9]/, "Password must contain at least one number");
+
+export const loginSchema = z.object({
+  email: z.email("Invalid email address"),
+  password: z.string().min(1, "Password is required"),
+});
+
+export type LoginFormData = z.infer<typeof loginSchema>;
+
+export const signupSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  email: z.email("Invalid email address"),
+  password: passwordSchema,
+});
+
+export type SignupFormData = z.infer<typeof signupSchema>;
+```
+
+**Rules**:
+- Use Zod for all form validation
+- Export both schema and inferred types
+- Provide descriptive error messages
+- Reuse common schemas (e.g., password validation)
+- Export all schemas from `index.ts`
+
+**Files**:
+- `index.ts` - All validation schemas (loginSchema, signupSchema, etc.)
+
+### Root Files
+
+#### `App.tsx` - Main Application Component
+
+**Purpose**: Sets up routing and application structure.
+
+**Code Pattern**:
+```typescript
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { Login } from "./pages/Login";
+import { ProtectedRoute } from "./components/ProtectedRoute";
+
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route
+          path="/welcome"
+          element={
+            <ProtectedRoute>
+              <Welcome />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/" element={<Navigate to="/welcome" replace />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+export default App;
+```
+
+**Rules**:
+- Define all routes in this file
+- Use `ProtectedRoute` for authenticated routes
+- Use `Navigate` for redirects
+- Keep routing logic simple and declarative
+
+#### `main.tsx` - Application Entry Point
+
+**Purpose**: Initializes React application and providers.
+
+**Code Pattern**:
+```typescript
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import "@/index.css";
+import App from "@/App.tsx";
+import { Provider } from "@/components/ui/provider";
+import { Toaster } from "@/components/ui/toaster";
+
+createRoot(document.getElementById("root")!).render(
+  <StrictMode>
+    <Provider>
+      <App />
+      <Toaster />
+    </Provider>
+  </StrictMode>
+);
+```
+
+**Rules**:
+- Wrap app in `StrictMode` for development
+- Set up all global providers here
+- Import global styles
+- Keep this file minimal
+
+#### `index.css` - Global Styles
+
+**Purpose**: Contains global CSS styles and CSS variables.
+
+**Rules**:
+- Define CSS reset or normalize styles
+- Define CSS custom properties if needed
+- Keep styles minimal (prefer Chakra UI theming)
+
+#### `App.css` - App-Specific Styles
+
+**Purpose**: Contains application-specific CSS styles.
+
+**Rules**:
+- Use sparingly (prefer Chakra UI components and theme)
+- Only for styles that can't be achieved with Chakra UI
+
+## Import Patterns
+
+### Path Aliases
+
+The project uses path aliases configured in `tsconfig.json`:
+- `@/` - Points to `src/` directory
+- Use `@/` prefix for all internal imports
+
+### Import Organization
+
+```typescript
+// 1. React and third-party libraries
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Box, Stack } from "@chakra-ui/react";
+
+// 2. Internal imports (using @/ alias)
+import { useAuth } from "@/hooks/useAuth";
+import { loginSchema } from "@/validators";
+import { API_ENDPOINTS } from "@/consts";
+import type { LoginRequest } from "@/types";
+import { Button } from "@/components/ui/button";
+```
+
+### Barrel Exports
+
+Most folders use barrel exports (`index.ts`) for cleaner imports:
+- `@/types` - All type definitions
+- `@/apis` - All API functions
+- `@/utils` - All utility functions
+- `@/consts` - All constants
+- `@/validators` - All validation schemas
+
+## Naming Conventions
+
+### Files
+- **Components**: PascalCase (e.g., `Login.tsx`, `ProtectedRoute.tsx`)
+- **Hooks**: camelCase with `use` prefix (e.g., `useAuth.ts`)
+- **Utilities**: camelCase (e.g., `axios.ts`, `cookies.ts`)
+- **Types**: camelCase (e.g., `auth.ts`, `user.ts`)
+- **Constants**: camelCase (e.g., `endpoints.ts`, `values.ts`)
+
+### Exports
+- **Components**: Named exports (e.g., `export const Login = () => {}`)
+- **Hooks**: Named exports (e.g., `export const useAuth = () => {}`)
+- **Types**: Type exports (e.g., `export type { LoginRequest }`)
+- **Functions**: Named exports (e.g., `export const login = async () => {}`)
+
+### Variables and Functions
+- **Variables**: camelCase (e.g., `formData`, `isLoading`)
+- **Functions**: camelCase (e.g., `handleSubmit`, `getTokens`)
+- **Constants**: UPPER_SNAKE_CASE (e.g., `API_ENDPOINTS`, `STORAGE_KEYS`)
+- **Types/Interfaces**: PascalCase (e.g., `LoginRequest`, `UseAuthReturn`)
+
+## Code Organization Principles
+
+1. **Separation of Concerns**: Each folder has a single, clear purpose
+2. **Feature-Based Organization**: Related code is grouped together (APIs, types, validators for auth)
+3. **Reusability**: Components, hooks, and utilities are designed for reuse
+4. **Type Safety**: All code is fully typed with TypeScript
+5. **Barrel Exports**: Use `index.ts` files for clean imports
+6. **Path Aliases**: Use `@/` prefix for all internal imports
+7. **Client Components**: Use `"use client"` directive for components that use hooks or browser APIs
+
+## References
+
+- `ui/src/App.tsx` - Main application component with routing
+- `ui/src/main.tsx` - Application entry point
+- `ui/src/apis/auth.ts` - Example API client functions
+- `ui/src/hooks/useAuth.ts` - Example custom hook
+- `ui/src/pages/Login.tsx` - Example page component
+- `ui/src/components/ui/button.tsx` - Example UI component
+- `ui/src/validators/index.ts` - Example validation schemas
+- `ui/src/theme/index.ts` - Theme configuration
+- `ui/src/utils/axios.ts` - Axios configuration and interceptors
