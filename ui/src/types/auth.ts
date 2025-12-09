@@ -1,6 +1,7 @@
 export interface LoginRequest {
 	email: string;
 	password: string;
+	session_id?: string;
 }
 
 export interface LoginResponse {
@@ -8,6 +9,8 @@ export interface LoginResponse {
 		access_token: string;
 		refresh_token: string;
 		expires_at: string;
+		redirect_url?: string;
+		authorization_code?: string;
 	};
 }
 

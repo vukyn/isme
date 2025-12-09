@@ -45,13 +45,41 @@ export const SSOLogin = () => {
 			return;
 		}
 
-		try {
-			await login(formData);
+		// Get session_id from query params
+		const sessionId = searchParams.get("session_id");
+		if (!sessionId || sessionId.trim() === "") {
 			toaster.create({
-				title: "Login successful",
-				description: "Welcome back!",
-				type: "success",
+				title: "Invalid session",
+				description: "Session ID is required",
+				type: "error",
 			});
+			return;
+		}
+
+		try {
+			const response = await login({
+				...formData,
+				session_id: sessionId,
+			});
+
+			// Check if this is an SSO login with redirect
+			if (response.data.redirect_url && response.data.authorization_code) {
+				// Open new tab with redirect URL and authorization code
+				const redirectUrl = new URL(response.data.redirect_url);
+				redirectUrl.searchParams.set("authorization_code", response.data.authorization_code);
+				window.open(redirectUrl.toString(), "_blank");
+				toaster.create({
+					title: "Login successful",
+					description: "Redirecting to application...",
+					type: "success",
+				});
+			} else {
+				toaster.create({
+					title: "Login successful",
+					description: "Welcome back!",
+					type: "success",
+				});
+			}
 		} catch (err) {
 			// Error is handled by useAuth hook
 			toaster.create({

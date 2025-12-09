@@ -16,6 +16,7 @@ type Config struct {
 		Level string `envconfig:"LOGGER_LEVEL"`
 	}
 	Auth struct {
+		EndpointWebSSOLogin     string `envconfig:"AUTH_ENDPOINT_WEB_SSO_LOGIN"`
 		AccessTokenPrivateKey   string `envconfig:"AUTH_ACCESS_TOKEN_PRIVATE_KEY"`
 		AccessTokenPublicKey    string `envconfig:"AUTH_ACCESS_TOKEN_PUBLIC_KEY"`
 		AccessTokenSecretKey    string `envconfig:"AUTH_ACCESS_TOKEN_SECRET_KEY"`

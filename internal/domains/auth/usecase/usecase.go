@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"isme/cache"
 	"isme/internal/config"
-	"isme/internal/constants"
 	appServiceRepo "isme/internal/domains/app_service/repository"
 	"isme/internal/domains/auth/models"
 	userConstants "isme/internal/domains/user/constants"
@@ -420,7 +419,7 @@ func (u *usecase) RequestLogin(ctx context.Context, req models.RequestLoginReque
 
 	// return response
 	return models.RequestLoginResponse{
-		RedirectURL: fmt.Sprintf("%s?session_id=%s", constants.AUTH_ENDPOINT_LOGIN, sessionID),
+		RedirectURL: fmt.Sprintf("%s?session_id=%s", u.cfg.Auth.EndpointWebSSOLogin, sessionID),
 	}, nil
 }
 

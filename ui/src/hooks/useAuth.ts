@@ -2,10 +2,10 @@ import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { login as loginApi, signup as signupApi, getCurrentUser, logout as logoutApi } from "@/apis/auth";
 import { saveTokens, clearTokens, getTokens } from "@/utils/axios";
-import type { LoginRequest, SignupRequest } from "@/types";
+import type { LoginRequest, LoginResponse, SignupRequest } from "@/types";
 
 interface UseAuthReturn {
-	login: (data: LoginRequest) => Promise<void>;
+	login: (data: LoginRequest) => Promise<LoginResponse>;
 	signup: (data: SignupRequest) => Promise<void>;
 	logout: () => Promise<void>;
 	refreshToken: () => Promise<void>;
@@ -23,13 +23,17 @@ export const useAuth = (): UseAuthReturn => {
 	const isAuthenticated = !!getTokens().access_token;
 
 	const login = useCallback(
-		async (data: LoginRequest) => {
+		async (data: LoginRequest): Promise<LoginResponse> => {
 			try {
 				setLoading(true);
 				setError(null);
 				const response = await loginApi(data);
 				saveTokens(response.data);
-				navigate("/welcome");
+				// Only navigate if this is not an SSO login (no redirect_url)
+				if (!response.data.redirect_url) {
+					navigate("/welcome");
+				}
+				return response;
 			} catch (err: any) {
 				const errorMessage = err?.response?.data?.message || err?.message || "Login failed. Please check your credentials.";
 				const error = new Error(errorMessage);
