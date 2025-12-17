@@ -4,7 +4,7 @@ import (
 	idi "github.com/vukyn/isme/internal/di"
 	"github.com/vukyn/isme/internal/domains/app_service/models"
 	pkgCtx "github.com/vukyn/isme/pkg/ctx"
-	pkgHttp "github.com/vukyn/isme/pkg/http/fiber"
+	pkgHttp "github.com/vukyn/kuery/http/fiber"
 
 	"github.com/gofiber/fiber/v2"
 )

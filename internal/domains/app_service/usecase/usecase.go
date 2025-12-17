@@ -9,9 +9,9 @@ import (
 	"github.com/vukyn/isme/internal/domains/app_service/models"
 	appServiceRepo "github.com/vukyn/isme/internal/domains/app_service/repository"
 	userRepo "github.com/vukyn/isme/internal/domains/user/repository"
-	"github.com/vukyn/isme/pkg/cryp/aes"
+	"github.com/vukyn/kuery/cryp/aes"
 	pkgCtx "github.com/vukyn/isme/pkg/ctx"
-	pkgErr "github.com/vukyn/isme/pkg/http/errors"
+	pkgErr "github.com/vukyn/kuery/http/errors"
 )
 
 type usecase struct {

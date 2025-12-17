@@ -2,12 +2,14 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"time"
 
 	"github.com/vukyn/isme/external/auth/constants"
 	"github.com/vukyn/isme/external/auth/models"
-	pkgErr "github.com/vukyn/isme/pkg/http/errors"
+	pkgBase "github.com/vukyn/kuery/http/base"
+	pkgErr "github.com/vukyn/kuery/http/errors"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/vukyn/kuery/log"
@@ -61,7 +63,7 @@ func (s *service) RequestLogin(ctx context.Context, req *models.RequestLoginRequ
 
 	if resp.StatusCode() != http.StatusOK {
 		log.New().Errorf("Error request login from external auth: %v", resp.String())
-		return nil, pkgErr.InternalServerError(resp.String())
+		return nil, handleResponseError(resp)
 	}
 
 	return apiResponse, nil
@@ -89,8 +91,17 @@ func (s *service) ExchangeCode(ctx context.Context, req *models.ExchangeCodeRequ
 
 	if resp.StatusCode() != http.StatusOK {
 		log.New().Errorf("Error exchange code from external auth: %v", resp.String())
-		return nil, pkgErr.InternalServerError(resp.String())
+		return nil, handleResponseError(resp)
 	}
 
 	return apiResponse, nil
+}
+
+func handleResponseError(resp *resty.Response) error {
+	var baseErr pkgBase.Response
+	err := json.Unmarshal(resp.Body(), &baseErr)
+	if err != nil {
+		return pkgErr.InternalServerError(resp.String())
+	}
+	return pkgErr.Forward(baseErr)
 }

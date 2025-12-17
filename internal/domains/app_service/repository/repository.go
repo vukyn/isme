@@ -8,7 +8,7 @@ import (
 	"github.com/vukyn/isme/internal/domains/app_service/entity"
 
 	pkgCtx "github.com/vukyn/isme/pkg/ctx"
-	pkgErr "github.com/vukyn/isme/pkg/http/errors"
+	pkgErr "github.com/vukyn/kuery/http/errors"
 
 	"github.com/uptrace/bun"
 	"github.com/vukyn/kuery/cryp"

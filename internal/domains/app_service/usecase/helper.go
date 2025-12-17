@@ -1,9 +1,9 @@
 package usecase
 
 import (
-	"github.com/vukyn/isme/pkg/cryp/aes"
-	"github.com/vukyn/isme/pkg/cryp/rand"
-	pkgErr "github.com/vukyn/isme/pkg/http/errors"
+	"github.com/vukyn/kuery/cryp/aes"
+	"github.com/vukyn/kuery/cryp/rand"
+	pkgErr "github.com/vukyn/kuery/http/errors"
 )
 
 func generateAndEncryptAppSecret(aesSecret string, ctxInfo string) (string, string, error) {

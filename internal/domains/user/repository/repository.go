@@ -10,7 +10,7 @@ import (
 	"github.com/vukyn/isme/internal/domains/user/entity"
 	"github.com/vukyn/isme/internal/domains/user/models"
 
-	pkgErr "github.com/vukyn/isme/pkg/http/errors"
+	pkgErr "github.com/vukyn/kuery/http/errors"
 
 	"github.com/uptrace/bun"
 	"github.com/vukyn/kuery/cryp"

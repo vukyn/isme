@@ -15,9 +15,9 @@ import (
 	userSessionConstants "github.com/vukyn/isme/internal/domains/user_session/constants"
 	userSessionRepo "github.com/vukyn/isme/internal/domains/user_session/repository"
 	pkgClaims "github.com/vukyn/isme/pkg/claims"
-	"github.com/vukyn/isme/pkg/cryp/aes"
+	"github.com/vukyn/kuery/cryp/aes"
 	pkgCtx "github.com/vukyn/isme/pkg/ctx"
-	pkgErr "github.com/vukyn/isme/pkg/http/errors"
+	pkgErr "github.com/vukyn/kuery/http/errors"
 	"github.com/vukyn/isme/pkg/jwt"
 
 	"github.com/vukyn/kuery/cryp"

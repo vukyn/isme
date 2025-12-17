@@ -3,12 +3,26 @@ package query
 import (
 	"strings"
 
-	pkgBase "github.com/vukyn/isme/pkg/base"
-
 	"github.com/uptrace/bun"
 )
 
-func SelectWithPagination(query *bun.SelectQuery, paging pkgBase.Pagination, defaultSort string) *bun.SelectQuery {
+type Pagination struct {
+	Page      int
+	Size      int
+	SortBy    string
+	SortOrder string
+	CountOnly bool
+}
+
+func (p *Pagination) GetOffset() int {
+	return (p.Page - 1) * p.Size
+}
+
+func (p *Pagination) GetLimit() int {
+	return p.Size
+}
+
+func SelectWithPagination(query *bun.SelectQuery, paging Pagination, defaultSort string) *bun.SelectQuery {
 	if paging.SortBy != "" {
 		if strings.ToLower(paging.SortOrder) == "asc" {
 			query = query.Order(paging.SortBy + " ASC")
