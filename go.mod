@@ -15,7 +15,7 @@ require (
 	github.com/uptrace/bun v1.2.16
 	github.com/uptrace/bun/dialect/sqlitedialect v1.2.16
 	github.com/uptrace/bun/driver/sqliteshim v1.2.16
-	github.com/vukyn/kuery v1.9.2
+	github.com/vukyn/kuery v1.9.5
 )
 
 require (

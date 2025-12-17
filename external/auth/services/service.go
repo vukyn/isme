@@ -64,7 +64,7 @@ func (s *service) GetMe(ctx context.Context, req *models.GetMeRequest) (*models.
 
 	if resp.StatusCode() != http.StatusOK {
 		log.New().Errorf("Error get me from external auth: %v", resp.String())
-		return nil, handleResponseError(resp)
+		return nil, handleResponseError(resp, resp.StatusCode())
 	}
 
 	return apiResponse, nil
@@ -92,7 +92,35 @@ func (s *service) RequestLogin(ctx context.Context, req *models.RequestLoginRequ
 
 	if resp.StatusCode() != http.StatusOK {
 		log.New().Errorf("Error request login from external auth: %v", resp.String())
-		return nil, handleResponseError(resp)
+		return nil, handleResponseError(resp, resp.StatusCode())
+	}
+
+	return apiResponse, nil
+}
+
+func (s *service) RefreshToken(ctx context.Context, req *models.RefreshTokenRequest) (*models.RefreshTokenResponse, error) {
+	var client *resty.Client
+	if req.Debug {
+		client = s.restWithDebug(ctx, req.Retry, req.RetryInterval, req.Timeout)
+	} else {
+		client = s.rest(ctx, req.Retry, req.RetryInterval, req.Timeout)
+	}
+	client.SetHeader("Content-Type", "application/json")
+
+	apiResponse := &models.RefreshTokenResponse{}
+	resp, err := client.R().
+		SetBody(req).
+		SetResult(apiResponse).
+		Post(constants.API_AUTH_REFRESH_TOKEN)
+
+	if err != nil {
+		log.New().Errorf("Error refresh token from external auth: %v", err)
+		return nil, pkgErr.InternalServerError(err.Error())
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		log.New().Errorf("Error refresh token from external auth: %v", resp.String())
+		return nil, handleResponseError(resp, resp.StatusCode())
 	}
 
 	return apiResponse, nil
@@ -120,13 +148,46 @@ func (s *service) ExchangeCode(ctx context.Context, req *models.ExchangeCodeRequ
 
 	if resp.StatusCode() != http.StatusOK {
 		log.New().Errorf("Error exchange code from external auth: %v", resp.String())
-		return nil, handleResponseError(resp)
+		return nil, handleResponseError(resp, resp.StatusCode())
 	}
 
 	return apiResponse, nil
 }
 
-func handleResponseError(resp *resty.Response) error {
+func (s *service) Logout(ctx context.Context, req *models.LogoutRequest) (*models.LogoutResponse, error) {
+	var client *resty.Client
+	if req.Debug {
+		client = s.restWithDebug(ctx, req.Retry, req.RetryInterval, req.Timeout)
+	} else {
+		client = s.rest(ctx, req.Retry, req.RetryInterval, req.Timeout)
+	}
+	client.SetHeader("Content-Type", "application/json")
+	client.SetHeader("Authorization", fmt.Sprintf("Bearer %s", req.AccessToken))
+
+	apiResponse := &models.LogoutResponse{}
+	resp, err := client.R().
+		SetResult(apiResponse).
+		Post(constants.API_AUTH_LOGOUT)
+
+	if err != nil {
+		log.New().Errorf("Error logout from external auth: %v", err)
+		return nil, pkgErr.InternalServerError(err.Error())
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		log.New().Errorf("Error logout from external auth: %v", resp.String())
+		return nil, handleResponseError(resp, resp.StatusCode())
+	}
+
+	return apiResponse, nil
+}
+
+func handleResponseError(resp *resty.Response, statusCode int) error {
+	// handle unauthorized error
+	if statusCode == http.StatusUnauthorized {
+		return pkgErr.Unauthorized(resp.String())
+	}
+
 	var baseErr pkgBase.Response
 	err := json.Unmarshal(resp.Body(), &baseErr)
 	if err != nil {

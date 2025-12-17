@@ -34,6 +34,21 @@ type RequestLoginResponse struct {
 	} `json:"data"`
 }
 
+type RefreshTokenRequest struct {
+	models.ApiRequest
+	RefreshToken string `json:"refresh_token"`
+}
+
+type RefreshTokenResponse struct {
+	Code    int32  `json:"code"`
+	Message string `json:"message"`
+	Data    struct {
+		AccessToken  string `json:"access_token"`
+		RefreshToken string `json:"refresh_token"`
+		ExpiresAt    string `json:"expires_at"`
+	} `json:"data"`
+}
+
 type ExchangeCodeRequest struct {
 	models.ApiRequest
 	AuthorizationCode string `json:"authorization_code"`
@@ -47,4 +62,14 @@ type ExchangeCodeResponse struct {
 		RefreshToken string `json:"refresh_token"`
 		ExpiresAt    string `json:"expires_at"`
 	} `json:"data"`
+}
+
+type LogoutRequest struct {
+	models.ApiRequest
+	AccessToken string
+}
+
+type LogoutResponse struct {
+	Code    int32  `json:"code"`
+	Message string `json:"message"`
 }

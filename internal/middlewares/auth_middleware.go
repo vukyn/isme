@@ -8,6 +8,7 @@ import (
 	"github.com/vukyn/kuery/log"
 
 	pkgCtx "github.com/vukyn/isme/pkg/ctx"
+	pkgHttp "github.com/vukyn/kuery/http/fiber"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -15,16 +16,12 @@ import (
 func (m *Middleware) AuthMiddleware(c *fiber.Ctx) error {
 	authorization := c.Get("Authorization")
 	if authorization == "" {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "Unauthorized",
-		})
+		return pkgHttp.Unauthorized(c)
 	}
 
 	tokenParts := strings.Split(authorization, " ")
 	if len(tokenParts) != 2 {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "Unauthorized",
-		})
+		return pkgHttp.Unauthorized(c)
 	}
 
 	tokenStr := tokenParts[1]
@@ -34,14 +31,10 @@ func (m *Middleware) AuthMiddleware(c *fiber.Ctx) error {
 	})
 	if err != nil {
 		log.New().Debugf("Invalid token: %v", err)
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "Unauthorized",
-		})
+		return pkgHttp.Unauthorized(c)
 	}
 	if !verifyTokenResponse.Ok {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "Unauthorized",
-		})
+		return pkgHttp.Unauthorized(c)
 	}
 
 	pkgCtx.SetClaimsToFiberCtx(c, verifyTokenResponse.Claims)
