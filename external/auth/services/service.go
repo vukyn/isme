@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -39,6 +40,34 @@ func (s *service) restWithDebug(ctx context.Context, retry int, retryInterval, t
 		SetDebug(true).
 		SetLogger(log.New()).
 		EnableGenerateCurlOnDebug() // Enable this to generate curl command on debug
+}
+
+func (s *service) GetMe(ctx context.Context, req *models.GetMeRequest) (*models.GetMeResponse, error) {
+	var client *resty.Client
+	if req.Debug {
+		client = s.restWithDebug(ctx, req.Retry, req.RetryInterval, req.Timeout)
+	} else {
+		client = s.rest(ctx, req.Retry, req.RetryInterval, req.Timeout)
+	}
+	client.SetHeader("Content-Type", "application/json")
+	client.SetHeader("Authorization", fmt.Sprintf("Bearer %s", req.AccessToken))
+
+	apiResponse := &models.GetMeResponse{}
+	resp, err := client.R().
+		SetResult(apiResponse).
+		Get(constants.API_AUTH_GET_ME)
+
+	if err != nil {
+		log.New().Errorf("Error get me from external auth: %v", err)
+		return nil, pkgErr.InternalServerError(err.Error())
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		log.New().Errorf("Error get me from external auth: %v", resp.String())
+		return nil, handleResponseError(resp)
+	}
+
+	return apiResponse, nil
 }
 
 func (s *service) RequestLogin(ctx context.Context, req *models.RequestLoginRequest) (*models.RequestLoginResponse, error) {
