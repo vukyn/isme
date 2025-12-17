@@ -9,9 +9,10 @@ import (
 )
 
 type GetMeResponse struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	Email string `json:"email"`
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Email   string `json:"email"`
+	IsAdmin bool   `json:"is_admin,omitempty"`
 }
 
 type SignUpRequest struct {

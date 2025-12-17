@@ -15,10 +15,10 @@ import (
 	userSessionConstants "github.com/vukyn/isme/internal/domains/user_session/constants"
 	userSessionRepo "github.com/vukyn/isme/internal/domains/user_session/repository"
 	pkgClaims "github.com/vukyn/isme/pkg/claims"
-	"github.com/vukyn/kuery/cryp/aes"
 	pkgCtx "github.com/vukyn/isme/pkg/ctx"
-	pkgErr "github.com/vukyn/kuery/http/errors"
 	"github.com/vukyn/isme/pkg/jwt"
+	"github.com/vukyn/kuery/cryp/aes"
+	pkgErr "github.com/vukyn/kuery/http/errors"
 
 	"github.com/vukyn/kuery/cryp"
 )
@@ -59,9 +59,10 @@ func (u *usecase) GetMe(ctx context.Context) (models.GetMeResponse, error) {
 	}
 
 	return models.GetMeResponse{
-		ID:    user.ID,
-		Name:  user.Name,
-		Email: user.Email,
+		ID:      user.ID,
+		Name:    user.Name,
+		Email:   user.Email,
+		IsAdmin: user.IsAdmin,
 	}, nil
 }
 
