@@ -22,7 +22,7 @@ init-ui:
 	cd ui && npm i @chakra-ui/react @emotion/react
 	cd ui && npx @chakra-ui/cli snippet add
 
-run-ui:
+web:
 	cd ui && npm run dev
 
 build-ui:	
