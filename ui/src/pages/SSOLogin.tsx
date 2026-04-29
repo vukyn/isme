@@ -5,7 +5,6 @@ import { Box, HStack, Stack, Text, Field } from "@chakra-ui/react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { loginSchema, type LoginFormData } from "@/validators";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toaster } from "@/components/ui/toaster";
@@ -69,7 +68,7 @@ export const SSOLogin = () => {
 
 	return (
 		<Box w="full" minH="100vh" display="flex" alignItems="center" justifyContent="center" px="4">
-			<Card w="full" maxW="md" p="8" bg="bg.glass" borderColor="border.strong" borderWidth="1px" borderRadius="2xl" boxShadow="glassSoft" position="relative" zIndex="1" css={{ backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" }}>
+			<Box w="full" maxW="md" p="8" bg="bg.subtle" borderColor="border.strong" borderWidth="1px" borderRadius="2xl" boxShadow="glassSoft" position="relative" zIndex="1">
 				<Stack gap="6" as="form" onSubmit={handleSubmit}>
 					<Text fontSize="2xl" fontWeight="bold" textAlign="center" color="fg">
 						Sign in
@@ -112,7 +111,7 @@ export const SSOLogin = () => {
 						<HStack gap="2.5"><Text>Sign in</Text><LuArrowRight /></HStack>
 					</Button>
 				</Stack>
-			</Card>
+			</Box>
 		</Box>
 	);
 };

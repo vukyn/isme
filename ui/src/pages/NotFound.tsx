@@ -15,6 +15,8 @@ export const NotFound = () => {
 					as="h1"
 					fontSize="6xl"
 					letterSpacing="-0.04em"
+					lineHeight="1.15"
+					py="2"
 					css={{
 						backgroundImage: "linear-gradient(135deg, #22D3EE, #8B5CF6 60%, #EC4899)",
 						WebkitBackgroundClip: "text",

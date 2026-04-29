@@ -57,7 +57,7 @@ export const Welcome = () => {
 
 	return (
 		<AppShell active="overview" user={{ name, email }}>
-			<GlassCard p="9" position="relative" overflow="hidden">
+			<GlassCard p="8" position="relative" overflow="hidden">
 				<Box position="absolute" w="300px" h="300px" right="-60px" top="-100px" borderRadius="full" pointerEvents="none" css={{ filter: "blur(50px)", background: "radial-gradient(circle, rgba(99,102,241,0.55), transparent 70%)" }} />
 				<Box position="absolute" w="240px" h="240px" right="30%" bottom="-120px" borderRadius="full" pointerEvents="none" css={{ filter: "blur(50px)", background: "radial-gradient(circle, rgba(236,72,153,0.45), transparent 70%)" }} />
 				<Box position="absolute" w="200px" h="200px" left="10%" top="-50px" borderRadius="full" pointerEvents="none" css={{ filter: "blur(50px)", background: "radial-gradient(circle, rgba(34,211,238,0.40), transparent 70%)" }} />
@@ -78,7 +78,7 @@ export const Welcome = () => {
 						as="h1"
 						mt="3.5"
 						mb="2"
-						fontSize={{ base: "30px", md: "42px" }}
+						fontSize={{ base: "28px", md: "40px" }}
 						lineHeight="1.1"
 						letterSpacing="-0.025em"
 					>

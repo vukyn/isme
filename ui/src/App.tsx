@@ -56,6 +56,7 @@ function App() {
 					/>
 					<Route path="/" element={<Navigate to="/welcome" replace />} />
 					<Route path="/404" element={<NotFound />} />
+					<Route path="*" element={<Navigate to="/404" replace />} />
 				</Routes>
 			</BrowserRouter>
 		</>

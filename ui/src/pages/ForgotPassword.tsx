@@ -23,7 +23,7 @@ export const ForgotPassword = () => {
 		toaster.create({
 			title: "Coming soon",
 			description: "Reset flow not implemented yet.",
-			type: "info",
+			type: "warning",
 		});
 	};
 

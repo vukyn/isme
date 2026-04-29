@@ -72,7 +72,7 @@ export const UserChip = ({ name, email }: UserChipProps) => {
 						boxShadow="glassSoft"
 						css={{ backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" }}
 					>
-						<Menu.Item value="logout" onClick={() => logout()}>
+						<Menu.Item value="logout" onClick={() => logout()} cursor="pointer">
 							<LuLogOut /> Log out
 						</Menu.Item>
 					</Menu.Content>
