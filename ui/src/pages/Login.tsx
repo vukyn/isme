@@ -1,53 +1,46 @@
 "use client";
 
 import { useState } from "react";
-import { Box, Stack, Text, Separator, Field } from "@chakra-ui/react";
-import { useNavigate } from "react-router-dom";
+import { Button, Field, Flex, HStack, Heading, Stack, Text } from "@chakra-ui/react";
+import { Link as RouterLink } from "react-router-dom";
+import { LuArrowRight, LuMail, LuShieldCheck, LuClock, LuCheckCheck } from "react-icons/lu";
 import { useAuth } from "@/hooks/useAuth";
 import { loginSchema, type LoginFormData } from "@/validators";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toaster } from "@/components/ui/toaster";
-import { LuMail, LuLock } from "react-icons/lu";
+import { PasswordField } from "@/components/ui/password-field";
+import { BrandPanel } from "@/components/ui/brand-panel";
+import { AuthLayout } from "@/layouts/AuthLayout";
+
+const LOGIN_FEATURES = [
+	{ icon: <LuShieldCheck />, title: "JWT + refresh rotation", desc: "HS256, rotation built-in." },
+	{ icon: <LuClock />, title: "Per-device sessions", desc: "Revoke, list, audit instantly." },
+	{ icon: <LuCheckCheck />, title: "Compliant by default", desc: "WCAG AA, audit-ready logs." },
+];
 
 export const Login = () => {
 	const { login, loading, error } = useAuth();
-	const navigate = useNavigate();
-	const [formData, setFormData] = useState<LoginFormData>({
-		email: "",
-		password: "",
-	});
+	const [formData, setFormData] = useState<LoginFormData>({ email: "", password: "" });
 	const [formErrors, setFormErrors] = useState<Partial<Record<keyof LoginFormData, string>>>({});
 	const [rememberMe, setRememberMe] = useState(false);
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 		setFormErrors({});
-
-		// Validate form
 		const result = loginSchema.safeParse(formData);
 		if (!result.success) {
 			const errors: Partial<Record<keyof LoginFormData, string>> = {};
 			result.error.issues.forEach((err) => {
-				if (err.path[0]) {
-					errors[err.path[0] as keyof LoginFormData] = err.message;
-				}
+				if (err.path[0]) errors[err.path[0] as keyof LoginFormData] = err.message;
 			});
 			setFormErrors(errors);
 			return;
 		}
-
 		try {
 			await login(formData);
-			toaster.create({
-				title: "Login successful",
-				description: "Welcome back!",
-				type: "success",
-			});
-		} catch (err) {
-			// Error is handled by useAuth hook
+			toaster.create({ title: "Login successful", description: "Welcome back!", type: "success" });
+		} catch {
 			toaster.create({
 				title: "Login failed",
 				description: error?.message || "Please check your credentials",
@@ -58,112 +51,91 @@ export const Login = () => {
 
 	const handleChange = (field: keyof LoginFormData) => (e: React.ChangeEvent<HTMLInputElement>) => {
 		setFormData((prev) => ({ ...prev, [field]: e.target.value }));
-		if (formErrors[field]) {
-			setFormErrors((prev) => ({ ...prev, [field]: undefined }));
-		}
+		if (formErrors[field]) setFormErrors((prev) => ({ ...prev, [field]: undefined }));
 	};
 
 	return (
-		<Box
-			w="full"
-			h="100vh"
-			display="flex"
-			alignItems="center"
-			justifyContent="center"
-			bgGradient="to-br"
-			gradientFrom="brand.50"
-			gradientTo="brand.200"
-			_dark={{
-				bgGradient: "to-br",
-				gradientFrom: "brand.950",
-				gradientTo: "brand.900",
-			}}
-			position="relative"
-			overflow="hidden"
+		<AuthLayout
+			topRight={
+				<Text fontSize="sm" color="fg.muted">
+					New here?{" "}
+					<RouterLink to="/signup" style={{ color: "var(--chakra-colors-fg)", fontWeight: 600, borderBottom: "1px solid var(--chakra-colors-aurora-violet)", paddingBottom: 1 }}>
+						Create account
+					</RouterLink>
+				</Text>
+			}
+			brand={
+				<BrandPanel
+					pill="Welcome back"
+					pillTone="violet"
+					titleLead="Build, ship, repeat —"
+					titleGrad="without the chaos."
+					sub="One workspace for auth, sessions, teams. Aurora-grade security, quiet by default."
+					features={LOGIN_FEATURES}
+				/>
+			}
 		>
-			<Card w="full" maxW="md" p="8" bg="bg" rounded="xl" shadow="xl" position="relative" zIndex="1">
-				<Stack gap="6" as="form" onSubmit={handleSubmit}>
-					<Text fontSize="2xl" fontWeight="bold" textAlign="center" color="fg">
-						Login
-					</Text>
+			<Heading as="h2" fontSize="3xl" fontWeight="bold" letterSpacing="-0.02em" mb="2" color="fg">
+				Sign in
+			</Heading>
+			<Text color="fg.muted" mb="7" fontSize="md">
+				Use your work email and password. SSO available.
+			</Text>
+			<Stack as="form" onSubmit={handleSubmit} gap="4">
+				<Field.Root invalid={!!formErrors.email}>
+					<Field.Label>Email</Field.Label>
+					<Input
+						type="email"
+						autoComplete="email"
+						placeholder="you@company.com"
+						value={formData.email}
+						onChange={handleChange("email")}
+						startElement={<LuMail />}
+					/>
+					{formErrors.email && <Field.ErrorText>{formErrors.email}</Field.ErrorText>}
+				</Field.Root>
 
-					<Stack gap="4">
-						<Field.Root invalid={!!formErrors.email}>
-							<Field.Label>Email</Field.Label>
-							<Input
-								type="email"
-								placeholder="Email"
-								value={formData.email}
-								onChange={handleChange("email")}
-								startElement={<LuMail />}
-							/>
-							{formErrors.email && <Field.ErrorText>{formErrors.email}</Field.ErrorText>}
-						</Field.Root>
+				<PasswordField
+					label="Password"
+					value={formData.password}
+					onChange={handleChange("password")}
+					error={formErrors.password}
+					autoComplete="current-password"
+					placeholder="Enter password"
+				/>
 
-						<Field.Root invalid={!!formErrors.password}>
-							<Field.Label>Password</Field.Label>
-							<Input
-								type="password"
-								placeholder="Password"
-								value={formData.password}
-								onChange={handleChange("password")}
-								startElement={<LuLock />}
-							/>
-							{formErrors.password && <Field.ErrorText>{formErrors.password}</Field.ErrorText>}
-						</Field.Root>
-					</Stack>
-
-					<Checkbox checked={rememberMe} onCheckedChange={(e) => setRememberMe(!!e.checked)} label="Remember me" />
-
-					<Button
-						type="submit"
-						variant="solid"
-						w="full"
-						loading={loading}
-						bgGradient="to-r"
-						gradientFrom="brand.500"
-						gradientTo="brand.600"
-						color="white"
-						_hover={{
-							bgGradient: "to-r",
-							gradientFrom: "brand.600",
-							gradientTo: "brand.700",
-						}}
+				<Flex justify="space-between" align="center" mt="1" mb="2">
+					<Checkbox checked={rememberMe} onCheckedChange={(e) => setRememberMe(!!e.checked)}>
+						<Text fontSize="sm" color="fg.subtle">Remember me</Text>
+					</Checkbox>
+					<RouterLink
+						to="/forgot-password"
+						style={{ color: "var(--chakra-colors-fg-subtle)", fontSize: 14, fontWeight: 500, textDecoration: "none" }}
 					>
-						Login
-					</Button>
+						Forgot password?
+					</RouterLink>
+				</Flex>
 
-					<Box position="relative" py="2">
-						<Separator />
-						<Text
-							position="absolute"
-							top="50%"
-							left="50%"
-							transform="translate(-50%, -50%)"
-							bg="bg"
-							px="4"
-							color="fg.muted"
-							textStyle="sm"
-						>
-							or
-						</Text>
-					</Box>
-
-					<Button
-						type="button"
-						variant="solid"
-						w="full"
-						bg="gray.solid"
-						color="gray.contrast"
-						_hover={{
-							bg: "gray.emphasized",
-						}}
-						onClick={() => navigate("/signup")}
-					>
-						Sign up
-					</Button>
-				</Stack>
-			</Card>
-		</Box>
+				<Button
+					type="submit"
+					h="12"
+					loading={loading}
+					color="white"
+					borderRadius="glassSm"
+					boxShadow="ctaGlow"
+					_hover={{ boxShadow: "ctaGlowHi" }}
+					_focusVisible={{ boxShadow: "focusRing" }}
+					css={{
+						background: "linear-gradient(135deg, #6366F1 0%, #8B5CF6 50%, #EC4899 100%)",
+						backgroundSize: "200% 200%",
+					}}
+				>
+					<HStack gap="2.5">
+						<Text>Sign in</Text>
+						<LuArrowRight />
+					</HStack>
+				</Button>
+			</Stack>
+		</AuthLayout>
 	);
 };

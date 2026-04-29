@@ -6,26 +6,30 @@ import { Signup } from "./pages/Signup";
 import { Welcome } from "./pages/Welcome";
 import { NotFound } from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { AuroraBackground } from "./components/ui/aurora-background";
 
 function App() {
 	return (
-		<BrowserRouter>
-			<Routes>
-				<Route path="/login" element={<Login />} />
-				<Route path="/sso/login" element={<SSOLogin />} />
-				<Route path="/signup" element={<Signup />} />
-				<Route
-					path="/welcome"
-					element={
-						<ProtectedRoute>
-							<Welcome />
-						</ProtectedRoute>
-					}
-				/>
-				<Route path="/" element={<Navigate to="/welcome" replace />} />
-				<Route path="/404" element={<NotFound />} />
-			</Routes>
-		</BrowserRouter>
+		<>
+			<AuroraBackground />
+			<BrowserRouter>
+				<Routes>
+					<Route path="/login" element={<Login />} />
+					<Route path="/sso/login" element={<SSOLogin />} />
+					<Route path="/signup" element={<Signup />} />
+					<Route
+						path="/welcome"
+						element={
+							<ProtectedRoute>
+								<Welcome />
+							</ProtectedRoute>
+						}
+					/>
+					<Route path="/" element={<Navigate to="/welcome" replace />} />
+					<Route path="/404" element={<NotFound />} />
+				</Routes>
+			</BrowserRouter>
+		</>
 	);
 }
 
