@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Box, Stack, Text, Field } from "@chakra-ui/react";
+import { useEffect, useState } from "react";
+import { Box, HStack, Stack, Text, Field } from "@chakra-ui/react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { loginSchema, type LoginFormData } from "@/validators";
@@ -9,16 +9,14 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toaster } from "@/components/ui/toaster";
-import { LuMail, LuLock } from "react-icons/lu";
+import { LuArrowRight, LuMail } from "react-icons/lu";
+import { PasswordField } from "@/components/ui/password-field";
 
 export const SSOLogin = () => {
 	const { login, loading, error } = useAuth();
 	const [searchParams] = useSearchParams();
 	const navigate = useNavigate();
-	const [formData, setFormData] = useState<LoginFormData>({
-		email: "",
-		password: "",
-	});
+	const [formData, setFormData] = useState<LoginFormData>({ email: "", password: "" });
 	const [formErrors, setFormErrors] = useState<Partial<Record<keyof LoginFormData, string>>>({});
 
 	useEffect(() => {
@@ -31,57 +29,31 @@ export const SSOLogin = () => {
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 		setFormErrors({});
-
-		// Validate form
 		const result = loginSchema.safeParse(formData);
 		if (!result.success) {
 			const errors: Partial<Record<keyof LoginFormData, string>> = {};
 			result.error.issues.forEach((err) => {
-				if (err.path[0]) {
-					errors[err.path[0] as keyof LoginFormData] = err.message;
-				}
+				if (err.path[0]) errors[err.path[0] as keyof LoginFormData] = err.message;
 			});
 			setFormErrors(errors);
 			return;
 		}
-
-		// Get session_id from query params
 		const sessionId = searchParams.get("session_id");
 		if (!sessionId || sessionId.trim() === "") {
-			toaster.create({
-				title: "Invalid session",
-				description: "Session ID is required",
-				type: "error",
-			});
+			toaster.create({ title: "Invalid session", description: "Session ID is required", type: "error" });
 			return;
 		}
-
 		try {
-			const response = await login({
-				...formData,
-				session_id: sessionId,
-			});
-
-			// Check if this is an SSO login with redirect
+			const response = await login({ ...formData, session_id: sessionId });
 			if (response.data.redirect_url && response.data.authorization_code) {
-				// Open new tab with redirect URL and authorization code
 				const redirectUrl = new URL(response.data.redirect_url);
 				redirectUrl.searchParams.set("authorization_code", response.data.authorization_code);
 				window.open(redirectUrl.toString(), "_blank");
-				toaster.create({
-					title: "Login successful",
-					description: "Redirecting to application...",
-					type: "success",
-				});
+				toaster.create({ title: "Login successful", description: "Redirecting to application...", type: "success" });
 			} else {
-				toaster.create({
-					title: "Login successful",
-					description: "Welcome back!",
-					type: "success",
-				});
+				toaster.create({ title: "Login successful", description: "Welcome back!", type: "success" });
 			}
-		} catch (err) {
-			// Error is handled by useAuth hook
+		} catch {
 			toaster.create({
 				title: "Login failed",
 				description: error?.message || "Please check your credentials",
@@ -92,77 +64,52 @@ export const SSOLogin = () => {
 
 	const handleChange = (field: keyof LoginFormData) => (e: React.ChangeEvent<HTMLInputElement>) => {
 		setFormData((prev) => ({ ...prev, [field]: e.target.value }));
-		if (formErrors[field]) {
-			setFormErrors((prev) => ({ ...prev, [field]: undefined }));
-		}
+		if (formErrors[field]) setFormErrors((prev) => ({ ...prev, [field]: undefined }));
 	};
 
 	return (
-		<Box
-			w="full"
-			h="100vh"
-			display="flex"
-			alignItems="center"
-			justifyContent="center"
-			bgGradient="to-br"
-			gradientFrom="brand.50"
-			gradientTo="brand.200"
-			_dark={{
-				bgGradient: "to-br",
-				gradientFrom: "brand.950",
-				gradientTo: "brand.900",
-			}}
-			position="relative"
-			overflow="hidden"
-		>
-			<Card w="full" maxW="md" p="8" bg="bg" rounded="xl" shadow="xl" position="relative" zIndex="1">
+		<Box w="full" minH="100vh" display="flex" alignItems="center" justifyContent="center" px="4">
+			<Card w="full" maxW="md" p="8" bg="bg.glass" borderColor="border.strong" borderWidth="1px" borderRadius="2xl" boxShadow="glassSoft" position="relative" zIndex="1" css={{ backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" }}>
 				<Stack gap="6" as="form" onSubmit={handleSubmit}>
 					<Text fontSize="2xl" fontWeight="bold" textAlign="center" color="fg">
-						Login
+						Sign in
 					</Text>
-
 					<Stack gap="4">
 						<Field.Root invalid={!!formErrors.email}>
 							<Field.Label>Email</Field.Label>
 							<Input
 								type="email"
-								placeholder="Email"
+								placeholder="you@company.com"
 								value={formData.email}
 								onChange={handleChange("email")}
 								startElement={<LuMail />}
 							/>
 							{formErrors.email && <Field.ErrorText>{formErrors.email}</Field.ErrorText>}
 						</Field.Root>
-
-						<Field.Root invalid={!!formErrors.password}>
-							<Field.Label>Password</Field.Label>
-							<Input
-								type="password"
-								placeholder="Password"
-								value={formData.password}
-								onChange={handleChange("password")}
-								startElement={<LuLock />}
-							/>
-							{formErrors.password && <Field.ErrorText>{formErrors.password}</Field.ErrorText>}
-						</Field.Root>
+						<PasswordField
+							label="Password"
+							value={formData.password}
+							onChange={handleChange("password")}
+							error={formErrors.password}
+							autoComplete="current-password"
+							placeholder="Password"
+						/>
 					</Stack>
-
 					<Button
 						type="submit"
-						variant="solid"
-						w="full"
+						h="12"
 						loading={loading}
-						bgGradient="to-r"
-						gradientFrom="brand.500"
-						gradientTo="brand.600"
 						color="white"
-						_hover={{
-							bgGradient: "to-r",
-							gradientFrom: "brand.600",
-							gradientTo: "brand.700",
+						borderRadius="glassSm"
+						boxShadow="ctaGlow"
+						_hover={{ boxShadow: "ctaGlowHi" }}
+						_focusVisible={{ boxShadow: "focusRing" }}
+						css={{
+							background: "linear-gradient(135deg, #6366F1 0%, #8B5CF6 50%, #EC4899 100%)",
+							backgroundSize: "200% 200%",
 						}}
 					>
-						Login
+						<HStack gap="2.5"><Text>Sign in</Text><LuArrowRight /></HStack>
 					</Button>
 				</Stack>
 			</Card>
