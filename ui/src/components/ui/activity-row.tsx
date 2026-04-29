@@ -20,15 +20,15 @@ export const ActivityRow = ({ tone, icon, body, time }: ActivityRowProps) => {
 	const t = toneStyles[tone];
 	return (
 		<Grid
-			gridTemplateColumns="38px 1fr auto"
+			gridTemplateColumns="36px 1fr auto"
 			alignItems="center"
 			gap="3.5"
 			px="3.5"
-			py="3.5"
+			py="3"
 			borderRadius="lg"
 			_hover={{ bg: "rgba(255,255,255,0.04)" }}
 		>
-			<Center w="9.5" h="9.5" borderRadius="lg" borderWidth="1px" borderColor="border.strong" css={{ background: t.bg, color: t.color }}>
+			<Center w="9" h="9" borderRadius="lg" css={{ background: t.bg, color: t.color }}>
 				{icon}
 			</Center>
 			<Box fontSize="sm" color="fg">

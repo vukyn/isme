@@ -38,7 +38,7 @@ export const Login = () => {
 			return;
 		}
 		try {
-			await login(formData);
+			await login(formData, rememberMe);
 			toaster.create({ title: "Login successful", description: "Welcome back!", type: "success" });
 		} catch {
 			toaster.create({

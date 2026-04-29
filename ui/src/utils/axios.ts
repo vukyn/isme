@@ -7,7 +7,10 @@ const STORAGE_KEYS = {
 	ACCESS_TOKEN: "access_token",
 	REFRESH_TOKEN: "refresh_token",
 	EXPIRES_AT: "expires_at",
+	PERSIST: "auth_persist",
 } as const;
+
+const PERSIST_DAYS = 30;
 
 /**
  * Get tokens from cookies
@@ -21,12 +24,25 @@ export const getTokens = () => {
 };
 
 /**
- * Save tokens to cookies (session cookies)
+ * Save tokens to cookies. When `persist` is provided, also flips the
+ * auth_persist flag (true → 30-day cookies, false → session cookies).
+ * When omitted, the existing auth_persist flag is honored — important
+ * for the refresh-token path where the user's "remember me" choice
+ * must survive token rotation.
  */
-export const saveTokens = (tokens: { access_token: string; refresh_token: string; expires_at: string }) => {
-	setCookie(STORAGE_KEYS.ACCESS_TOKEN, tokens.access_token);
-	setCookie(STORAGE_KEYS.REFRESH_TOKEN, tokens.refresh_token);
-	setCookie(STORAGE_KEYS.EXPIRES_AT, tokens.expires_at);
+export const saveTokens = (
+	tokens: { access_token: string; refresh_token: string; expires_at: string },
+	persist?: boolean,
+) => {
+	if (persist === true) {
+		setCookie(STORAGE_KEYS.PERSIST, "1", PERSIST_DAYS);
+	} else if (persist === false) {
+		deleteCookie(STORAGE_KEYS.PERSIST);
+	}
+	const days = getCookie(STORAGE_KEYS.PERSIST) === "1" ? PERSIST_DAYS : undefined;
+	setCookie(STORAGE_KEYS.ACCESS_TOKEN, tokens.access_token, days);
+	setCookie(STORAGE_KEYS.REFRESH_TOKEN, tokens.refresh_token, days);
+	setCookie(STORAGE_KEYS.EXPIRES_AT, tokens.expires_at, days);
 };
 
 /**
@@ -36,6 +52,7 @@ export const clearTokens = () => {
 	deleteCookie(STORAGE_KEYS.ACCESS_TOKEN);
 	deleteCookie(STORAGE_KEYS.REFRESH_TOKEN);
 	deleteCookie(STORAGE_KEYS.EXPIRES_AT);
+	deleteCookie(STORAGE_KEYS.PERSIST);
 };
 
 /**
