@@ -1,59 +1,43 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Box, Button, Center, Flex, Grid, HStack, Heading, Spinner, Stack, Text } from "@chakra-ui/react";
+import { Box, Button, Center, Flex, Grid, HStack, Heading, Link, Spinner, Stack, Text } from "@chakra-ui/react";
+import { Link as RouterLink } from "react-router-dom";
 import { LuFileText, LuPlus } from "react-icons/lu";
-import { getCurrentUser } from "@/apis/auth";
 import { GlassCard } from "@/components/ui/glass-card";
 import { StatCard } from "@/components/ui/stat-card";
 import { ActivityRow } from "@/components/ui/activity-row";
 import { AppShell } from "@/layouts/AppShell";
 import { MOCK_STATS, MOCK_ACTIVITY } from "@/consts/mock";
-import type { GetMeResponse } from "@/types";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { AURORA_CTA_STYLE } from "@/consts/styles";
 
 export const Welcome = () => {
-	const [user, setUser] = useState<GetMeResponse | null>(null);
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
-
-	useEffect(() => {
-		const fetchUser = async () => {
-			try {
-				setLoading(true);
-				setError(null);
-				const response = await getCurrentUser();
-				setUser((response as { data: GetMeResponse }).data);
-			} catch (err: unknown) {
-				const msg = err instanceof Error ? err.message : "Failed to load user data";
-				setError(msg);
-			} finally {
-				setLoading(false);
-			}
-		};
-		fetchUser();
-	}, []);
-
-	if (loading) {
-		return (
-			<Center w="full" h="100vh">
-				<Stack align="center" gap="4">
-					<Spinner size="xl" color="accent" />
-					<Text color="fg.muted">Loading...</Text>
-				</Stack>
-			</Center>
-		);
-	}
+	const { user, loading, error } = useCurrentUser();
+	const name = user?.name || "User";
+	const email = user?.email || "";
 
 	if (error) {
 		return (
-			<Center w="full" h="100vh">
-				<Text color="danger">{error}</Text>
-			</Center>
+			<AppShell active="overview" user={{ name, email }}>
+				<Center py="20">
+					<Text color="danger">{error}</Text>
+				</Center>
+			</AppShell>
 		);
 	}
 
-	const name = user?.name || "User";
-	const email = user?.email || "";
+	if (loading) {
+		return (
+			<AppShell active="overview" user={{ name, email }}>
+				<Center py="20">
+					<Stack align="center" gap="4">
+						<Spinner size="xl" color="accent" />
+						<Text color="fg.muted">Loading...</Text>
+					</Stack>
+				</Center>
+			</AppShell>
+		);
+	}
 
 	return (
 		<AppShell active="overview" user={{ name, email }}>
@@ -107,10 +91,7 @@ export const Welcome = () => {
 							boxShadow="ctaGlow"
 							_hover={{ boxShadow: "ctaGlowHi" }}
 							_focusVisible={{ boxShadow: "focusRing" }}
-							css={{
-								background: "linear-gradient(135deg, #6366F1 0%, #8B5CF6 50%, #EC4899 100%)",
-								backgroundSize: "200% 200%",
-							}}
+							css={AURORA_CTA_STYLE}
 						>
 							<HStack gap="2.5"><LuPlus /><Text>Start a project</Text></HStack>
 						</Button>
@@ -142,9 +123,9 @@ export const Welcome = () => {
 					<Heading as="h2" fontSize="lg" letterSpacing="-0.01em" color="fg">
 						Recent activity
 					</Heading>
-					<a href="#" style={{ fontSize: "var(--chakra-font-sizes-sm)", color: "var(--chakra-colors-fg-subtle)", textDecoration: "none" }}>
-						View all →
-					</a>
+					<Link asChild fontSize="sm" color="fg.subtle" _hover={{ color: "accentAlt" }}>
+						<RouterLink to="/sessions">View all →</RouterLink>
+					</Link>
 				</Flex>
 				<GlassCard p="2">
 					<Stack

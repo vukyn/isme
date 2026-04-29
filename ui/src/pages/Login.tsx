@@ -10,7 +10,9 @@ import { Input } from "@/components/ui/input";
 import { toaster } from "@/components/ui/toaster";
 import { PasswordField } from "@/components/ui/password-field";
 import { BrandPanel } from "@/components/ui/brand-panel";
+import { TopLink } from "@/components/ui/top-link";
 import { AuthLayout } from "@/layouts/AuthLayout";
+import { AURORA_CTA_STYLE } from "@/consts/styles";
 
 const LOGIN_FEATURES = [
 	{ icon: <LuShieldCheck />, title: "JWT + refresh rotation", desc: "HS256, rotation built-in." },
@@ -54,14 +56,7 @@ export const Login = () => {
 
 	return (
 		<AuthLayout
-			topRight={
-				<Text fontSize="sm" color="fg.muted">
-					New here?{" "}
-					<RouterLink to="/signup" style={{ color: "var(--chakra-colors-fg)", fontWeight: 600, borderBottom: "1px solid var(--chakra-colors-aurora-violet)", paddingBottom: 1 }}>
-						Create account
-					</RouterLink>
-				</Text>
-			}
+			topRight={<TopLink prompt="New here?" linkText="Create account" to="/signup" />}
 			brand={
 				<BrandPanel
 					pill="Welcome back"
@@ -120,10 +115,7 @@ export const Login = () => {
 					boxShadow="ctaGlow"
 					_hover={{ boxShadow: "ctaGlowHi" }}
 					_focusVisible={{ boxShadow: "focusRing" }}
-					css={{
-						background: "linear-gradient(135deg, #6366F1 0%, #8B5CF6 50%, #EC4899 100%)",
-						backgroundSize: "200% 200%",
-					}}
+					css={AURORA_CTA_STYLE}
 				>
 					<HStack gap="2.5">
 						<Text>Sign in</Text>

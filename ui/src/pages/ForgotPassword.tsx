@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import { Button, Field, HStack, Heading, Stack, Text } from "@chakra-ui/react";
-import { Link as RouterLink } from "react-router-dom";
 import { LuArrowRight, LuMail, LuShieldCheck, LuClock, LuCheckCheck } from "react-icons/lu";
 import { Input } from "@/components/ui/input";
 import { toaster } from "@/components/ui/toaster";
 import { BrandPanel } from "@/components/ui/brand-panel";
+import { TopLink } from "@/components/ui/top-link";
 import { AuthLayout } from "@/layouts/AuthLayout";
+import { AURORA_CTA_STYLE } from "@/consts/styles";
 
 const RECOVERY_FEATURES = [
 	{ icon: <LuShieldCheck />, title: "Encrypted reset tokens", desc: "Single-use, expiring." },
@@ -29,14 +30,7 @@ export const ForgotPassword = () => {
 
 	return (
 		<AuthLayout
-			topRight={
-				<Text fontSize="sm" color="fg.muted">
-					Remember it?{" "}
-					<RouterLink to="/login" style={{ color: "var(--chakra-colors-fg)", fontWeight: 600, borderBottom: "1px solid var(--chakra-colors-aurora-violet)", paddingBottom: 1 }}>
-						Sign in
-					</RouterLink>
-				</Text>
-			}
+			topRight={<TopLink prompt="Remember it?" linkText="Sign in" to="/login" />}
 			brand={
 				<BrandPanel
 					pill="Account recovery"
@@ -75,10 +69,7 @@ export const ForgotPassword = () => {
 					boxShadow="ctaGlow"
 					_hover={{ boxShadow: "ctaGlowHi" }}
 					_focusVisible={{ boxShadow: "focusRing" }}
-					css={{
-						background: "linear-gradient(135deg, #6366F1 0%, #8B5CF6 50%, #EC4899 100%)",
-						backgroundSize: "200% 200%",
-					}}
+					css={AURORA_CTA_STYLE}
 				>
 					<HStack gap="2.5">
 						<Text>Send reset link</Text>

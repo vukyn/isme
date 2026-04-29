@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { Box, Button, Field, HStack, Heading, Stack, Text } from "@chakra-ui/react";
-import { Link as RouterLink } from "react-router-dom";
 import {
 	LuArrowRight,
 	LuCheckCheck,
@@ -18,7 +17,9 @@ import { toaster } from "@/components/ui/toaster";
 import { PasswordField } from "@/components/ui/password-field";
 import { PasswordStrength } from "@/components/ui/password-strength";
 import { BrandPanel } from "@/components/ui/brand-panel";
+import { TopLink } from "@/components/ui/top-link";
 import { AuthLayout } from "@/layouts/AuthLayout";
+import { AURORA_CTA_STYLE } from "@/consts/styles";
 
 const SIGNUP_FEATURES = [
 	{ icon: <LuUsers />, title: "One-click team invites", desc: "Email or magic link." },
@@ -66,14 +67,7 @@ export const Signup = () => {
 
 	return (
 		<AuthLayout
-			topRight={
-				<Text fontSize="sm" color="fg.muted">
-					Already have an account?{" "}
-					<RouterLink to="/login" style={{ color: "var(--chakra-colors-fg)", fontWeight: 600, borderBottom: "1px solid var(--chakra-colors-aurora-violet)", paddingBottom: 1 }}>
-						Sign in
-					</RouterLink>
-				</Text>
-			}
+			topRight={<TopLink prompt="Already have an account?" linkText="Sign in" to="/login" />}
 			brand={
 				<BrandPanel
 					pill="Free for solo devs"
@@ -145,10 +139,7 @@ export const Signup = () => {
 					boxShadow="ctaGlow"
 					_hover={{ boxShadow: "ctaGlowHi" }}
 					_focusVisible={{ boxShadow: "focusRing" }}
-					css={{
-						background: "linear-gradient(135deg, #6366F1 0%, #8B5CF6 50%, #EC4899 100%)",
-						backgroundSize: "200% 200%",
-					}}
+					css={AURORA_CTA_STYLE}
 				>
 					<HStack gap="2.5">
 						<Text>Create account</Text>

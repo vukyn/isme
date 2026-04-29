@@ -1,4 +1,4 @@
-import { Box, Center, Heading, Text, HStack } from "@chakra-ui/react";
+import { Box, Center, Heading, HStack, Text } from "@chakra-ui/react";
 import type { ReactNode } from "react";
 
 export type StatTone = "cyan" | "violet" | "magenta";

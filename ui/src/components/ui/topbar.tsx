@@ -56,8 +56,8 @@ export const Topbar = ({ active, user }: TopbarProps) => {
 									borderRadius="md"
 									color={isActive ? "fg" : "fg.muted"}
 									bg={isActive ? "bg.glass" : "transparent"}
-									borderWidth={isActive ? "1px" : "0px"}
-									borderColor="border.strong"
+									borderWidth="1px"
+									borderColor={isActive ? "border.strong" : "transparent"}
 									boxShadow={isActive ? "0 0 20px rgba(99,102,241,0.20)" : "none"}
 									_hover={{ color: "fg" }}
 								>

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { toaster } from "@/components/ui/toaster";
 import { LuArrowRight, LuMail } from "react-icons/lu";
 import { PasswordField } from "@/components/ui/password-field";
+import { AURORA_CTA_STYLE } from "@/consts/styles";
 
 export const SSOLogin = () => {
 	const { login, loading, error } = useAuth();
@@ -103,10 +104,7 @@ export const SSOLogin = () => {
 						boxShadow="ctaGlow"
 						_hover={{ boxShadow: "ctaGlowHi" }}
 						_focusVisible={{ boxShadow: "focusRing" }}
-						css={{
-							background: "linear-gradient(135deg, #6366F1 0%, #8B5CF6 50%, #EC4899 100%)",
-							backgroundSize: "200% 200%",
-						}}
+						css={AURORA_CTA_STYLE}
 					>
 						<HStack gap="2.5"><Text>Sign in</Text><LuArrowRight /></HStack>
 					</Button>

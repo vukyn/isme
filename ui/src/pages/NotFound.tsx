@@ -4,6 +4,7 @@ import { Box, Heading, HStack, Stack, Text } from "@chakra-ui/react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { LuArrowRight } from "react-icons/lu";
+import { AURORA_CTA_STYLE } from "@/consts/styles";
 
 export const NotFound = () => {
 	const navigate = useNavigate();
@@ -35,10 +36,7 @@ export const NotFound = () => {
 					borderRadius="glassSm"
 					boxShadow="ctaGlow"
 					_hover={{ boxShadow: "ctaGlowHi" }}
-					css={{
-						background: "linear-gradient(135deg, #6366F1 0%, #8B5CF6 50%, #EC4899 100%)",
-						backgroundSize: "200% 200%",
-					}}
+					css={AURORA_CTA_STYLE}
 					onClick={() => navigate("/")}
 				>
 					<HStack gap="2.5"><Text>Go Home</Text><LuArrowRight /></HStack>
