@@ -25,7 +25,7 @@ init-ui:
 web:
 	cd ui && npm run dev
 
-build-ui:	
+build-web:	
 	cd ui && npm install && npm run build
 	rm -rf ./internal/ui
 	mv ./ui/dist ./internal/ui
