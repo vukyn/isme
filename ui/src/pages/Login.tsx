@@ -7,7 +7,6 @@ import { LuArrowRight, LuMail, LuShieldCheck, LuClock, LuCheckCheck } from "reac
 import { useAuth } from "@/hooks/useAuth";
 import { loginSchema, type LoginFormData } from "@/validators";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
 import { toaster } from "@/components/ui/toaster";
 import { PasswordField } from "@/components/ui/password-field";
 import { BrandPanel } from "@/components/ui/brand-panel";
@@ -23,7 +22,6 @@ export const Login = () => {
 	const { login, loading, error } = useAuth();
 	const [formData, setFormData] = useState<LoginFormData>({ email: "", password: "" });
 	const [formErrors, setFormErrors] = useState<Partial<Record<keyof LoginFormData, string>>>({});
-	const [rememberMe, setRememberMe] = useState(false);
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -38,7 +36,7 @@ export const Login = () => {
 			return;
 		}
 		try {
-			await login(formData, rememberMe);
+			await login(formData);
 			toaster.create({ title: "Login successful", description: "Welcome back!", type: "success" });
 		} catch {
 			toaster.create({
@@ -104,10 +102,7 @@ export const Login = () => {
 					placeholder="Enter password"
 				/>
 
-				<Flex justify="space-between" align="center" mt="1" mb="2">
-					<Checkbox checked={rememberMe} onCheckedChange={(e) => setRememberMe(!!e.checked)}>
-						<Text fontSize="sm" color="fg.subtle">Remember me</Text>
-					</Checkbox>
+				<Flex justify="flex-end" align="center" mt="1" mb="2">
 					<RouterLink
 						to="/forgot-password"
 						style={{ color: "var(--chakra-colors-fg-subtle)", fontSize: 14, fontWeight: 500, textDecoration: "none" }}
