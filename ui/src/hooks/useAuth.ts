@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { login as loginApi, signup as signupApi, getCurrentUser, logout as logoutApi } from "@/apis/auth";
 import { saveTokens, clearTokens, getTokens } from "@/utils/axios";
+import { clearCurrentUser } from "@/hooks/useCurrentUser";
 import type { LoginRequest, LoginResponse, SignupRequest } from "@/types";
 
 interface UseAuthReturn {
@@ -76,6 +77,7 @@ export const useAuth = (): UseAuthReturn => {
 			setError(new Error(errorMessage));
 		} finally {
 			clearTokens();
+			clearCurrentUser();
 			navigate("/login");
 			setLoading(false);
 		}

@@ -1,0 +1,817 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>isme — Auth Redesign · Aurora UI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    /* Aurora palette */
+    --bg-0: #07071A;
+    --bg-1: #0B0B23;
+    --bg-2: #12122E;
+    --fg: #F4F5FF;
+    --fg-soft: #C7CAE8;
+    --fg-mute: #8A8FB5;
+    --border: rgba(255,255,255,0.10);
+    --border-strong: rgba(255,255,255,0.18);
+    --glass: rgba(255,255,255,0.06);
+    --glass-strong: rgba(255,255,255,0.10);
+
+    --c-cyan: #22D3EE;
+    --c-blue: #6366F1;
+    --c-violet: #8B5CF6;
+    --c-magenta: #EC4899;
+    --c-amber: #F59E0B;
+    --c-mint: #34D399;
+
+    --accent: var(--c-violet);
+    --accent-glow: rgba(139,92,246,0.45);
+
+    --radius: 16px;
+    --radius-sm: 12px;
+    --easing: cubic-bezier(.2,.8,.2,1);
+    --shadow-glass: 0 1px 0 rgba(255,255,255,0.06) inset, 0 8px 32px rgba(0,0,0,0.45);
+    --shadow-pop: 0 20px 60px rgba(99,102,241,0.25), 0 4px 12px rgba(0,0,0,0.35);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter','DM Sans',system-ui,-apple-system,sans-serif;
+    color: var(--fg);
+    background: var(--bg-0);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
+    overflow-x: hidden;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+
+  /* Aurora background — global */
+  body::before {
+    content: ""; position: fixed; inset: 0; z-index: -2;
+    background:
+      radial-gradient(60% 50% at 12% 10%, rgba(99,102,241,0.45), transparent 60%),
+      radial-gradient(45% 40% at 88% 18%, rgba(34,211,238,0.35), transparent 60%),
+      radial-gradient(55% 45% at 75% 92%, rgba(236,72,153,0.32), transparent 60%),
+      radial-gradient(50% 40% at 18% 80%, rgba(139,92,246,0.32), transparent 60%),
+      linear-gradient(180deg, #07071A 0%, #0B0B23 60%, #04040E 100%);
+    background-size: 200% 200%;
+    animation: auroraFlow 14s ease-in-out infinite alternate;
+    filter: saturate(1.15);
+  }
+  body::after {
+    /* grain */
+    content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 3px 3px;
+    mix-blend-mode: overlay;
+    opacity: 0.45;
+  }
+  @keyframes auroraFlow {
+    0%   { background-position: 0% 0%, 100% 0%, 100% 100%, 0% 100%, 0 0; }
+    50%  { background-position: 30% 20%, 60% 30%, 70% 70%, 30% 60%, 0 0; }
+    100% { background-position: 100% 100%, 0% 100%, 0% 0%, 100% 0%, 0 0; }
+  }
+
+  /* layout */
+  .page-stack { display: flex; flex-direction: column; gap: 56px; padding: 48px 24px; max-width: 1440px; margin: 0 auto; }
+  .page-label {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--fg-mute); margin-bottom: 14px;
+    display: inline-flex; align-items: center; gap: 10px;
+  }
+  .page-label::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--c-cyan); box-shadow: 0 0 12px var(--c-cyan); }
+
+  .frame {
+    position: relative;
+    border-radius: 28px;
+    overflow: hidden;
+    background: linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-glass);
+    min-height: 720px;
+  }
+  /* aurora wash inside frame */
+  .frame::before {
+    content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+    background:
+      radial-gradient(40% 60% at 0% 0%, rgba(99,102,241,0.40), transparent 60%),
+      radial-gradient(45% 55% at 100% 0%, rgba(34,211,238,0.30), transparent 60%),
+      radial-gradient(50% 60% at 100% 100%, rgba(236,72,153,0.30), transparent 60%),
+      radial-gradient(40% 50% at 0% 100%, rgba(139,92,246,0.30), transparent 60%);
+    background-size: 200% 200%;
+    animation: auroraFlow 12s ease-in-out infinite alternate;
+    filter: blur(20px) saturate(1.2);
+  }
+  .frame > * { position: relative; z-index: 1; }
+
+  /* split */
+  .split { display: grid; grid-template-columns: 1.05fr 1fr; min-height: 720px; }
+  @media (max-width: 900px) { .split { grid-template-columns: 1fr; } .brand-panel { min-height: 320px; } }
+
+  /* brand side */
+  .brand-panel {
+    position: relative; padding: 44px;
+    display: flex; flex-direction: column; justify-content: space-between;
+    border-right: 1px solid var(--border);
+  }
+  /* glass orbs */
+  .orb { position: absolute; border-radius: 50%; filter: blur(40px); pointer-events: none; }
+  .orb-1 { width: 320px; height: 320px; right: -80px; top: -80px; background: radial-gradient(circle, rgba(99,102,241,0.6), transparent 70%); }
+  .orb-2 { width: 260px; height: 260px; left: -60px; bottom: 40px; background: radial-gradient(circle, rgba(236,72,153,0.55), transparent 70%); }
+  .orb-3 { width: 220px; height: 220px; right: 80px; bottom: -60px; background: radial-gradient(circle, rgba(34,211,238,0.45), transparent 70%); }
+
+  .brand-row { display: flex; align-items: center; gap: 12px; position: relative; z-index: 2; }
+  .brand-mark {
+    width: 40px; height: 40px; border-radius: 12px;
+    background: conic-gradient(from 180deg at 50% 50%, var(--c-cyan), var(--c-blue), var(--c-violet), var(--c-magenta), var(--c-cyan));
+    display: grid; place-items: center;
+    box-shadow: 0 8px 24px rgba(99,102,241,0.45);
+  }
+  .brand-mark > span {
+    width: 32px; height: 32px; border-radius: 9px;
+    background: var(--bg-0); display: grid; place-items: center;
+  }
+  .brand-name { font-weight: 700; font-size: 18px; letter-spacing: -0.01em; }
+
+  .brand-hero { position: relative; z-index: 2; max-width: 480px; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 12px; font-weight: 500;
+    padding: 6px 12px; border-radius: 999px;
+    background: var(--glass);
+    border: 1px solid var(--border-strong);
+    backdrop-filter: blur(20px);
+    color: var(--fg-soft);
+  }
+  .pill .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--c-mint); box-shadow: 0 0 10px var(--c-mint);
+  }
+
+  .brand-h1 {
+    font-size: clamp(30px, 3.4vw, 44px);
+    line-height: 1.05;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    margin: 18px 0 14px;
+  }
+  .brand-h1 .grad {
+    background: linear-gradient(135deg, var(--c-cyan) 0%, var(--c-blue) 40%, var(--c-violet) 70%, var(--c-magenta) 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    background-size: 200% 100%;
+    animation: textShimmer 8s ease-in-out infinite alternate;
+  }
+  @keyframes textShimmer {
+    0% { background-position: 0% 50%; }
+    100% { background-position: 100% 50%; }
+  }
+  .brand-sub { color: var(--fg-mute); font-size: 15px; max-width: 440px; }
+
+  .feature-list { display: grid; gap: 12px; margin-top: 28px; position: relative; z-index: 2; }
+  .feature {
+    display: flex; gap: 14px; align-items: flex-start;
+    padding: 14px 16px;
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    backdrop-filter: blur(20px) saturate(1.2);
+  }
+  .feature-icon {
+    width: 32px; height: 32px; border-radius: 10px;
+    display: grid; place-items: center; flex: 0 0 auto;
+    background: linear-gradient(135deg, rgba(99,102,241,0.25), rgba(236,72,153,0.25));
+    border: 1px solid var(--border-strong);
+    color: var(--c-cyan);
+  }
+  .feature h4 { margin: 0 0 2px; font-size: 14px; font-weight: 600; color: var(--fg); }
+  .feature p { margin: 0; font-size: 13px; color: var(--fg-mute); }
+
+  .brand-foot {
+    position: relative; z-index: 2;
+    display: flex; justify-content: space-between;
+    color: var(--fg-mute); font-size: 12px;
+  }
+
+  /* form side */
+  .form-panel {
+    padding: 56px;
+    display: flex; flex-direction: column; justify-content: center;
+    background: linear-gradient(180deg, rgba(7,7,26,0.55), rgba(11,11,35,0.55));
+    backdrop-filter: blur(8px);
+  }
+  @media (max-width: 600px) { .form-panel { padding: 32px 20px; } }
+  .form-top { display: flex; justify-content: flex-end; align-items: center; margin-bottom: 36px; }
+  .top-link { font-size: 14px; color: var(--fg-mute); }
+  .top-link a {
+    color: var(--fg); font-weight: 600; text-decoration: none;
+    border-bottom: 1px solid var(--c-violet);
+    padding-bottom: 1px;
+  }
+  .top-link a:hover { color: var(--c-cyan); border-color: var(--c-cyan); }
+
+  .form-card { width: 100%; max-width: 440px; margin: 0 auto; }
+  .form-card h2 {
+    font-size: 30px; line-height: 1.15;
+    font-weight: 700; letter-spacing: -0.02em;
+    margin: 0 0 8px; color: var(--fg);
+  }
+  .form-card .lede { color: var(--fg-mute); margin: 0 0 28px; font-size: 15px; }
+
+  /* fields */
+  .field { display: block; margin-bottom: 16px; }
+  .field-label {
+    display: block; font-size: 13px; font-weight: 500;
+    color: var(--fg-soft); margin-bottom: 8px;
+  }
+  .input-wrap {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--glass);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    padding: 0 14px;
+    height: 48px;
+    transition: border-color .2s var(--easing), box-shadow .2s var(--easing), background .2s var(--easing);
+    backdrop-filter: blur(12px);
+  }
+  .input-wrap:hover { border-color: rgba(255,255,255,0.28); }
+  .input-wrap:focus-within {
+    border-color: var(--c-violet);
+    box-shadow: 0 0 0 4px rgba(139,92,246,0.18), 0 0 24px rgba(139,92,246,0.25);
+    background: rgba(255,255,255,0.08);
+  }
+  .input-wrap svg { color: var(--fg-mute); flex: 0 0 auto; }
+  .input-wrap:focus-within svg { color: var(--c-cyan); }
+  .input-wrap input {
+    flex: 1; border: 0; outline: 0; background: transparent;
+    font: inherit; font-size: 15px; color: var(--fg); height: 100%;
+  }
+  .input-wrap input::placeholder { color: var(--fg-mute); }
+  .toggle-eye {
+    background: transparent; border: 0; color: var(--fg-mute); cursor: pointer;
+    padding: 6px; border-radius: 8px;
+  }
+  .toggle-eye:hover { color: var(--fg); background: rgba(255,255,255,0.06); }
+  .helper { font-size: 12px; color: var(--fg-mute); margin-top: 8px; }
+
+  .row { display: flex; align-items: center; justify-content: space-between; margin: 4px 0 22px; }
+  .check { display: inline-flex; align-items: center; gap: 10px; font-size: 14px; cursor: pointer; user-select: none; color: var(--fg-soft); }
+  .check input {
+    appearance: none; -webkit-appearance: none;
+    width: 18px; height: 18px; border-radius: 5px;
+    border: 1.5px solid var(--border-strong);
+    background: var(--glass);
+    display: grid; place-items: center; cursor: pointer;
+    transition: all .15s var(--easing);
+  }
+  .check input:checked {
+    background: linear-gradient(135deg, var(--c-blue), var(--c-violet));
+    border-color: var(--c-violet);
+    box-shadow: 0 0 12px var(--accent-glow);
+  }
+  .check input:checked::after {
+    content: ""; width: 10px; height: 10px;
+    background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='3,8.5 7,12 13,4'/></svg>") center/contain no-repeat;
+  }
+  .link {
+    color: var(--fg-soft); font-size: 14px; text-decoration: none;
+    font-weight: 500; border-bottom: 1px solid transparent;
+  }
+  .link:hover { color: var(--c-cyan); border-color: var(--c-cyan); }
+
+  /* buttons */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+    width: 100%; height: 48px; min-height: 44px;
+    border-radius: var(--radius-sm); border: 1px solid transparent;
+    font: inherit; font-size: 15px; font-weight: 600; cursor: pointer;
+    transition: transform .15s var(--easing), box-shadow .2s var(--easing), background .2s var(--easing);
+    position: relative; overflow: hidden;
+  }
+  .btn:active { transform: translateY(1px) scale(0.995); }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--c-blue) 0%, var(--c-violet) 50%, var(--c-magenta) 100%);
+    color: #fff;
+    box-shadow: 0 10px 30px rgba(99,102,241,0.45), 0 0 0 1px rgba(255,255,255,0.10) inset;
+    background-size: 200% 200%;
+  }
+  .btn-primary:hover {
+    background-position: 100% 100%;
+    box-shadow: 0 14px 40px rgba(139,92,246,0.55);
+  }
+  .btn-primary:focus-visible {
+    outline: 0;
+    box-shadow: 0 0 0 4px rgba(139,92,246,0.35), 0 14px 40px rgba(139,92,246,0.55);
+  }
+  .btn-ghost {
+    background: var(--glass);
+    color: var(--fg);
+    border-color: var(--border-strong);
+    backdrop-filter: blur(12px);
+  }
+  .btn-ghost:hover { background: var(--glass-strong); border-color: rgba(255,255,255,0.28); }
+
+  /* divider */
+  .divider {
+    display: flex; align-items: center; gap: 14px;
+    margin: 22px 0;
+    color: var(--fg-mute);
+    font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
+  }
+  .divider::before, .divider::after {
+    content: ""; flex: 1; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border-strong), transparent);
+  }
+
+  /* social */
+  .socials { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  .social-btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    height: 44px; border-radius: 12px;
+    border: 1px solid var(--border-strong);
+    background: var(--glass);
+    backdrop-filter: blur(12px);
+    font: inherit; font-size: 14px; color: var(--fg); cursor: pointer;
+    transition: background .15s var(--easing), border-color .15s var(--easing), transform .15s var(--easing);
+  }
+  .social-btn:hover { background: var(--glass-strong); border-color: rgba(255,255,255,0.28); }
+  .social-btn:active { transform: translateY(1px); }
+
+  .legal { font-size: 12px; color: var(--fg-mute); margin-top: 18px; text-align: center; }
+  .legal a { color: var(--fg-soft); }
+
+  /* ============ WELCOME / DASHBOARD ============ */
+  .app-shell { display: grid; grid-template-rows: 64px 1fr; min-height: 720px; }
+  .app-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 28px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(7,7,26,0.55);
+    backdrop-filter: blur(20px) saturate(1.2);
+  }
+  .nav { display: flex; gap: 4px; }
+  .nav a {
+    font-size: 14px; padding: 8px 14px; border-radius: 10px;
+    color: var(--fg-mute); text-decoration: none; font-weight: 500;
+    transition: all .15s var(--easing);
+  }
+  .nav a.active {
+    color: var(--fg);
+    background: var(--glass);
+    border: 1px solid var(--border-strong);
+    box-shadow: 0 0 20px rgba(99,102,241,0.20);
+  }
+  .nav a:hover { color: var(--fg); }
+
+  .icon-btn {
+    width: 40px; height: 40px;
+    background: var(--glass); border: 1px solid var(--border-strong);
+    border-radius: 10px;
+    display: grid; place-items: center;
+    color: var(--fg-soft); cursor: pointer;
+    backdrop-filter: blur(12px);
+    transition: all .15s var(--easing);
+    position: relative;
+  }
+  .icon-btn:hover { color: var(--fg); border-color: rgba(255,255,255,0.28); }
+  .icon-btn .badge {
+    position: absolute; top: 6px; right: 6px;
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--c-magenta); box-shadow: 0 0 8px var(--c-magenta);
+  }
+
+  .user-chip {
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 4px 10px 4px 4px;
+    border: 1px solid var(--border-strong); border-radius: 999px;
+    background: var(--glass); backdrop-filter: blur(12px);
+    cursor: pointer; transition: all .15s var(--easing);
+  }
+  .user-chip:hover { background: var(--glass-strong); }
+  .avatar {
+    width: 32px; height: 32px; border-radius: 999px;
+    background: conic-gradient(from 200deg, var(--c-cyan), var(--c-blue), var(--c-violet), var(--c-magenta), var(--c-cyan));
+    color: #fff; display: grid; place-items: center;
+    font-weight: 700; font-size: 13px;
+    box-shadow: 0 0 16px var(--accent-glow);
+  }
+  .user-chip .meta { font-size: 13px; line-height: 1.15; }
+  .user-chip .meta b { display: block; font-weight: 600; color: var(--fg); }
+  .user-chip .meta span { color: var(--fg-mute); font-size: 12px; }
+
+  .app-main { padding: 32px 28px; display: grid; gap: 24px; }
+
+  .welcome-hero {
+    position: relative;
+    background: var(--glass);
+    border: 1px solid var(--border-strong);
+    border-radius: 22px;
+    padding: 36px;
+    overflow: hidden;
+    backdrop-filter: blur(20px) saturate(1.15);
+  }
+  .welcome-hero .orb-h { position: absolute; border-radius: 50%; filter: blur(50px); pointer-events: none; }
+  .welcome-hero .orb-h.a { width: 300px; height: 300px; right: -60px; top: -100px; background: radial-gradient(circle, rgba(99,102,241,0.55), transparent 70%); }
+  .welcome-hero .orb-h.b { width: 240px; height: 240px; right: 30%; bottom: -120px; background: radial-gradient(circle, rgba(236,72,153,0.45), transparent 70%); }
+  .welcome-hero .orb-h.c { width: 200px; height: 200px; left: 10%; top: -50px; background: radial-gradient(circle, rgba(34,211,238,0.40), transparent 70%); }
+  .welcome-hero > * { position: relative; z-index: 1; }
+
+  .welcome-hero h1 {
+    font-size: clamp(30px, 3.4vw, 42px);
+    margin: 14px 0 8px;
+    letter-spacing: -0.025em; line-height: 1.1;
+  }
+  .welcome-hero h1 .grad {
+    background: linear-gradient(135deg, var(--c-cyan), var(--c-violet) 60%, var(--c-magenta));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .welcome-hero p { color: var(--fg-soft); margin: 0 0 24px; max-width: 560px; }
+  .cta-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .cta-row .btn { width: auto; padding: 0 20px; }
+
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  @media (max-width: 900px) { .grid-3 { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 22px;
+    backdrop-filter: blur(20px);
+    position: relative;
+    overflow: hidden;
+    transition: transform .2s var(--easing), border-color .2s var(--easing);
+  }
+  .card:hover { transform: translateY(-2px); border-color: var(--border-strong); }
+  .card::after {
+    /* edge glow */
+    content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+    background: linear-gradient(135deg, transparent 60%, rgba(99,102,241,0.15));
+  }
+  .card .icon-box {
+    width: 38px; height: 38px; border-radius: 11px;
+    display: grid; place-items: center; margin-bottom: 14px;
+    background: linear-gradient(135deg, rgba(99,102,241,0.25), rgba(236,72,153,0.20));
+    border: 1px solid var(--border-strong);
+    color: var(--c-cyan);
+  }
+  .card.violet .icon-box { color: var(--c-violet); }
+  .card.magenta .icon-box { color: var(--c-magenta); }
+  .card h3 { margin: 0 0 4px; font-size: 15px; font-weight: 600; color: var(--fg); }
+  .card p { margin: 0 0 14px; font-size: 13px; color: var(--fg-mute); }
+  .card .stat {
+    font-size: 32px; font-weight: 700; letter-spacing: -0.02em;
+    background: linear-gradient(135deg, var(--c-cyan), var(--c-violet));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .card .delta {
+    font-size: 12px; color: var(--c-mint); font-weight: 500;
+    display: inline-flex; align-items: center; gap: 4px; margin-top: 4px;
+  }
+
+  .activity {
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 8px;
+    backdrop-filter: blur(20px);
+  }
+  .activity-row {
+    display: grid; grid-template-columns: 38px 1fr auto;
+    align-items: center; gap: 14px;
+    padding: 14px;
+    border-radius: 12px;
+    transition: background .15s var(--easing);
+  }
+  .activity-row + .activity-row { border-top: 1px solid var(--border); }
+  .activity-row:hover { background: rgba(255,255,255,0.04); }
+  .activity-row .icon-box {
+    width: 38px; height: 38px; border-radius: 11px;
+    display: grid; place-items: center;
+    border: 1px solid var(--border-strong);
+  }
+  .activity-row.ok .icon-box { background: rgba(52,211,153,0.15); color: var(--c-mint); }
+  .activity-row.violet .icon-box { background: rgba(139,92,246,0.18); color: var(--c-violet); }
+  .activity-row.magenta .icon-box { background: rgba(236,72,153,0.18); color: var(--c-magenta); }
+  .activity-row p { margin: 0; font-size: 14px; color: var(--fg); }
+  .activity-row p b { font-weight: 600; }
+  .activity-row span { font-size: 12px; color: var(--fg-mute); }
+
+  .h-row { display: flex; align-items: baseline; justify-content: space-between; }
+  .h-row h2 { margin: 0; font-size: 18px; letter-spacing: -0.01em; color: var(--fg); }
+
+  /* strength meter */
+  .strength { display: flex; gap: 6px; margin-top: 10px; }
+  .strength span {
+    flex: 1; height: 4px; border-radius: 2px;
+    background: var(--glass-strong);
+  }
+  .strength span.on { background: linear-gradient(90deg, var(--c-cyan), var(--c-violet)); box-shadow: 0 0 8px rgba(139,92,246,0.5); }
+</style>
+</head>
+<body>
+
+<div class="page-stack">
+
+  <!-- ===================== LOGIN ===================== -->
+  <section>
+    <div class="page-label">01 — Login</div>
+    <div class="frame">
+      <div class="split">
+        <aside class="brand-panel">
+          <span class="orb orb-1"></span>
+          <span class="orb orb-2"></span>
+          <span class="orb orb-3"></span>
+
+          <div class="brand-row">
+            <div class="brand-mark"><span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 7l8 5 8-5-8-5Z"/><path d="m4 17 8 5 8-5"/><path d="m4 12 8 5 8-5"/></svg></span></div>
+            <div class="brand-name">isme</div>
+          </div>
+
+          <div class="brand-hero">
+            <span class="pill"><span class="dot"></span>Welcome back</span>
+            <h1 class="brand-h1">Build, ship, repeat — <span class="grad">without the chaos.</span></h1>
+            <p class="brand-sub">One workspace for auth, sessions, teams. Aurora-grade security, quiet by default.</p>
+            <div class="feature-list">
+              <div class="feature">
+                <div class="feature-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V6l-8-4-8 4v6c0 6 8 10 8 10Z"/></svg></div>
+                <div><h4>JWT + refresh rotation</h4><p>HS256, rotation built-in.</p></div>
+              </div>
+              <div class="feature">
+                <div class="feature-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+                <div><h4>Per-device sessions</h4><p>Revoke, list, audit instantly.</p></div>
+              </div>
+              <div class="feature">
+                <div class="feature-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 12 2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg></div>
+                <div><h4>Compliant by default</h4><p>WCAG AA, audit-ready logs.</p></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="brand-foot">
+            <span>© isme 2026</span>
+            <span>v1.0 · main</span>
+          </div>
+        </aside>
+
+        <div class="form-panel">
+          <div class="form-top">
+            <div class="top-link">New here? <a href="#register">Create account</a></div>
+          </div>
+
+          <div class="form-card">
+            <h2>Sign in</h2>
+            <p class="lede">Use your work email and password. SSO available.</p>
+
+            <form onsubmit="event.preventDefault();">
+              <label class="field">
+                <span class="field-label">Email</span>
+                <span class="input-wrap">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
+                  <input type="email" autocomplete="email" placeholder="you@company.com" value="test@test.com" />
+                </span>
+              </label>
+
+              <label class="field">
+                <span class="field-label">Password</span>
+                <span class="input-wrap">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+                  <input id="pw" type="password" autocomplete="current-password" placeholder="Enter password" value="••••••••" />
+                  <button type="button" class="toggle-eye" aria-label="Show password" onclick="togglePw('pw')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+                  </button>
+                </span>
+              </label>
+
+              <div class="row">
+                <label class="check"><input type="checkbox" /> Remember me</label>
+                <a href="#forgot" class="link">Forgot password?</a>
+              </div>
+
+              <button class="btn btn-primary" type="submit">
+                Sign in
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+              </button>
+
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== WELCOME ===================== -->
+  <section>
+    <div class="page-label">02 — Welcome (post-login)</div>
+    <div class="frame">
+      <div class="app-shell">
+        <header class="app-bar">
+          <div style="display:flex;align-items:center;gap:24px;">
+            <div class="brand-row">
+              <div class="brand-mark" style="width:34px;height:34px;"><span style="width:26px;height:26px;border-radius:7px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 7l8 5 8-5-8-5Z"/><path d="m4 17 8 5 8-5"/><path d="m4 12 8 5 8-5"/></svg></span></div>
+              <div class="brand-name">isme</div>
+            </div>
+            <nav class="nav" aria-label="Primary">
+              <a href="#" class="active">Overview</a>
+              <a href="#">Sessions</a>
+              <a href="#">Team</a>
+              <a href="#">Settings</a>
+            </nav>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;">
+            <button class="icon-btn" aria-label="Notifications">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+              <span class="badge"></span>
+            </button>
+            <div class="user-chip" tabindex="0">
+              <div class="avatar">TM</div>
+              <div class="meta"><b>Test Me</b><span>test@test.com</span></div>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--fg-mute);margin-left:4px;"><path d="m6 9 6 6 6-6"/></svg>
+            </div>
+          </div>
+        </header>
+
+        <main class="app-main">
+          <section class="welcome-hero">
+            <span class="orb-h a"></span>
+            <span class="orb-h b"></span>
+            <span class="orb-h c"></span>
+            <span class="pill"><span class="dot"></span>You're signed in</span>
+            <h1>Welcome back, <span class="grad">Test Me</span></h1>
+            <p>Last sign-in just now from this device. Pick up where you left off, or spin up something new.</p>
+            <div class="cta-row">
+              <button class="btn btn-primary" style="width:auto;padding:0 22px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                Start a project
+              </button>
+              <button class="btn btn-ghost" style="width:auto;padding:0 20px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+                View docs
+              </button>
+            </div>
+          </section>
+
+          <section class="grid-3">
+            <article class="card">
+              <div class="icon-box"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 18v3"/></svg></div>
+              <h3>Active sessions</h3>
+              <p>Devices currently signed in.</p>
+              <div class="stat">3</div>
+              <div class="delta">▲ +1 since yesterday</div>
+            </article>
+            <article class="card violet">
+              <div class="icon-box"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+              <h3>Token rotations</h3>
+              <p>Refreshes in last 24h.</p>
+              <div class="stat">128</div>
+              <div class="delta">▲ +12% w/w</div>
+            </article>
+            <article class="card magenta">
+              <div class="icon-box"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V6l-8-4-8 4v6c0 6 8 10 8 10Z"/></svg></div>
+              <h3>Security score</h3>
+              <p>Account hardening level.</p>
+              <div class="stat">A+</div>
+              <div class="delta">● 2FA enabled</div>
+            </article>
+          </section>
+
+          <section>
+            <div class="h-row" style="margin-bottom:12px;">
+              <h2>Recent activity</h2>
+              <a href="#" class="link">View all →</a>
+            </div>
+            <div class="activity">
+              <div class="activity-row ok">
+                <div class="icon-box"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-9"/></svg></div>
+                <p>Sign-in from <b>MacBook · Safari</b> · Hồ Chí Minh</p>
+                <span>just now</span>
+              </div>
+              <div class="activity-row violet">
+                <div class="icon-box"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg></div>
+                <p>API key rotated for <b>billing-service</b></p>
+                <span>2h ago</span>
+              </div>
+              <div class="activity-row magenta">
+                <div class="icon-box"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 11h-6"/><path d="M19 8v6"/></svg></div>
+                <p>Invited <b>thanhlp3@hasaki.vn</b> as Admin</p>
+                <span>yesterday</span>
+              </div>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== REGISTER ===================== -->
+  <section>
+    <div class="page-label">03 — Register</div>
+    <div class="frame">
+      <div class="split">
+        <aside class="brand-panel">
+          <span class="orb orb-1" style="background:radial-gradient(circle,rgba(34,211,238,0.55),transparent 70%);"></span>
+          <span class="orb orb-2"></span>
+          <span class="orb orb-3" style="background:radial-gradient(circle,rgba(139,92,246,0.55),transparent 70%);"></span>
+
+          <div class="brand-row">
+            <div class="brand-mark"><span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 7l8 5 8-5-8-5Z"/><path d="m4 17 8 5 8-5"/><path d="m4 12 8 5 8-5"/></svg></span></div>
+            <div class="brand-name">isme</div>
+          </div>
+
+          <div class="brand-hero">
+            <span class="pill"><span class="dot" style="background:var(--c-cyan);box-shadow:0 0 10px var(--c-cyan);"></span>Free for solo devs</span>
+            <h1 class="brand-h1">Start in <span class="grad">under 2 minutes.</span></h1>
+            <p class="brand-sub">No credit card. Cancel anytime. Your tokens, your rules.</p>
+            <div class="feature-list">
+              <div class="feature">
+                <div class="feature-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></div>
+                <div><h4>One-click team invites</h4><p>Email or magic link.</p></div>
+              </div>
+              <div class="feature">
+                <div class="feature-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+                <div><h4>Encryption at rest</h4><p>RSA 2048 keys, never logged.</p></div>
+              </div>
+              <div class="feature">
+                <div class="feature-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m9 12 2 2 4-4"/></svg></div>
+                <div><h4>Audit-ready</h4><p>Every session, every token, logged.</p></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="brand-foot">
+            <span>© isme 2026</span>
+            <span>SOC 2 in progress</span>
+          </div>
+        </aside>
+
+        <div class="form-panel">
+          <div class="form-top">
+            <div class="top-link">Already have an account? <a href="#login">Sign in</a></div>
+          </div>
+
+          <div class="form-card">
+            <h2>Create your account</h2>
+            <p class="lede">Spin up a workspace and bring your team in.</p>
+
+            <form onsubmit="event.preventDefault();">
+              <label class="field">
+                <span class="field-label">Full name</span>
+                <span class="input-wrap">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  <input type="text" autocomplete="name" placeholder="Test Me" />
+                </span>
+              </label>
+
+              <label class="field">
+                <span class="field-label">Work email</span>
+                <span class="input-wrap">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
+                  <input type="email" autocomplete="email" placeholder="you@company.com" />
+                </span>
+                <div class="helper">We'll send a verification link.</div>
+              </label>
+
+              <label class="field">
+                <span class="field-label">Password</span>
+                <span class="input-wrap">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+                  <input id="pw2" type="password" autocomplete="new-password" placeholder="At least 8 characters" />
+                  <button type="button" class="toggle-eye" aria-label="Show password" onclick="togglePw('pw2')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+                  </button>
+                </span>
+                <div class="strength" aria-hidden="true">
+                  <span class="on"></span><span class="on"></span><span></span><span></span>
+                </div>
+                <div class="helper">Use 8+ characters with letters and numbers.</div>
+              </label>
+
+              <div style="margin: 18px 0 22px;"></div>
+
+              <button class="btn btn-primary" type="submit">
+                Create account
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+              </button>
+
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+  function togglePw(id){
+    var pw = document.getElementById(id);
+    pw.type = pw.type === 'password' ? 'text' : 'password';
+  }
+</script>
+
+</body>
+</html>

@@ -83,7 +83,7 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
 		return (
 			<Box w="full" h="100vh" display="flex" alignItems="center" justifyContent="center">
 				<Stack align="center" gap="4">
-					<Spinner size="xl" color="brand.500" />
+					<Spinner size="xl" color="accent" />
 				</Stack>
 			</Box>
 		);
