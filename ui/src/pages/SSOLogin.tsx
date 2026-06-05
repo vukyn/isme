@@ -46,10 +46,23 @@ export const SSOLogin = () => {
 		try {
 			const response = await login({ ...formData, session_id: sessionId });
 			if (response.data.redirect_url && response.data.authorization_code) {
-				const redirectUrl = new URL(response.data.redirect_url);
-				redirectUrl.searchParams.set("authorization_code", response.data.authorization_code);
-				window.open(redirectUrl.toString(), "_blank");
 				toaster.create({ title: "Login successful", description: "Redirecting to application...", type: "success" });
+				const targetOrigin = new URL(response.data.redirect_url).origin;
+				// DEBUG: nếu targetOrigin ≠ origin thật của tab medioa2, browser sẽ drop message
+				console.debug("[SSO] post to opener", { targetOrigin, hasOpener: !!window.opener });
+				if (window.opener && !window.opener.closed) {
+					// gửi authorization_code về tab gốc (đã window.open tab này) rồi tự đóng
+					window.opener.postMessage(
+						{ type: "SSO_AUTH_SUCCESS", authorization_code: response.data.authorization_code },
+						targetOrigin,
+					);
+					window.close();
+				} else {
+					// fallback: không có opener (mở link trực tiếp) → redirect cùng tab
+					const redirectUrl = new URL(response.data.redirect_url);
+					redirectUrl.searchParams.set("authorization_code", response.data.authorization_code);
+					window.location.href = redirectUrl.toString();
+				}
 			} else {
 				toaster.create({ title: "Login successful", description: "Welcome back!", type: "success" });
 			}

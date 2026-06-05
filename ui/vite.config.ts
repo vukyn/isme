@@ -6,6 +6,10 @@ import path from "path";
 export default defineConfig({
 	base: "/",
 	plugins: [react()],
+	server: {
+		host: true,
+		allowedHosts: ["sso.isme.local", "app.medioa.local"],
+	},
 	resolve: {
 		alias: {
 			"@": path.resolve(__dirname, "./src"),
