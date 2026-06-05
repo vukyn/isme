@@ -1,6 +1,6 @@
 module github.com/vukyn/isme
 
-go 1.25.0
+go 1.26.4
 
 require (
 	github.com/go-resty/resty/v2 v2.17.0
@@ -22,7 +22,7 @@ require (
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/gofiber/template v1.8.3 // indirect
-	github.com/gofiber/utils v1.1.0 // indirect
+	github.com/gofiber/utils v1.2.0 // indirect
 	github.com/golang-jwt/jwt/v5 v5.3.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
