@@ -14,7 +14,7 @@ make gen-key-rsa256         # generate certs/private.pem + public.pem (RSA 2048)
 
 # UI (Vite + React + Chakra)
 make run-ui                 # cd ui && npm run dev
-make build-ui               # builds ui/dist into internal/ui (embedded by Go)
+make build-web              # builds ui/dist into internal/ui (embedded by Go)
 
 # Release
 make tag VERSION=x.y.z      # creates + pushes git tag
@@ -72,7 +72,7 @@ SQLite at `db/app.db`. Migrations: `go run db/migrate.go <db-name> up|down|reset
 
 ### UI
 
-Vite + React + Chakra UI in `ui/`. `make build-ui` compiles and moves `ui/dist` → `internal/ui` for Go embedding (Fiber serves the SPA + assets). `internal/ui/assets` is build output — do not hand-edit.
+Vite + React + Chakra UI in `ui/`. `make build-web` compiles and moves `ui/dist` → `internal/ui` for Go embedding (Fiber serves the SPA + assets). `internal/ui/assets` is build output — do not hand-edit.
 
 ### Shared `pkg/`
 
