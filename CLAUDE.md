@@ -83,7 +83,7 @@ Vite + React + Chakra UI in `ui/`. `make build-ui` compiles and moves `ui/dist` 
 - `pkg/graceful` — shutdown coordinator
 - `pkg/cryp` — crypto helpers
 
-## Conventions (from `.cursor/rules/`)
+## Conventions
 
 - Package names: lowercase, no underscores. Files: `snake_case.go`.
 - Interfaces prefixed `I` (`IUserRepository`); files `irepository.go`, `iusecase.go`.
@@ -93,6 +93,7 @@ Vite + React + Chakra UI in `ui/`. `make build-ui` compiles and moves `ui/dist` 
 - Errors: domain exceptions in `exceptions/`, mapped by handler via `pkg/http/fiber/response.go`. Don't return raw `error` to clients.
 - Logging: structured via zerolog (Fiber middleware `fiberzerolog`).
 - Imports grouped: stdlib, third-party, internal.
+- Frontend: `docs/frontend-structure.md` (ui/src layout) + `docs/chakra-v3.md` (Chakra v3 only, never v2 syntax).
 
 ## Key References
 
