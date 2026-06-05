@@ -10,7 +10,7 @@ import (
 	appServiceRepo "github.com/vukyn/isme/internal/domains/app_service/repository"
 	userRepo "github.com/vukyn/isme/internal/domains/user/repository"
 	"github.com/vukyn/kuery/cryp/aes"
-	pkgCtx "github.com/vukyn/isme/pkg/ctx"
+	pkgCtx "github.com/vukyn/kuery/ctx"
 	pkgErr "github.com/vukyn/kuery/http/errors"
 )
 
@@ -127,7 +127,7 @@ func (u *usecase) RefreshApp(ctx context.Context, req models.RefreshRequest) (mo
 	}
 
 	// get user ID from context
-	userID := pkgCtx.GetUserId(ctx)
+	userID := pkgCtx.GetUserID(ctx)
 	if userID == "" {
 		return models.RefreshResponse{}, pkgErr.InvalidRequest("user not authenticated")
 	}

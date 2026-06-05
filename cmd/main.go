@@ -6,7 +6,7 @@ import (
 
 	"github.com/vukyn/isme/internal/app"
 	"github.com/vukyn/isme/internal/server"
-	"github.com/vukyn/isme/pkg/graceful"
+	"github.com/vukyn/kuery/graceful"
 
 	"github.com/vukyn/kuery/log"
 )

@@ -74,14 +74,17 @@ SQLite at `db/app.db`. Migrations: `go run db/migrate.go <db-name> up|down|reset
 
 Vite + React + Chakra UI in `ui/`. `make build-web` compiles and moves `ui/dist` → `internal/ui` for Go embedding (Fiber serves the SPA + assets). `internal/ui/assets` is build output — do not hand-edit.
 
-### Shared `pkg/`
+### Shared packages (`github.com/vukyn/kuery`)
 
-- `pkg/jwt` — token gen/validate (HS256)
-- `pkg/claims` — JWT claim shape
-- `pkg/ctx` — typed context keys + helpers (e.g. user_id from claims)
-- `pkg/http/fiber/response.go` — standardized JSON responses + error mapping
-- `pkg/graceful` — shutdown coordinator
-- `pkg/cryp` — crypto helpers
+The old local `pkg/` directory was consolidated into the `github.com/vukyn/kuery` module (≥ v1.12.0):
+- `kuery/jwt` — token gen/validate (HS256 + RS256)
+- `kuery/claims` — JWT claim shape
+- `kuery/ctx` — typed context keys + helpers (e.g. user_id from claims)
+- `kuery/http/fiber` — standardized JSON responses + error mapping
+- `kuery/graceful` — shutdown coordinator
+- `kuery/recover` — panic recovery middleware
+- `kuery/bun/{hooks,query}` — ORM helpers
+- `kuery/cryp` — crypto helpers
 
 ## Conventions
 
@@ -90,7 +93,7 @@ Vite + React + Chakra UI in `ui/`. `make build-web` compiles and moves `ui/dist`
 - Constants: `UPPER_SNAKE_CASE`.
 - Use early returns; keep functions small.
 - Bun tags style: `bun:"id,pk,autoincrement"`. JSON tags on response models.
-- Errors: domain exceptions in `exceptions/`, mapped by handler via `pkg/http/fiber/response.go`. Don't return raw `error` to clients.
+- Errors: domain exceptions in `exceptions/`, mapped by handler via `kuery/http/fiber`. Don't return raw `error` to clients.
 - Logging: structured via zerolog (Fiber middleware `fiberzerolog`).
 - Imports grouped: stdlib, third-party, internal.
 - Frontend: `docs/frontend-structure.md` (ui/src layout) + `docs/chakra-v3.md` (Chakra v3 only, never v2 syntax).
