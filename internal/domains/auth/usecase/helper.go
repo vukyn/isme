@@ -5,9 +5,9 @@ import (
 	"time"
 
 	userSessionModels "github.com/vukyn/isme/internal/domains/user_session/models"
-	pkgClaims "github.com/vukyn/isme/pkg/claims"
-	pkgCtx "github.com/vukyn/isme/pkg/ctx"
-	"github.com/vukyn/isme/pkg/jwt"
+	pkgClaims "github.com/vukyn/kuery/claims"
+	pkgCtx "github.com/vukyn/kuery/ctx"
+	"github.com/vukyn/kuery/jwt"
 )
 
 func (u *usecase) generateAccessTokens(userID, email string) (string, pkgClaims.Claims, error) {

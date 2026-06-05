@@ -4,7 +4,7 @@ import (
 	"database/sql"
 
 	"github.com/vukyn/isme/internal/constants"
-	pkgBunHooks "github.com/vukyn/isme/pkg/bun/hooks"
+	pkgBunHooks "github.com/vukyn/kuery/bun/hooks"
 
 	"github.com/sarulabs/di/v2"
 	"github.com/uptrace/bun"

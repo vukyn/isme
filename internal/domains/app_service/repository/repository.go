@@ -7,7 +7,7 @@ import (
 
 	"github.com/vukyn/isme/internal/domains/app_service/entity"
 
-	pkgCtx "github.com/vukyn/isme/pkg/ctx"
+	pkgCtx "github.com/vukyn/kuery/ctx"
 	pkgErr "github.com/vukyn/kuery/http/errors"
 
 	"github.com/uptrace/bun"
@@ -25,7 +25,7 @@ func NewRepository(
 }
 
 func (r *repository) Create(ctx context.Context, req entity.CreateRequest) (string, error) {
-	userID := pkgCtx.GetUserId(ctx)
+	userID := pkgCtx.GetUserID(ctx)
 	appService := &entity.AppService{
 		ID:          cryp.ULID(),
 		AppCode:     req.AppCode,
@@ -100,7 +100,7 @@ func (r *repository) Update(ctx context.Context, req entity.UpdateRequest) error
 	}
 
 	if len(fields) > 0 {
-		userID := pkgCtx.GetUserId(ctx)
+		userID := pkgCtx.GetUserID(ctx)
 		appService.UpdatedBy = userID
 		fields = append(fields, "updated_by")
 

@@ -14,9 +14,9 @@ import (
 	userRepo "github.com/vukyn/isme/internal/domains/user/repository"
 	userSessionConstants "github.com/vukyn/isme/internal/domains/user_session/constants"
 	userSessionRepo "github.com/vukyn/isme/internal/domains/user_session/repository"
-	pkgClaims "github.com/vukyn/isme/pkg/claims"
-	pkgCtx "github.com/vukyn/isme/pkg/ctx"
-	"github.com/vukyn/isme/pkg/jwt"
+	pkgClaims "github.com/vukyn/kuery/claims"
+	pkgCtx "github.com/vukyn/kuery/ctx"
+	"github.com/vukyn/kuery/jwt"
 	"github.com/vukyn/kuery/cryp/aes"
 	pkgErr "github.com/vukyn/kuery/http/errors"
 
@@ -48,7 +48,7 @@ func NewUsecase(
 }
 
 func (u *usecase) GetMe(ctx context.Context) (models.GetMeResponse, error) {
-	userId := pkgCtx.GetUserId(ctx)
+	userId := pkgCtx.GetUserID(ctx)
 	if userId == "" {
 		return models.GetMeResponse{}, pkgErr.InvalidRequest("user not found")
 	}
@@ -323,7 +323,7 @@ func (u *usecase) ChangePassword(ctx context.Context, req models.ChangePasswordR
 	}
 
 	// get user ID from context
-	userID := pkgCtx.GetUserId(ctx)
+	userID := pkgCtx.GetUserID(ctx)
 	if userID == "" {
 		return pkgErr.InvalidRequest("user not found")
 	}
@@ -366,7 +366,7 @@ func (u *usecase) ChangePassword(ctx context.Context, req models.ChangePasswordR
 
 func (u *usecase) Logout(ctx context.Context) error {
 	// get user ID and token ID from context
-	userID := pkgCtx.GetUserId(ctx)
+	userID := pkgCtx.GetUserID(ctx)
 	tokenID := pkgCtx.GetTokenID(ctx)
 
 	if userID == "" {
