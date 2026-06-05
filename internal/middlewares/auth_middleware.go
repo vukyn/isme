@@ -7,7 +7,7 @@ import (
 
 	"github.com/vukyn/kuery/log"
 
-	pkgCtx "github.com/vukyn/isme/pkg/ctx"
+	pkgCtx "github.com/vukyn/kuery/ctx"
 	pkgHttp "github.com/vukyn/kuery/http/fiber"
 
 	"github.com/gofiber/fiber/v2"
