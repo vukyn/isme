@@ -3,6 +3,9 @@
 bin/
 todo
 
+# Claude Code (machine-local settings + agent memory)
+.claude/
+
 # Node
 node_modules/
 
