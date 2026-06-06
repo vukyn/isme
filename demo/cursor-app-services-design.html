@@ -1,0 +1,657 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>isme — App Services management (Cursor theme)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['Inter','ui-sans-serif','system-ui','sans-serif'],
+        mono: ['"JetBrains Mono"','ui-monospace','SFMono-Regular','monospace'],
+      },
+      colors: {
+        ink: {
+          950: '#08080a',
+          900: '#0b0b0e',
+          850: '#0f0f12',
+          800: '#141418',
+          700: '#1a1a1f',
+          600: '#22222a',
+          500: '#2c2c36',
+          400: '#3a3a46',
+          300: '#5a5a68',
+          200: '#9a9aab',
+          100: '#cfcfd8',
+        },
+        accent: {
+          violet: '#7c5cff',
+          cyan: '#22d3ee',
+          green: '#34d399',
+          red: '#f87171',
+          amber: '#fbbf24',
+        }
+      },
+      boxShadow: {
+        'glow-violet': '0 0 0 1px rgba(124,92,255,0.4), 0 8px 32px -8px rgba(124,92,255,0.35)',
+        'glow-cyan': '0 0 0 1px rgba(34,211,238,0.4), 0 8px 32px -8px rgba(34,211,238,0.35)',
+        'inner-hairline': 'inset 0 0 0 1px rgba(255,255,255,0.04)',
+      },
+    }
+  }
+}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  html,body{ background:#08080a; color:#e5e5ee; }
+  body{ font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased; }
+  .mono{ font-family:'JetBrains Mono',monospace; font-feature-settings:'ss01','cv11','tnum'; }
+  .hairline{ border-color:rgba(255,255,255,0.06); }
+  .hairline-strong{ border-color:rgba(255,255,255,0.10); }
+  .btn-cursor{ transition: all .15s ease-out; }
+  .btn-cursor:hover{ transform: translateY(-0.5px); }
+  .kbd{
+    font-family:'JetBrains Mono',monospace; font-size:11px;
+    border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.03);
+    padding:1px 6px; border-radius:4px; color:#cfcfd8;
+  }
+  .pill{
+    display:inline-flex; align-items:center; gap:6px;
+    padding:2px 8px; border-radius:999px; font-size:11px; font-weight:500;
+    border:1px solid rgba(255,255,255,0.08);
+  }
+  .focus-ring:focus{ outline:none; box-shadow:0 0 0 2px rgba(124,92,255,0.5); }
+  .nav-active{
+    background: linear-gradient(90deg, rgba(124,92,255,0.18), rgba(124,92,255,0.04));
+    border-left: 2px solid #7c5cff;
+    color: #fff;
+  }
+  .nav-item{ border-left: 2px solid transparent; }
+  /* table row hover — same tint as users/permissions mocks */
+  .row-hover{ transition: background .15s ease-out; }
+  .row-hover:hover{ background: rgba(255,255,255,0.025); }
+  .row-selected{ background: rgba(124,92,255,0.07); }
+  /* row actions hidden until row hover; stay visible when row selected */
+  .row-hover .row-actions{ opacity:0; transition: opacity .15s ease-out; }
+  .row-hover:hover .row-actions,
+  .row-selected .row-actions,
+  .demo-hover .row-actions{ opacity:1; }
+  .qa-btn{
+    width:26px; height:26px; border-radius:6px; display:grid; place-items:center;
+    background: rgba(8,8,10,0.75); border:1px solid rgba(255,255,255,0.12);
+  }
+  .qa-btn:hover{ background:#1a1a1f; }
+  /* app tile — squared icon over gradient, sibling of users-mock .avatar */
+  .app-tile{
+    width:32px; height:32px; border-radius:8px; flex:none;
+    display:grid; place-items:center; color:#fff;
+  }
+  /* masked secret dots — fixed width so columns don't jitter */
+  .secret-mask{ letter-spacing:2px; user-select:none; }
+</style>
+</head>
+<body class="min-h-screen">
+
+<!--
+  APP SERVICES MANAGEMENT screen for isme (SSO admin console). Shares the admin
+  shell (sidebar + topbar) with cursor-users-design.html / cursor-permissions-design.html
+  — "App Services" is a sibling nav entry (already present in those mocks).
+
+  Data maps to internal/domains/app_service/entity.AppService:
+    id · app_code (unique) · app_name · app_secret (AES-encrypted at rest)
+    · redirect_url · ctx_info ("authen" | "app_service", from constants.AllowedCtxInfos)
+    · status (1=active, 2=inactive, 3=terminated) · created_at/by · updated_at/by
+
+  Backend endpoints (handlers/http/route.go):
+    POST /app-service/register  (AuthMiddleware) — creates app, status forced active,
+                                returns plaintext app_secret EXACTLY ONCE
+    POST /app-service/verify    (public)         — machine-to-machine credential check
+    POST /app-service/refresh   (AuthMiddleware) — rotates secret; requires the CURRENT
+                                plaintext secret + caller must be admin OR creator;
+                                returns the NEW plaintext secret EXACTLY ONCE
+
+  ⚠ Secrets are AES-encrypted at rest and can NEVER be re-displayed. The list shows a
+  permanent mask — there is no "reveal" affordance anywhere. The only recovery path is
+  rotation, and the rotate modal asks for the current secret because RefreshRequest
+  requires it (exact API contract, not a design flourish).
+
+  FORWARD-LOOKING (annotated, like RBAC in the users mock): the backend has no
+  list/get/deactivate/terminate endpoints yet — only register/verify/refresh exist.
+  The table itself, status toggle, and terminate action assume those admin endpoints
+  get added; the register + rotate + one-time-secret flows map 1:1 to today's API.
+-->
+
+<div class="min-h-screen grid grid-cols-[220px_1fr]">
+
+  <!-- Sidebar — identical shell to cursor-users-design.html, App Services active -->
+  <aside class="border-r hairline bg-ink-900/60 flex flex-col">
+    <div class="px-4 h-14 flex items-center gap-2 border-b hairline">
+      <div class="w-7 h-7 rounded-md bg-gradient-to-br from-accent-violet to-accent-cyan flex items-center justify-center">
+        <i data-lucide="shield-check" class="w-4 h-4 text-white"></i>
+      </div>
+      <div class="leading-tight">
+        <div class="text-sm font-semibold tracking-tight">isme</div>
+        <div class="mono text-[10px] text-ink-200">sso · identity</div>
+      </div>
+    </div>
+    <div class="px-3 py-3 border-b hairline">
+      <button class="w-full h-9 rounded-md bg-ink-800 border hairline-strong flex items-center gap-2 px-2.5 text-sm text-ink-200 hover:bg-ink-700">
+        <i data-lucide="search" class="w-4 h-4"></i>
+        <span>Search</span>
+        <span class="ml-auto kbd">⌘K</span>
+      </button>
+    </div>
+    <nav class="flex-1 py-3 text-sm">
+      <div class="px-4 mono text-[10px] text-ink-300 mb-2">NAVIGATION</div>
+      <a class="nav-item flex items-center gap-2.5 px-4 py-2 hover:bg-white/[0.03]"><i data-lucide="layout-dashboard" class="w-4 h-4"></i>Dashboard</a>
+      <a class="nav-item flex items-center gap-2.5 px-4 py-2 hover:bg-white/[0.03]"><i data-lucide="users" class="w-4 h-4"></i>Users <span class="ml-auto pill text-ink-200">1,284</span></a>
+      <a class="nav-item flex items-center gap-2.5 px-4 py-2 hover:bg-white/[0.03]"><i data-lucide="key-round" class="w-4 h-4"></i>Roles &amp; Permissions</a>
+      <a class="nav-item nav-active flex items-center gap-2.5 px-4 py-2"><i data-lucide="app-window" class="w-4 h-4"></i>App Services <span class="ml-auto pill text-ink-200">4</span></a>
+      <a class="nav-item flex items-center gap-2.5 px-4 py-2 hover:bg-white/[0.03]"><i data-lucide="monitor-smartphone" class="w-4 h-4"></i>Sessions</a>
+      <div class="px-4 mono text-[10px] text-ink-300 mt-5 mb-2">ACCOUNT</div>
+      <a class="nav-item flex items-center gap-2.5 px-4 py-2 hover:bg-white/[0.03]"><i data-lucide="user" class="w-4 h-4"></i>Profile</a>
+      <a class="nav-item flex items-center gap-2.5 px-4 py-2 hover:bg-white/[0.03]"><i data-lucide="settings" class="w-4 h-4"></i>Settings</a>
+    </nav>
+  </aside>
+
+  <!-- Main -->
+  <main class="flex flex-col min-w-0">
+    <!-- Topbar -->
+    <header class="h-14 border-b hairline flex items-center px-6 gap-4">
+      <div class="flex items-center gap-2 text-sm text-ink-200">
+        <span class="mono text-ink-300">/</span>
+        <span>isme</span>
+        <span class="mono text-ink-300">/</span>
+        <span class="text-white">App Services</span>
+      </div>
+      <div class="ml-auto flex items-center gap-2">
+        <button class="h-8 px-2 rounded-md border hairline text-xs text-ink-200 hover:bg-ink-800 flex items-center gap-1.5"><i data-lucide="bell" class="w-3.5 h-3.5"></i> 3</button>
+        <div class="h-6 w-px bg-white/10 mx-1"></div>
+        <div class="flex items-center gap-2 pr-2">
+          <div class="w-7 h-7 rounded-full bg-gradient-to-br from-accent-violet to-accent-cyan flex items-center justify-center text-[11px] font-semibold">VK</div>
+          <div class="leading-tight">
+            <div class="text-xs font-medium">Vu Ky</div>
+            <div class="mono text-[10px] text-ink-200">kyndv@hasaki.vn</div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="flex-1 overflow-auto">
+      <div class="px-6 py-6 max-w-[1400px]">
+
+        <div class="flex items-end justify-between mb-5">
+          <div>
+            <h1 class="text-2xl font-semibold tracking-tight">App Services</h1>
+            <p class="text-sm text-ink-200 mt-1">
+              <span class="mono text-accent-cyan">4</span> registered ·
+              <span class="mono text-accent-green">2</span> active ·
+              <span class="mono text-accent-red">1</span> terminated
+            </p>
+          </div>
+          <div class="flex items-center gap-2">
+            <!-- on click: open verify tester modal — exercises public POST /verify -->
+            <button onclick="document.getElementById('verify-modal').classList.remove('hidden')" class="btn-cursor h-9 px-3 rounded-md border hairline-strong text-sm flex items-center gap-2 hover:bg-ink-800"><i data-lucide="badge-check" class="w-4 h-4"></i>Verify credentials</button>
+            <!-- on click: open register modal — POST /register -->
+            <button onclick="document.getElementById('register-modal').classList.remove('hidden')" class="btn-cursor h-9 px-3 rounded-md bg-gradient-to-r from-accent-violet to-accent-cyan text-sm font-medium flex items-center gap-2 shadow-glow-violet"><i data-lucide="plus" class="w-4 h-4"></i>Register app</button>
+          </div>
+        </div>
+
+        <div class="rounded-lg border hairline bg-ink-900">
+
+          <!-- Toolbar -->
+          <div class="flex items-center gap-2 p-3 border-b hairline flex-wrap">
+            <div class="flex-1 relative">
+              <i data-lucide="search" class="w-4 h-4 absolute left-3 top-2.5 text-ink-300"></i>
+              <input class="focus-ring w-full h-9 rounded-md bg-ink-800 border hairline-strong pl-9 pr-20 text-sm placeholder-ink-300" placeholder="Search by app name or code…" />
+              <span class="kbd absolute right-3 top-2">⌘K</span>
+            </div>
+            <!-- STATUS: segmented filter — maps to app_service.status (1/2/3). "all" selected -->
+            <div class="flex items-center rounded-md border hairline-strong overflow-hidden text-xs">
+              <button class="h-9 px-3 bg-ink-800 text-white border-r hairline">all</button>
+              <button class="h-9 px-3 text-ink-200 hover:bg-ink-800 border-r hairline flex items-center gap-1.5"><i data-lucide="circle-check" class="w-3 h-3"></i> active</button>
+              <button class="h-9 px-3 text-ink-200 hover:bg-ink-800 border-r hairline flex items-center gap-1.5"><i data-lucide="circle-slash" class="w-3 h-3"></i> inactive</button>
+              <button class="h-9 px-3 text-ink-200 hover:bg-ink-800 flex items-center gap-1.5"><i data-lucide="circle-x" class="w-3 h-3"></i> terminated</button>
+            </div>
+            <!-- CTX filter — only two legal values, from constants.AllowedCtxInfos -->
+            <select class="focus-ring h-9 rounded-md bg-ink-800 border hairline-strong px-3 text-sm text-ink-100">
+              <option selected>ctx: all</option>
+              <option>authen</option>
+              <option>app_service</option>
+            </select>
+          </div>
+
+          <!-- ================= TABLE =================
+               Row anatomy: app tile + app_name + app_code · ctx_info badge ·
+               redirect_url (mono, truncate w/ title tooltip) · secret (permanent mask,
+               NO reveal — AES at rest) + last-rotated from updated_at · status pill ·
+               created (date + created_by) · row actions.
+               Hover reveals row actions (rotate · copy code · deactivate · terminate).
+               Terminated rows: muted, rotate/deactivate disabled — terminal state. -->
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b hairline text-left mono text-[11px] text-ink-300">
+                <th class="px-4 py-2.5 font-medium">APPLICATION</th>
+                <th class="px-3 py-2.5 font-medium">CTX</th>
+                <th class="px-3 py-2.5 font-medium">REDIRECT URL</th>
+                <th class="px-3 py-2.5 font-medium">SECRET</th>
+                <th class="px-3 py-2.5 font-medium">STATUS</th>
+                <th class="px-3 py-2.5 font-medium">CREATED</th>
+                <th class="w-36 px-3 py-2.5"></th>
+              </tr>
+            </thead>
+            <tbody>
+
+              <!-- ROW 1 · medioa2 — active, ctx authen, HOVER state forced for demo -->
+              <tr class="row-hover demo-hover border-b hairline cursor-pointer">
+                <td class="px-4 py-3">
+                  <div class="flex items-center gap-2.5 min-w-0">
+                    <div class="app-tile bg-gradient-to-br from-accent-violet to-accent-cyan"><i data-lucide="cloud" class="w-4 h-4"></i></div>
+                    <div class="min-w-0 leading-tight">
+                      <div class="text-[13px] font-medium truncate">Medioa Cloud Storage</div>
+                      <div class="mono text-[11px] text-ink-300 truncate">medioa</div>
+                    </div>
+                  </div>
+                </td>
+                <td class="px-3 py-3"><span class="pill text-accent-violet border-accent-violet/30 bg-accent-violet/10">authen</span></td>
+                <td class="px-3 py-3 max-w-[260px]">
+                  <span class="mono text-[12px] text-ink-200 truncate block" title="https://app.medioa.local/auth/callback">https://app.medioa.local/auth/callback</span>
+                </td>
+                <td class="px-3 py-3">
+                  <div class="leading-tight">
+                    <!-- permanent mask: secret is AES-encrypted at rest, irrecoverable by design -->
+                    <span class="mono secret-mask text-[12px] text-ink-300" title="Secret is encrypted at rest and cannot be revealed. Rotate to issue a new one.">••••••••</span>
+                    <div class="mono text-[10px] text-ink-300">rotated 2026-05-14</div>
+                  </div>
+                </td>
+                <td class="px-3 py-3"><span class="pill text-accent-green border-accent-green/30 bg-accent-green/10"><span class="w-1.5 h-1.5 rounded-full bg-accent-green"></span>active</span></td>
+                <td class="px-3 py-3">
+                  <div class="mono text-[12px] text-ink-300 leading-tight">2025-11-03<div class="text-[10px]">by Vu Ky</div></div>
+                </td>
+                <td class="px-3 py-3">
+                  <div class="row-actions flex items-center justify-end gap-1">
+                    <!-- on click: open rotate-secret confirm modal (POST /refresh; admin or creator only) -->
+                    <button onclick="document.getElementById('rotate-modal').classList.remove('hidden')" class="qa-btn" title="Rotate secret"><i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-accent-cyan"></i></button>
+                    <!-- on click: copy app_code to clipboard, toast "Copied" -->
+                    <button class="qa-btn" title="Copy app code"><i data-lucide="copy" class="w-3.5 h-3.5 text-ink-100"></i></button>
+                    <!-- forward-looking: needs admin status endpoint -->
+                    <button class="qa-btn" title="Deactivate"><i data-lucide="circle-slash" class="w-3.5 h-3.5 text-accent-amber"></i></button>
+                    <!-- on click: open terminate confirm modal — destructive, terminal -->
+                    <button onclick="document.getElementById('terminate-modal').classList.remove('hidden')" class="qa-btn" title="Terminate"><i data-lucide="circle-x" class="w-3.5 h-3.5 text-accent-red"></i></button>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- ROW 2 · rainy — active, ctx authen -->
+              <tr class="row-hover border-b hairline cursor-pointer">
+                <td class="px-4 py-3">
+                  <div class="flex items-center gap-2.5 min-w-0">
+                    <div class="app-tile bg-gradient-to-br from-accent-cyan to-accent-green"><i data-lucide="cloud-rain" class="w-4 h-4"></i></div>
+                    <div class="min-w-0 leading-tight">
+                      <div class="text-[13px] font-medium truncate">Rainy Music</div>
+                      <div class="mono text-[11px] text-ink-300 truncate">rainy</div>
+                    </div>
+                  </div>
+                </td>
+                <td class="px-3 py-3"><span class="pill text-accent-violet border-accent-violet/30 bg-accent-violet/10">authen</span></td>
+                <td class="px-3 py-3 max-w-[260px]">
+                  <span class="mono text-[12px] text-ink-200 truncate block" title="https://rainy.local/auth/callback">https://rainy.local/auth/callback</span>
+                </td>
+                <td class="px-3 py-3">
+                  <div class="leading-tight">
+                    <span class="mono secret-mask text-[12px] text-ink-300" title="Secret is encrypted at rest and cannot be revealed. Rotate to issue a new one.">••••••••</span>
+                    <div class="mono text-[10px] text-ink-300">never rotated</div>
+                  </div>
+                </td>
+                <td class="px-3 py-3"><span class="pill text-accent-green border-accent-green/30 bg-accent-green/10"><span class="w-1.5 h-1.5 rounded-full bg-accent-green"></span>active</span></td>
+                <td class="px-3 py-3">
+                  <div class="mono text-[12px] text-ink-300 leading-tight">2026-01-20<div class="text-[10px]">by Vu Ky</div></div>
+                </td>
+                <td class="px-3 py-3">
+                  <div class="row-actions flex items-center justify-end gap-1">
+                    <button onclick="document.getElementById('rotate-modal').classList.remove('hidden')" class="qa-btn" title="Rotate secret"><i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-accent-cyan"></i></button>
+                    <button class="qa-btn" title="Copy app code"><i data-lucide="copy" class="w-3.5 h-3.5 text-ink-100"></i></button>
+                    <button class="qa-btn" title="Deactivate"><i data-lucide="circle-slash" class="w-3.5 h-3.5 text-accent-amber"></i></button>
+                    <button onclick="document.getElementById('terminate-modal').classList.remove('hidden')" class="qa-btn" title="Terminate"><i data-lucide="circle-x" class="w-3.5 h-3.5 text-accent-red"></i></button>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- ROW 3 · service-to-service consumer — ctx app_service (no redirect flow),
+                   INACTIVE (status=2): muted row, "Activate" replaces "Deactivate".
+                   Long redirect URL truncate case w/ title tooltip. -->
+              <tr class="row-hover border-b hairline cursor-pointer opacity-70">
+                <td class="px-4 py-3">
+                  <div class="flex items-center gap-2.5 min-w-0">
+                    <div class="app-tile bg-ink-600"><i data-lucide="server-cog" class="w-4 h-4 text-ink-100"></i></div>
+                    <div class="min-w-0 leading-tight">
+                      <div class="text-[13px] font-medium truncate">Internal Batch Worker</div>
+                      <div class="mono text-[11px] text-ink-300 truncate">batch-worker</div>
+                    </div>
+                  </div>
+                </td>
+                <td class="px-3 py-3"><span class="pill text-accent-cyan border-accent-cyan/30 bg-accent-cyan/10">app_service</span></td>
+                <td class="px-3 py-3 max-w-[260px]">
+                  <span class="mono text-[12px] text-ink-200 truncate block" title="https://internal-tools.hasaki.vn/services/batch-worker/oauth2/redirect/callback">https://internal-tools.hasaki.vn/services/batch-worker/oauth2/redirect/callback</span>
+                </td>
+                <td class="px-3 py-3">
+                  <div class="leading-tight">
+                    <span class="mono secret-mask text-[12px] text-ink-300" title="Secret is encrypted at rest and cannot be revealed. Rotate to issue a new one.">••••••••</span>
+                    <div class="mono text-[10px] text-ink-300">rotated 2026-03-02</div>
+                  </div>
+                </td>
+                <td class="px-3 py-3"><span class="pill text-ink-200 border-white/10 bg-white/[0.04]"><span class="w-1.5 h-1.5 rounded-full bg-ink-300"></span>inactive</span></td>
+                <td class="px-3 py-3">
+                  <div class="mono text-[12px] text-ink-300 leading-tight">2025-12-11<div class="text-[10px]">by Linh Anh</div></div>
+                </td>
+                <td class="px-3 py-3">
+                  <div class="row-actions flex items-center justify-end gap-1">
+                    <button onclick="document.getElementById('rotate-modal').classList.remove('hidden')" class="qa-btn" title="Rotate secret"><i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-accent-cyan"></i></button>
+                    <button class="qa-btn" title="Copy app code"><i data-lucide="copy" class="w-3.5 h-3.5 text-ink-100"></i></button>
+                    <button class="qa-btn" title="Activate"><i data-lucide="circle-check" class="w-3.5 h-3.5 text-accent-green"></i></button>
+                    <button onclick="document.getElementById('terminate-modal').classList.remove('hidden')" class="qa-btn" title="Terminate"><i data-lucide="circle-x" class="w-3.5 h-3.5 text-accent-red"></i></button>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- ROW 4 · TERMINATED (status=3) — terminal state: heavily muted, strikethrough
+                   name, rotate/activate disabled (40% opacity, no hover), only copy remains.
+                   Verify will always fail for this app. -->
+              <tr class="row-hover demo-hover border-b hairline opacity-50">
+                <td class="px-4 py-3">
+                  <div class="flex items-center gap-2.5 min-w-0">
+                    <div class="app-tile bg-ink-700 border border-dashed border-white/20"><i data-lucide="archive" class="w-4 h-4 text-ink-300"></i></div>
+                    <div class="min-w-0 leading-tight">
+                      <div class="text-[13px] font-medium truncate line-through text-ink-200">Legacy Portal</div>
+                      <div class="mono text-[11px] text-ink-300 truncate">legacy-portal</div>
+                    </div>
+                  </div>
+                </td>
+                <td class="px-3 py-3"><span class="pill text-accent-violet border-accent-violet/30 bg-accent-violet/10">authen</span></td>
+                <td class="px-3 py-3 max-w-[260px]">
+                  <span class="mono text-[12px] text-ink-300 truncate block" title="https://portal.hasaki.vn/sso/return">https://portal.hasaki.vn/sso/return</span>
+                </td>
+                <td class="px-3 py-3">
+                  <div class="leading-tight">
+                    <span class="mono secret-mask text-[12px] text-ink-300">••••••••</span>
+                    <div class="mono text-[10px] text-ink-300">revoked</div>
+                  </div>
+                </td>
+                <td class="px-3 py-3"><span class="pill text-accent-red border-accent-red/30 bg-accent-red/10"><span class="w-1.5 h-1.5 rounded-full bg-accent-red"></span>terminated</span></td>
+                <td class="px-3 py-3">
+                  <div class="mono text-[12px] text-ink-300 leading-tight">2025-04-07<div class="text-[10px]">by Vu Ky</div></div>
+                </td>
+                <td class="px-3 py-3">
+                  <div class="row-actions flex items-center justify-end gap-1">
+                    <button class="qa-btn opacity-40 cursor-not-allowed" disabled title="Terminated apps cannot rotate secrets"><i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-ink-300"></i></button>
+                    <button class="qa-btn" title="Copy app code"><i data-lucide="copy" class="w-3.5 h-3.5 text-ink-100"></i></button>
+                    <button class="qa-btn opacity-40 cursor-not-allowed" disabled title="Termination is permanent"><i data-lucide="circle-check" class="w-3.5 h-3.5 text-ink-300"></i></button>
+                  </div>
+                </td>
+              </tr>
+
+            </tbody>
+          </table>
+
+          <!-- Pagination — same pattern as users mock -->
+          <div class="flex items-center justify-between p-3 border-t hairline text-xs mono text-ink-200">
+            <div>Page 1 / 1 · 4 of 4 shown</div>
+            <div class="flex items-center gap-2">
+              <span>Rows</span>
+              <select class="bg-ink-800 border hairline-strong rounded h-7 px-2 text-xs"><option>10</option><option>25</option><option>50</option></select>
+              <button class="h-7 w-7 grid place-items-center rounded border hairline text-ink-200 hover:bg-ink-800"><i data-lucide="chevron-left" class="w-3.5 h-3.5"></i></button>
+              <button class="h-7 w-7 grid place-items-center rounded border hairline text-ink-200 hover:bg-ink-800"><i data-lucide="chevron-right" class="w-3.5 h-3.5"></i></button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= EMPTY STATE (design reference variant) =================
+             Rendered instead of the table card when GET list returns zero apps. -->
+        <div class="mt-6">
+          <div class="mono text-[11px] text-ink-300 mb-2">VARIANT · EMPTY STATE (no apps registered)</div>
+          <div class="rounded-lg border hairline bg-ink-900 grid place-items-center py-14">
+            <div class="text-center max-w-sm">
+              <div class="mx-auto w-12 h-12 rounded-xl bg-ink-800 border hairline-strong grid place-items-center mb-4">
+                <i data-lucide="app-window" class="w-6 h-6 text-ink-300"></i>
+              </div>
+              <div class="text-sm font-medium mb-1">No app services yet</div>
+              <p class="text-[13px] text-ink-200 mb-4">Register an application to issue it SSO credentials. The secret is shown once at creation — store it safely.</p>
+              <button onclick="document.getElementById('register-modal').classList.remove('hidden')" class="btn-cursor h-9 px-3 rounded-md bg-gradient-to-r from-accent-violet to-accent-cyan text-sm font-medium inline-flex items-center gap-2"><i data-lucide="plus" class="w-4 h-4"></i>Register app</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Status + ctx mapping legend (design reference) — same pattern as users mock -->
+        <div class="mt-4 rounded-lg border hairline bg-ink-900 p-4">
+          <div class="mono text-[11px] text-ink-300 mb-3">FIELD MAPPING · from <span class="text-ink-100">app_service.status</span> and <span class="text-ink-100">ctx_info</span> (constants.go)</div>
+          <div class="flex items-center gap-5 flex-wrap text-[12px] mono text-ink-200">
+            <span class="flex items-center gap-2"><span class="pill text-accent-green border-accent-green/30 bg-accent-green/10"><span class="w-1.5 h-1.5 rounded-full bg-accent-green"></span>active</span>status = 1</span>
+            <span class="flex items-center gap-2"><span class="pill text-ink-200 border-white/10 bg-white/[0.04]"><span class="w-1.5 h-1.5 rounded-full bg-ink-300"></span>inactive</span>status = 2</span>
+            <span class="flex items-center gap-2"><span class="pill text-accent-red border-accent-red/30 bg-accent-red/10"><span class="w-1.5 h-1.5 rounded-full bg-accent-red"></span>terminated</span>status = 3 · terminal</span>
+            <span class="h-4 w-px bg-white/10"></span>
+            <span class="flex items-center gap-2"><span class="pill text-accent-violet border-accent-violet/30 bg-accent-violet/10">authen</span>browser SSO flow</span>
+            <span class="flex items-center gap-2"><span class="pill text-accent-cyan border-accent-cyan/30 bg-accent-cyan/10">app_service</span>service-to-service</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ================= REGISTER APP MODAL =================
+     Maps 1:1 to models.RegisterRequest { app_code, app_name, redirect_url, ctx_info }.
+     All four fields required (Validate()). app_code uniqueness enforced server-side →
+     inline error state shown on the field for the "app_code already exists" response.
+     Status is NOT in the form — backend forces AppServiceStatusActive on create.
+     on submit success: close this modal, open #secret-modal with the returned secret. -->
+<div id="register-modal" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm grid place-items-center" onclick="if(event.target===this)this.classList.add('hidden')">
+  <div class="w-[480px] rounded-lg border hairline-strong bg-ink-900 shadow-glow-violet">
+    <div class="flex items-center justify-between px-5 h-14 border-b hairline">
+      <div class="flex items-center gap-2.5">
+        <div class="w-7 h-7 rounded-md bg-accent-violet/15 border border-accent-violet/30 grid place-items-center"><i data-lucide="app-window" class="w-4 h-4 text-accent-violet"></i></div>
+        <div class="text-sm font-semibold">Register app service</div>
+      </div>
+      <button onclick="document.getElementById('register-modal').classList.add('hidden')" class="p-1 rounded hover:bg-ink-800"><i data-lucide="x" class="w-4 h-4 text-ink-200"></i></button>
+    </div>
+    <div class="p-5 space-y-4">
+      <!-- app_code shown in ERROR state: server returned "app_code already exists" -->
+      <div>
+        <label class="text-[11px] mono text-ink-200">APP CODE <span class="text-accent-red">*</span> <span class="text-ink-300">· unique, immutable</span></label>
+        <input value="medioa" class="mt-1 w-full h-9 rounded-md bg-ink-800 border border-accent-red/60 px-3 text-sm mono" style="box-shadow:0 0 0 1px rgba(248,113,113,0.25)" />
+        <div class="mt-1 text-[11px] text-accent-red flex items-center gap-1"><i data-lucide="circle-alert" class="w-3 h-3"></i>app_code already exists — pick another code</div>
+      </div>
+      <div>
+        <label class="text-[11px] mono text-ink-200">APP NAME <span class="text-accent-red">*</span></label>
+        <input class="focus-ring mt-1 w-full h-9 rounded-md bg-ink-800 border hairline-strong px-3 text-sm placeholder-ink-300" placeholder="Human-readable display name" />
+      </div>
+      <div>
+        <label class="text-[11px] mono text-ink-200">REDIRECT URL <span class="text-accent-red">*</span></label>
+        <input class="focus-ring mt-1 w-full h-9 rounded-md bg-ink-800 border hairline-strong px-3 text-sm mono placeholder-ink-300" placeholder="https://app.example.local/auth/callback" />
+        <div class="mt-1 text-[11px] text-ink-300">Where the SSO flow returns the user after sign-in</div>
+      </div>
+      <div>
+        <label class="text-[11px] mono text-ink-200">CONTEXT <span class="text-accent-red">*</span> <span class="text-ink-300">· ctx_info, fixed set</span></label>
+        <!-- only the two values in constants.AllowedCtxInfos -->
+        <select class="focus-ring mt-1 w-full h-9 rounded-md bg-ink-800 border hairline-strong px-3 text-sm text-ink-100">
+          <option selected>authen — browser SSO flow</option>
+          <option>app_service — service-to-service</option>
+        </select>
+      </div>
+      <div class="rounded-md border hairline bg-ink-850 px-3 py-2.5 mono text-[11px] text-ink-300 flex items-start gap-1.5">
+        <i data-lucide="key-round" class="w-3 h-3 mt-0.5 flex-none text-accent-amber"></i>
+        <span>The app secret is generated server-side and shown <span class="text-accent-amber">exactly once</span> after creation. It cannot be recovered later — only rotated.</span>
+      </div>
+    </div>
+    <div class="flex items-center justify-end gap-2 px-5 py-4 border-t hairline">
+      <button onclick="document.getElementById('register-modal').classList.add('hidden')" class="h-9 px-3 rounded-md border hairline text-sm text-ink-200 hover:bg-ink-800">Cancel</button>
+      <!-- on click: POST /register → on 200, swap to #secret-modal. Button enters loading state (spinner, disabled) while pending -->
+      <button onclick="document.getElementById('register-modal').classList.add('hidden');document.getElementById('secret-modal').classList.remove('hidden')" class="btn-cursor h-9 px-3 rounded-md bg-gradient-to-r from-accent-violet to-accent-cyan text-sm font-medium flex items-center gap-2"><i data-lucide="plus" class="w-4 h-4"></i>Register</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= ONE-TIME SECRET MODAL =================
+     Shown once after register or rotate (RegisterResponse/RefreshResponse.app_secret).
+     No backdrop-click dismiss and no X — the ONLY exit is the explicit confirm button,
+     so users can't lose the secret by accident. Secret is an 8-char mixed string
+     (rand.RandMixedString(8)). on click copy: clipboard + flash check icon. -->
+<div id="secret-modal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm grid place-items-center">
+  <div class="w-[480px] rounded-lg border hairline-strong bg-ink-900 shadow-glow-cyan">
+    <div class="flex items-center gap-2.5 px-5 h-14 border-b hairline">
+      <div class="w-7 h-7 rounded-md bg-accent-green/15 border border-accent-green/30 grid place-items-center"><i data-lucide="check" class="w-4 h-4 text-accent-green"></i></div>
+      <div class="text-sm font-semibold">App registered</div>
+      <span class="pill text-accent-green border-accent-green/30 bg-accent-green/10 ml-1">medioa-v2</span>
+    </div>
+    <div class="p-5 space-y-4">
+      <div>
+        <label class="text-[11px] mono text-ink-200">APP SECRET · <span class="text-accent-amber">shown only once</span></label>
+        <div class="mt-1 flex items-center gap-2">
+          <div class="flex-1 h-11 rounded-md bg-ink-950 border border-accent-cyan/30 px-3 flex items-center mono text-[15px] tracking-[3px] text-accent-cyan select-all">aK4x9PqZ</div>
+          <button id="copy-secret-btn" onclick="copySecret()" class="h-11 w-11 rounded-md border hairline-strong grid place-items-center hover:bg-ink-800" title="Copy secret"><i data-lucide="copy" class="w-4 h-4 text-ink-100"></i></button>
+        </div>
+      </div>
+      <div class="rounded-md border border-accent-amber/25 bg-accent-amber/[0.06] px-3 py-2.5 text-[12px] text-accent-amber flex items-start gap-2">
+        <i data-lucide="triangle-alert" class="w-3.5 h-3.5 mt-0.5 flex-none"></i>
+        <span>Store this secret now. It is encrypted at rest and <strong>cannot be displayed again</strong>. If lost, rotate to issue a new one — the old secret stops working immediately.</span>
+      </div>
+      <!-- confirm checkbox gates the close button (disabled until checked) -->
+      <label class="flex items-center gap-2.5 text-sm text-ink-100 cursor-pointer">
+        <input id="secret-ack" type="checkbox" class="accent-accent-violet w-4 h-4" onchange="document.getElementById('secret-done-btn').disabled=!this.checked; document.getElementById('secret-done-btn').classList.toggle('opacity-40',!this.checked)"/>
+        I have stored the secret in a safe place
+      </label>
+    </div>
+    <div class="flex items-center justify-end gap-2 px-5 py-4 border-t hairline">
+      <button id="secret-done-btn" disabled onclick="document.getElementById('secret-modal').classList.add('hidden')" class="btn-cursor h-9 px-3 rounded-md bg-gradient-to-r from-accent-violet to-accent-cyan text-sm font-medium opacity-40">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= ROTATE SECRET MODAL =================
+     Maps to POST /refresh (models.RefreshRequest { app_code, app_secret, ctx_info }).
+     The API requires the CURRENT plaintext secret — hence the input field; this is the
+     exact contract, not extra ceremony. Caller must also be admin OR the app's creator
+     (usecase authorization) — non-eligible users see this action disabled in the row.
+     on submit success: close, open #secret-modal with the NEW secret. -->
+<div id="rotate-modal" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm grid place-items-center" onclick="if(event.target===this)this.classList.add('hidden')">
+  <div class="w-[460px] rounded-lg border hairline-strong bg-ink-900 shadow-glow-cyan">
+    <div class="flex items-center justify-between px-5 h-14 border-b hairline">
+      <div class="flex items-center gap-2.5">
+        <div class="w-7 h-7 rounded-md bg-accent-cyan/15 border border-accent-cyan/30 grid place-items-center"><i data-lucide="refresh-cw" class="w-4 h-4 text-accent-cyan"></i></div>
+        <div class="text-sm font-semibold">Rotate app secret</div>
+        <span class="pill text-ink-200 ml-1 mono">medioa</span>
+      </div>
+      <button onclick="document.getElementById('rotate-modal').classList.add('hidden')" class="p-1 rounded hover:bg-ink-800"><i data-lucide="x" class="w-4 h-4 text-ink-200"></i></button>
+    </div>
+    <div class="p-5 space-y-4">
+      <div>
+        <label class="text-[11px] mono text-ink-200">CURRENT SECRET <span class="text-accent-red">*</span> <span class="text-ink-300">· required by the refresh API</span></label>
+        <input type="password" class="focus-ring mt-1 w-full h-9 rounded-md bg-ink-800 border hairline-strong px-3 text-sm mono placeholder-ink-300" placeholder="Paste the current app secret" />
+        <div class="mt-1 text-[11px] text-ink-300">Proves possession — rotation is rejected without a valid current secret</div>
+      </div>
+      <div class="rounded-md border border-accent-red/25 bg-accent-red/[0.06] px-3 py-2.5 text-[12px] text-accent-red flex items-start gap-2">
+        <i data-lucide="triangle-alert" class="w-3.5 h-3.5 mt-0.5 flex-none"></i>
+        <span>The old secret stops working <strong>immediately</strong>. Every consumer of <span class="mono">medioa</span> must be updated with the new secret or its SSO verify calls will fail.</span>
+      </div>
+      <div class="rounded-md border hairline bg-ink-850 px-3 py-2.5 mono text-[11px] text-ink-300 flex items-center gap-1.5">
+        <i data-lucide="shield-check" class="w-3 h-3"></i> Only an administrator or the app's creator can rotate
+      </div>
+    </div>
+    <div class="flex items-center justify-end gap-2 px-5 py-4 border-t hairline">
+      <button onclick="document.getElementById('rotate-modal').classList.add('hidden')" class="h-9 px-3 rounded-md border hairline text-sm text-ink-200 hover:bg-ink-800">Cancel</button>
+      <!-- on click: POST /refresh → on 200, swap to #secret-modal showing the NEW secret -->
+      <button onclick="document.getElementById('rotate-modal').classList.add('hidden');document.getElementById('secret-modal').classList.remove('hidden')" class="btn-cursor h-9 px-3 rounded-md bg-accent-cyan/15 border border-accent-cyan/40 text-sm font-medium text-accent-cyan hover:bg-accent-cyan/25 flex items-center gap-2"><i data-lucide="refresh-cw" class="w-4 h-4"></i>Rotate secret</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= TERMINATE CONFIRM MODAL =================
+     FORWARD-LOOKING: no terminate endpoint exists yet (status=3 is defined in
+     constants but unreachable via API). Destructive + terminal → type-to-confirm. -->
+<div id="terminate-modal" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm grid place-items-center" onclick="if(event.target===this)this.classList.add('hidden')">
+  <div class="w-[460px] rounded-lg border border-accent-red/30 bg-ink-900" style="box-shadow:0 0 0 1px rgba(248,113,113,0.25), 0 8px 32px -8px rgba(248,113,113,0.3)">
+    <div class="flex items-center justify-between px-5 h-14 border-b hairline">
+      <div class="flex items-center gap-2.5">
+        <div class="w-7 h-7 rounded-md bg-accent-red/15 border border-accent-red/30 grid place-items-center"><i data-lucide="circle-x" class="w-4 h-4 text-accent-red"></i></div>
+        <div class="text-sm font-semibold">Terminate app service</div>
+      </div>
+      <button onclick="document.getElementById('terminate-modal').classList.add('hidden')" class="p-1 rounded hover:bg-ink-800"><i data-lucide="x" class="w-4 h-4 text-ink-200"></i></button>
+    </div>
+    <div class="p-5 space-y-4">
+      <p class="text-[13px] text-ink-100 leading-relaxed">Terminating <strong>Medioa Cloud Storage</strong> permanently revokes its credentials. All verify calls from this app will fail and <span class="text-accent-red">this cannot be undone</span> — re-onboarding requires a new registration.</p>
+      <div>
+        <label class="text-[11px] mono text-ink-200">TYPE <span class="text-accent-red">medioa</span> TO CONFIRM</label>
+        <input class="focus-ring mt-1 w-full h-9 rounded-md bg-ink-800 border hairline-strong px-3 text-sm mono placeholder-ink-300" placeholder="medioa" />
+      </div>
+    </div>
+    <div class="flex items-center justify-end gap-2 px-5 py-4 border-t hairline">
+      <button onclick="document.getElementById('terminate-modal').classList.add('hidden')" class="h-9 px-3 rounded-md border hairline text-sm text-ink-200 hover:bg-ink-800">Cancel</button>
+      <!-- disabled until the typed code matches app_code -->
+      <button disabled class="h-9 px-3 rounded-md bg-accent-red/15 border border-accent-red/40 text-sm font-medium text-accent-red opacity-40 cursor-not-allowed flex items-center gap-2"><i data-lucide="circle-x" class="w-4 h-4"></i>Terminate</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= VERIFY CREDENTIALS MODAL =================
+     Admin utility over public POST /verify (models.VerifyRequest
+     { app_code, ctx_info, app_secret } → { ok: bool }). Lets an operator sanity-check
+     a credential pair without leaving the console. Result strip shows the last
+     response: ok=true (green) / ok=false (red) — ok:false is intentionally vague
+     server-side (wrong code, ctx mismatch, or bad secret all return the same). -->
+<div id="verify-modal" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm grid place-items-center" onclick="if(event.target===this)this.classList.add('hidden')">
+  <div class="w-[460px] rounded-lg border hairline-strong bg-ink-900 shadow-inner-hairline">
+    <div class="flex items-center justify-between px-5 h-14 border-b hairline">
+      <div class="flex items-center gap-2.5">
+        <div class="w-7 h-7 rounded-md bg-ink-800 border hairline-strong grid place-items-center"><i data-lucide="badge-check" class="w-4 h-4 text-ink-100"></i></div>
+        <div class="text-sm font-semibold">Verify credentials</div>
+      </div>
+      <button onclick="document.getElementById('verify-modal').classList.add('hidden')" class="p-1 rounded hover:bg-ink-800"><i data-lucide="x" class="w-4 h-4 text-ink-200"></i></button>
+    </div>
+    <div class="p-5 space-y-4">
+      <div>
+        <label class="text-[11px] mono text-ink-200">APP CODE</label>
+        <input value="medioa" class="focus-ring mt-1 w-full h-9 rounded-md bg-ink-800 border hairline-strong px-3 text-sm mono" />
+      </div>
+      <div>
+        <label class="text-[11px] mono text-ink-200">CONTEXT</label>
+        <select class="focus-ring mt-1 w-full h-9 rounded-md bg-ink-800 border hairline-strong px-3 text-sm text-ink-100">
+          <option selected>authen</option>
+          <option>app_service</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-[11px] mono text-ink-200">APP SECRET</label>
+        <input type="password" value="xxxxxxxx" class="focus-ring mt-1 w-full h-9 rounded-md bg-ink-800 border hairline-strong px-3 text-sm mono" />
+      </div>
+      <!-- result strip — failure state shown; success variant: green border/bg, check icon, "ok: true · credentials valid" -->
+      <div class="rounded-md border border-accent-red/25 bg-accent-red/[0.06] px-3 py-2.5 mono text-[12px] text-accent-red flex items-center gap-2">
+        <i data-lucide="circle-x" class="w-3.5 h-3.5"></i> ok: false · code, context or secret did not match
+      </div>
+    </div>
+    <div class="flex items-center justify-end gap-2 px-5 py-4 border-t hairline">
+      <button onclick="document.getElementById('verify-modal').classList.add('hidden')" class="h-9 px-3 rounded-md border hairline text-sm text-ink-200 hover:bg-ink-800">Close</button>
+      <!-- on click: POST /verify → update result strip; loading spinner while pending -->
+      <button class="btn-cursor h-9 px-3 rounded-md bg-gradient-to-r from-accent-violet to-accent-cyan text-sm font-medium flex items-center gap-2"><i data-lucide="badge-check" class="w-4 h-4"></i>Verify</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  lucide.createIcons();
+  function copySecret(){
+    navigator.clipboard && navigator.clipboard.writeText('aK4x9PqZ');
+    const btn = document.getElementById('copy-secret-btn');
+    btn.innerHTML = '<i data-lucide="check" class="w-4 h-4 text-accent-green"></i>';
+    lucide.createIcons();
+    setTimeout(()=>{ btn.innerHTML = '<i data-lucide="copy" class="w-4 h-4 text-ink-100"></i>'; lucide.createIcons(); }, 1500);
+  }
+</script>
+</body>
+</html>
