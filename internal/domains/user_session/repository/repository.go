@@ -173,3 +173,75 @@ func (r *repository) GetListActiveByUserID(ctx context.Context, userID string) (
 	}
 	return userSessions, nil
 }
+
+func (r *repository) CountActiveByUserIDs(ctx context.Context, userIDs []string) (map[string]int, error) {
+	if len(userIDs) == 0 {
+		return make(map[string]int), nil
+	}
+
+	var results []struct {
+		UserID string `bun:"user_id"`
+		Count  int    `bun:"count"`
+	}
+
+	err := r.db.NewSelect().
+		Model((*entity.UserSession)(nil)).
+		Column("user_id").
+		ColumnExpr("COUNT(*) as count").
+		Where("user_id IN (?)", bun.In(userIDs)).
+		Where("status = ?", constants.UserSessionStatusActive).
+		Group("user_id").
+		Scan(ctx, &results)
+	if err != nil {
+		return nil, pkgErr.DatabaseError(err.Error())
+	}
+
+	counts := make(map[string]int)
+	for _, userID := range userIDs {
+		counts[userID] = 0
+	}
+	for _, result := range results {
+		counts[result.UserID] = result.Count
+	}
+	return counts, nil
+}
+
+func (r *repository) GetByID(ctx context.Context, sessionID string) (entity.UserSession, error) {
+	if sessionID == "" {
+		return entity.UserSession{}, pkgErr.InvalidRequest("session_id is required")
+	}
+
+	userSession := entity.UserSession{}
+	err := r.db.NewSelect().
+		Model(&userSession).
+		Where("id = ?", sessionID).
+		Scan(ctx)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return entity.UserSession{}, nil
+		}
+		return entity.UserSession{}, pkgErr.DatabaseError(err.Error())
+	}
+	return userSession, nil
+}
+
+func (r *repository) InactiveSessionByID(ctx context.Context, sessionID string) error {
+	if sessionID == "" {
+		return pkgErr.InvalidRequest("session_id is required")
+	}
+
+	userSession := entity.UserSession{
+		Status: constants.UserSessionStatusInactive,
+	}
+
+	_, err := r.db.NewUpdate().
+		Model(&userSession).
+		Column("status").
+		Where("id = ?", sessionID).
+		Exec(ctx)
+	if err != nil {
+		return pkgErr.DatabaseError(err.Error())
+	}
+	return nil
+}

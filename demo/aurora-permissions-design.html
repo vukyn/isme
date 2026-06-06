@@ -1,0 +1,1099 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>isme — Roles &amp; Permissions · Aurora UI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  /* ====== Aurora design tokens — extracted from demo/auth-mockup.html ====== */
+  :root {
+    --bg-0: #07071A;
+    --bg-1: #0B0B23;
+    --bg-2: #12122E;
+    --fg: #F4F5FF;
+    --fg-soft: #C7CAE8;
+    --fg-mute: #8A8FB5;
+    --border: rgba(255,255,255,0.10);
+    --border-strong: rgba(255,255,255,0.18);
+    --glass: rgba(255,255,255,0.06);
+    --glass-strong: rgba(255,255,255,0.10);
+
+    --c-cyan: #22D3EE;
+    --c-blue: #6366F1;
+    --c-violet: #8B5CF6;
+    --c-magenta: #EC4899;
+    --c-amber: #F59E0B;
+    --c-mint: #34D399;
+
+    --accent: var(--c-violet);
+    --accent-glow: rgba(139,92,246,0.45);
+
+    --radius: 16px;
+    --radius-sm: 12px;
+    --easing: cubic-bezier(.2,.8,.2,1);
+    --shadow-glass: 0 1px 0 rgba(255,255,255,0.06) inset, 0 8px 32px rgba(0,0,0,0.45);
+    --shadow-pop: 0 20px 60px rgba(99,102,241,0.25), 0 4px 12px rgba(0,0,0,0.35);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter','DM Sans',system-ui,-apple-system,sans-serif;
+    color: var(--fg);
+    background: var(--bg-0);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
+    overflow-x: hidden;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+
+  /* Aurora background — global, same as auth-mockup */
+  body::before {
+    content: ""; position: fixed; inset: 0; z-index: -2;
+    background:
+      radial-gradient(60% 50% at 12% 10%, rgba(99,102,241,0.45), transparent 60%),
+      radial-gradient(45% 40% at 88% 18%, rgba(34,211,238,0.35), transparent 60%),
+      radial-gradient(55% 45% at 75% 92%, rgba(236,72,153,0.32), transparent 60%),
+      radial-gradient(50% 40% at 18% 80%, rgba(139,92,246,0.32), transparent 60%),
+      linear-gradient(180deg, #07071A 0%, #0B0B23 60%, #04040E 100%);
+    background-size: 200% 200%;
+    animation: auroraFlow 14s ease-in-out infinite alternate;
+    filter: saturate(1.15);
+  }
+  body::after {
+    content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 3px 3px;
+    mix-blend-mode: overlay;
+    opacity: 0.45;
+  }
+  @keyframes auroraFlow {
+    0%   { background-position: 0% 0%, 100% 0%, 100% 100%, 0% 100%, 0 0; }
+    50%  { background-position: 30% 20%, 60% 30%, 70% 70%, 30% 60%, 0 0; }
+    100% { background-position: 100% 100%, 0% 100%, 0% 0%, 100% 0%, 0 0; }
+  }
+
+  /* ====== Topbar shell (identical to aurora-users-design.html) ====== */
+  .app-bar {
+    position: sticky; top: 0; z-index: 50;
+    height: 64px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 28px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(7,7,26,0.62);
+    backdrop-filter: blur(20px) saturate(1.2);
+  }
+  .bar-left { display: flex; align-items: center; gap: 24px; }
+  .bar-right { display: flex; align-items: center; gap: 10px; }
+
+  .brand-row { display: flex; align-items: center; gap: 12px; }
+  .brand-mark {
+    width: 34px; height: 34px; border-radius: 10px;
+    background: conic-gradient(from 180deg at 50% 50%, var(--c-cyan), var(--c-blue), var(--c-violet), var(--c-magenta), var(--c-cyan));
+    display: grid; place-items: center;
+    box-shadow: 0 8px 24px rgba(99,102,241,0.45);
+  }
+  .brand-mark > span {
+    width: 26px; height: 26px; border-radius: 7px;
+    background: var(--bg-0); display: grid; place-items: center;
+  }
+  .brand-name { font-weight: 700; font-size: 17px; letter-spacing: -0.01em; }
+
+  .nav { display: flex; gap: 4px; }
+  .nav a {
+    font-size: 14px; padding: 8px 14px; border-radius: 10px;
+    color: var(--fg-mute); text-decoration: none; font-weight: 500;
+    transition: all .15s var(--easing);
+    border: 1px solid transparent;
+  }
+  .nav a.active {
+    color: var(--fg);
+    background: var(--glass);
+    border-color: var(--border-strong);
+    box-shadow: 0 0 20px rgba(99,102,241,0.20);
+  }
+  .nav a:hover { color: var(--fg); }
+
+  .icon-btn {
+    width: 40px; height: 40px;
+    background: var(--glass); border: 1px solid var(--border-strong);
+    border-radius: 10px;
+    display: grid; place-items: center;
+    color: var(--fg-soft); cursor: pointer;
+    backdrop-filter: blur(12px);
+    transition: all .15s var(--easing);
+    position: relative;
+  }
+  .icon-btn:hover { color: var(--fg); border-color: rgba(255,255,255,0.28); }
+  .icon-btn .badge {
+    position: absolute; top: 6px; right: 6px;
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--c-magenta); box-shadow: 0 0 8px var(--c-magenta);
+  }
+
+  .user-chip {
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 4px 10px 4px 4px;
+    border: 1px solid var(--border-strong); border-radius: 999px;
+    background: var(--glass); backdrop-filter: blur(12px);
+    cursor: pointer; transition: all .15s var(--easing);
+  }
+  .user-chip:hover { background: var(--glass-strong); }
+  .avatar-lg {
+    width: 32px; height: 32px; border-radius: 999px;
+    background: conic-gradient(from 200deg, var(--c-cyan), var(--c-blue), var(--c-violet), var(--c-magenta), var(--c-cyan));
+    color: #fff; display: grid; place-items: center;
+    font-weight: 700; font-size: 13px;
+    box-shadow: 0 0 16px var(--accent-glow);
+  }
+  .user-chip .meta { font-size: 13px; line-height: 1.15; }
+  .user-chip .meta b { display: block; font-weight: 600; color: var(--fg); }
+  .user-chip .meta span { color: var(--fg-mute); font-size: 12px; }
+
+  /* ====== Main layout ====== */
+  .app-main { max-width: 1280px; margin: 0 auto; padding: 32px 28px 72px; display: grid; gap: 20px; }
+
+  .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .page-head h1 { margin: 0; font-size: 32px; font-weight: 700; letter-spacing: -0.025em; line-height: 1.1; }
+  .page-sub { margin: 6px 0 0; color: var(--fg-mute); font-size: 14px; }
+  .page-sub .num { color: var(--c-cyan); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+    height: 44px; padding: 0 18px;
+    border-radius: var(--radius-sm); border: 1px solid transparent;
+    font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+    transition: transform .15s var(--easing), box-shadow .2s var(--easing), background .2s var(--easing);
+  }
+  .btn:active { transform: translateY(1px) scale(0.995); }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--c-blue) 0%, var(--c-violet) 50%, var(--c-magenta) 100%);
+    color: #fff;
+    box-shadow: 0 10px 30px rgba(99,102,241,0.45), 0 0 0 1px rgba(255,255,255,0.10) inset;
+    background-size: 200% 200%;
+  }
+  .btn-primary:hover { background-position: 100% 100%; box-shadow: 0 14px 40px rgba(139,92,246,0.55); }
+  .btn-primary:focus-visible { outline: 0; box-shadow: 0 0 0 4px rgba(139,92,246,0.35), 0 14px 40px rgba(139,92,246,0.55); }
+  .btn-ghost {
+    background: var(--glass); color: var(--fg);
+    border-color: var(--border-strong);
+    backdrop-filter: blur(12px);
+  }
+  .btn-ghost:hover { background: var(--glass-strong); border-color: rgba(255,255,255,0.28); }
+  .btn-sm { height: 34px; padding: 0 12px; font-size: 13px; border-radius: 10px; }
+  .btn-danger {
+    background: rgba(236,72,153,0.08); color: var(--c-magenta);
+    border-color: rgba(236,72,153,0.35);
+  }
+  .btn-danger:hover { background: rgba(236,72,153,0.16); }
+
+  .panel {
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    backdrop-filter: blur(20px) saturate(1.15);
+    box-shadow: var(--shadow-glass);
+    overflow: hidden;
+  }
+
+  /* ====== Roles rail + detail layout ====== */
+  .rbac-grid { display: grid; grid-template-columns: 300px 1fr; gap: 20px; align-items: start; }
+  @media (max-width: 980px) { .rbac-grid { grid-template-columns: 1fr; } }
+
+  .rail-head, .rail-foot {
+    padding: 13px 18px;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--fg-mute);
+  }
+  .rail-head { border-bottom: 1px solid var(--border); }
+  .rail-foot {
+    border-top: 1px solid var(--border);
+    text-transform: none; letter-spacing: 0; font-weight: 400; font-size: 12px;
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  /* role item — selected state mirrors auth-mockup nav active glass treatment */
+  .role-item {
+    display: flex; align-items: center; gap: 13px;
+    padding: 14px 18px; cursor: pointer;
+    border-bottom: 1px solid var(--border);
+    border-left: 2px solid transparent;
+    transition: background .15s var(--easing), border-color .15s var(--easing);
+  }
+  .role-item:hover { background: rgba(255,255,255,0.04); }
+  .role-item.is-selected {
+    background: linear-gradient(90deg, rgba(139,92,246,0.18), rgba(139,92,246,0.04));
+    border-left-color: var(--c-violet);
+    box-shadow: 0 0 20px rgba(139,92,246,0.15) inset;
+  }
+  .role-item:last-of-type { border-bottom: 0; }
+  .role-icon {
+    width: 36px; height: 36px; border-radius: 11px; flex: 0 0 auto;
+    display: grid; place-items: center;
+    border: 1px solid var(--border-strong);
+  }
+  .role-icon.violet { background: rgba(139,92,246,0.15); color: var(--c-violet); }
+  .role-icon.cyan { background: rgba(34,211,238,0.12); color: var(--c-cyan); }
+  .role-icon.mint { background: rgba(52,211,153,0.12); color: var(--c-mint); }
+  .role-icon.amber { background: rgba(245,158,11,0.12); color: var(--c-amber); }
+  .role-icon.plain { background: var(--glass); color: var(--fg-mute); }
+  .role-meta { flex: 1; min-width: 0; line-height: 1.3; }
+  .role-name { font-size: 14px; font-weight: 600; color: var(--fg); display: flex; align-items: center; gap: 7px; }
+  .role-name .lock { color: var(--fg-mute); flex: 0 0 auto; }
+  .role-desc { font-size: 12px; color: var(--fg-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .count-pill {
+    flex: 0 0 auto;
+    font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums;
+    padding: 3px 10px; border-radius: 999px;
+    background: var(--glass); border: 1px solid var(--border-strong);
+    color: var(--fg-soft);
+  }
+
+  /* detail header */
+  .detail-head {
+    display: flex; align-items: center; gap: 14px;
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .detail-icon {
+    width: 44px; height: 44px; border-radius: 13px;
+    display: grid; place-items: center;
+    background: rgba(245,158,11,0.12);
+    border: 1px solid rgba(245,158,11,0.35);
+    color: var(--c-amber);
+    box-shadow: 0 0 18px rgba(245,158,11,0.18);
+  }
+  .detail-meta { flex: 1; min-width: 0; line-height: 1.3; }
+  .detail-title { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; display: flex; align-items: center; gap: 10px; }
+  .detail-sub { font-size: 12px; color: var(--fg-mute); margin-top: 3px; font-variant-numeric: tabular-nums; }
+  .detail-sub code { color: var(--fg-soft); font-family: inherit; }
+
+  .pill {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-size: 12px; font-weight: 500;
+    padding: 3px 11px; border-radius: 999px;
+    background: var(--glass);
+    border: 1px solid var(--border-strong);
+    color: var(--fg-soft);
+    white-space: nowrap;
+  }
+  .pill .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .pill.custom { color: var(--c-amber); border-color: rgba(245,158,11,0.35); background: rgba(245,158,11,0.10); }
+  .pill.ok { color: var(--c-mint); border-color: rgba(52,211,153,0.35); background: rgba(52,211,153,0.10); }
+  .pill.ok .dot { background: var(--c-mint); box-shadow: 0 0 10px var(--c-mint); }
+  .pill.off { color: var(--fg-mute); }
+  .pill.off .dot { background: var(--fg-mute); }
+
+  /* tabs */
+  .tabs { display: flex; align-items: center; gap: 4px; padding: 0 14px; border-bottom: 1px solid var(--border); }
+  .tab {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 13px 14px; cursor: pointer;
+    border: 0; background: transparent;
+    font: inherit; font-size: 14px; font-weight: 500; color: var(--fg-mute);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color .15s var(--easing);
+  }
+  .tab:hover { color: var(--fg); }
+  .tab.tab-active {
+    color: var(--fg);
+    border-image: linear-gradient(90deg, var(--c-cyan), var(--c-violet)) 1;
+    border-bottom: 2px solid var(--c-violet);
+  }
+  .tab .count-pill { padding: 1px 8px; font-size: 11px; }
+
+  /* ====== Permission matrix ====== */
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  thead th {
+    text-align: left; padding: 12px 18px;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--fg-mute);
+    border-bottom: 1px solid var(--border);
+  }
+  thead th.c { text-align: center; width: 84px; padding: 12px 8px; }
+  tbody td { padding: 13px 18px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tbody td.c { text-align: center; padding: 13px 8px; }
+  tr.group-row td {
+    padding: 8px 18px;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--fg-mute);
+    background: rgba(7,7,26,0.35);
+  }
+  tr.perm-row { transition: background .15s var(--easing); }
+  tr.perm-row:hover { background: rgba(255,255,255,0.03); }
+
+  .res-cell { display: flex; align-items: center; gap: 12px; }
+  .res-icon {
+    width: 32px; height: 32px; border-radius: 10px; flex: 0 0 auto;
+    display: grid; place-items: center;
+    border: 1px solid var(--border-strong);
+  }
+  .res-icon.violet { background: rgba(139,92,246,0.15); color: var(--c-violet); }
+  .res-icon.cyan { background: rgba(34,211,238,0.12); color: var(--c-cyan); }
+  .res-icon.mint { background: rgba(52,211,153,0.12); color: var(--c-mint); }
+  .res-icon.amber { background: rgba(245,158,11,0.12); color: var(--c-amber); }
+  .res-name { font-size: 14px; font-weight: 500; color: var(--fg); line-height: 1.25; }
+  .res-code { font-size: 11px; color: var(--fg-mute); }
+  .na { color: var(--fg-mute); opacity: 0.6; font-size: 13px; }
+
+  /* aurora checkbox — same as auth-mockup .check */
+  .check { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; color: var(--fg-soft); font-size: 13px; }
+  .check input, .special-chip input {
+    appearance: none; -webkit-appearance: none;
+    width: 18px; height: 18px; border-radius: 5px;
+    border: 1.5px solid var(--border-strong);
+    background: var(--glass);
+    display: grid; place-items: center; cursor: pointer;
+    transition: all .15s var(--easing);
+    margin: 0;
+  }
+  .check input:checked, .special-chip input:checked {
+    background: linear-gradient(135deg, var(--c-blue), var(--c-violet));
+    border-color: var(--c-violet);
+    box-shadow: 0 0 12px var(--accent-glow);
+  }
+  .check input:checked::after, .special-chip input:checked::after {
+    content: ""; width: 10px; height: 10px;
+    background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='3,8.5 7,12 13,4'/></svg>") center/contain no-repeat;
+  }
+  /* special-action chip: pill wrapping a small checkbox */
+  .special-chip {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 5px 12px; border-radius: 999px; cursor: pointer;
+    font-size: 12px; font-weight: 500; color: var(--fg-soft);
+    background: var(--glass); border: 1px solid var(--border-strong);
+    transition: border-color .15s var(--easing), background .15s var(--easing);
+  }
+  .special-chip:hover { border-color: rgba(255,255,255,0.30); background: var(--glass-strong); }
+  .special-chip input { width: 14px; height: 14px; border-radius: 4px; }
+  .special-chip input:checked::after { width: 8px; height: 8px; }
+
+  /* unsaved-changes bar */
+  .unsaved-bar {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 18px;
+    background: linear-gradient(90deg, rgba(139,92,246,0.16), rgba(99,102,241,0.08));
+    border-top: 1px solid rgba(139,92,246,0.30);
+    font-size: 13px;
+    flex-wrap: wrap;
+  }
+  .unsaved-bar .chg { color: var(--c-violet); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .unsaved-bar .vline { width: 1px; height: 18px; background: var(--border-strong); }
+  .unsaved-bar .note {
+    margin-left: auto; display: inline-flex; align-items: center; gap: 7px;
+    font-size: 12px; color: var(--fg-mute);
+  }
+
+  /* ====== Members tab ====== */
+  .member-toolbar { padding: 14px; border-bottom: 1px solid var(--border); position: relative; }
+  .input-wrap {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--glass);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    padding: 0 14px; height: 44px;
+    transition: border-color .2s var(--easing), box-shadow .2s var(--easing), background .2s var(--easing);
+    backdrop-filter: blur(12px);
+  }
+  .input-wrap:hover { border-color: rgba(255,255,255,0.28); }
+  .input-wrap:focus-within {
+    border-color: var(--c-violet);
+    box-shadow: 0 0 0 4px rgba(139,92,246,0.18), 0 0 24px rgba(139,92,246,0.25);
+    background: rgba(255,255,255,0.08);
+  }
+  .input-wrap svg { color: var(--fg-mute); flex: 0 0 auto; }
+  .input-wrap:focus-within svg { color: var(--c-cyan); }
+  .input-wrap input {
+    flex: 1; border: 0; outline: 0; background: transparent;
+    font: inherit; font-size: 14px; color: var(--fg); height: 100%;
+  }
+  .input-wrap input::placeholder { color: var(--fg-mute); }
+
+  /* typeahead dropdown (OPEN state shown) */
+  .typeahead {
+    position: absolute; left: 14px; right: 14px; top: 62px; z-index: 20;
+    border-radius: 14px;
+    border: 1px solid var(--border-strong);
+    background: linear-gradient(180deg, rgba(18,18,46,0.96), rgba(11,11,35,0.97));
+    box-shadow: var(--shadow-pop);
+    overflow: hidden;
+  }
+  .typeahead .ta-hint {
+    padding: 8px 14px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--fg-mute); border-bottom: 1px solid var(--border);
+  }
+  .ta-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 14px; cursor: pointer;
+    transition: background .15s var(--easing);
+  }
+  .ta-row:hover, .ta-row.hl { background: rgba(139,92,246,0.14); }
+  .ta-row .kbd {
+    margin-left: auto;
+    font-size: 11px; color: var(--fg-mute);
+    border: 1px solid var(--border-strong); background: var(--glass);
+    padding: 2px 7px; border-radius: 6px;
+  }
+
+  .member-row {
+    display: flex; align-items: center; gap: 13px;
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .member-row:last-of-type { border-bottom: 0; }
+  .avatar {
+    width: 30px; height: 30px; border-radius: 999px; flex: 0 0 auto;
+    display: grid; place-items: center;
+    font-weight: 700; font-size: 11px; color: #fff;
+    box-shadow: 0 0 12px rgba(99,102,241,0.25);
+  }
+  .av-2 { background: linear-gradient(135deg, var(--c-cyan), var(--c-mint)); }
+  .av-4 { background: linear-gradient(135deg, var(--c-amber), var(--c-magenta)); }
+  .av-5 { background: linear-gradient(135deg, var(--c-mint), var(--c-cyan)); }
+  .m-meta { flex: 1; min-width: 0; line-height: 1.3; }
+  .m-name { font-size: 14px; font-weight: 500; color: var(--fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .m-mail { font-size: 12px; color: var(--fg-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .m-scope { font-size: 11px; }
+  .m-added { font-size: 12px; color: var(--fg-mute); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .qa {
+    width: 32px; height: 32px; border-radius: 9px;
+    display: grid; place-items: center; cursor: pointer;
+    background: rgba(7,7,26,0.55);
+    border: 1px solid var(--border-strong);
+    color: var(--fg-soft);
+    backdrop-filter: blur(12px);
+    transition: all .15s var(--easing);
+  }
+  .qa:hover { background: var(--glass-strong); color: var(--fg); }
+  .qa.danger { color: var(--c-magenta); }
+  .qa.danger:hover { background: rgba(236,72,153,0.15); border-color: rgba(236,72,153,0.40); }
+
+  .pager {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 18px;
+    font-size: 12px; color: var(--fg-mute);
+    font-variant-numeric: tabular-nums;
+    border-top: 1px solid var(--border);
+  }
+  .pg-btn {
+    width: 32px; height: 32px; border-radius: 9px; cursor: pointer;
+    display: grid; place-items: center;
+    background: var(--glass); border: 1px solid var(--border-strong);
+    color: var(--fg-soft);
+    transition: all .15s var(--easing);
+  }
+  .pg-btn:hover { background: var(--glass-strong); color: var(--fg); }
+  .pg-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  /* ====== App scope tab (read-only distribution) ====== */
+  .scope-row {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .scope-row:last-of-type { border-bottom: 0; }
+  .scope-row.dim { opacity: 0.55; }
+  .scope-meta { flex: 1; min-width: 0; line-height: 1.3; }
+  .scope-name { font-size: 14px; font-weight: 600; color: var(--fg); display: flex; align-items: center; gap: 9px; }
+  .scope-sub { font-size: 12px; color: var(--fg-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .scope-sub code { color: var(--fg-soft); font-family: inherit; }
+  .scope-dist { width: 220px; flex: 0 0 auto; display: grid; gap: 6px; }
+  .scope-count { font-size: 12px; color: var(--fg-soft); font-variant-numeric: tabular-nums; display: flex; justify-content: space-between; }
+  .scope-count b { color: var(--fg); font-weight: 600; }
+  .meter {
+    height: 6px; border-radius: 3px;
+    background: var(--glass-strong);
+    overflow: hidden;
+  }
+  .meter > span {
+    display: block; height: 100%;
+    background: linear-gradient(90deg, var(--c-cyan), var(--c-violet));
+    box-shadow: 0 0 10px rgba(139,92,246,0.5);
+    border-radius: 3px;
+  }
+  .scope-note {
+    display: flex; align-items: center; gap: 9px;
+    padding: 13px 18px;
+    border-top: 1px solid var(--border);
+    font-size: 12px; color: var(--fg-mute);
+  }
+  .scope-note code { color: var(--fg-soft); font-family: inherit; }
+
+  /* RBAC model reference */
+  .model-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; padding: 16px 18px 18px; }
+  @media (max-width: 900px) { .model-grid { grid-template-columns: 1fr 1fr; } }
+  .model-card {
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: rgba(7,7,26,0.35);
+    padding: 14px 16px;
+    font-size: 12px; line-height: 1.7;
+    color: var(--fg-mute);
+  }
+  .model-card .t { font-weight: 700; font-size: 13px; margin-bottom: 4px; }
+  .model-card .t.violet { color: var(--c-violet); }
+  .model-card .t.cyan { color: var(--c-cyan); }
+  .model-card .t.mint { color: var(--c-mint); }
+  .model-card .t.amber { color: var(--c-amber); }
+  .model-card em { font-style: normal; color: var(--fg-soft); }
+  .model-head {
+    padding: 14px 18px 0;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--fg-mute);
+  }
+
+  /* ====== Modal ====== */
+  .overlay {
+    position: fixed; inset: 0; z-index: 100;
+    background: rgba(4,4,14,0.70);
+    backdrop-filter: blur(10px);
+    display: grid; place-items: center;
+  }
+  .overlay.hidden { display: none; }
+  .modal {
+    width: 480px; max-width: calc(100vw - 32px);
+    border-radius: 20px;
+    border: 1px solid var(--border-strong);
+    background: linear-gradient(180deg, rgba(18,18,46,0.92), rgba(11,11,35,0.94));
+    box-shadow: var(--shadow-pop);
+    overflow: hidden;
+  }
+  .modal-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .modal-title { display: flex; align-items: center; gap: 12px; font-size: 15px; font-weight: 600; }
+  .modal-icon {
+    width: 36px; height: 36px; border-radius: 11px;
+    display: grid; place-items: center;
+    background: linear-gradient(135deg, rgba(99,102,241,0.25), rgba(236,72,153,0.20));
+    border: 1px solid var(--border-strong);
+    color: var(--c-cyan);
+  }
+  .modal-x {
+    width: 32px; height: 32px; border-radius: 9px; cursor: pointer;
+    display: grid; place-items: center;
+    background: transparent; border: 0; color: var(--fg-mute);
+    transition: all .15s var(--easing);
+  }
+  .modal-x:hover { background: var(--glass); color: var(--fg); }
+  .modal-body { padding: 20px; display: grid; gap: 16px; }
+  .field-label { display: block; font-size: 13px; font-weight: 500; color: var(--fg-soft); margin-bottom: 8px; }
+  .field-label .opt { color: var(--fg-mute); font-weight: 400; font-size: 12px; }
+  .helper { font-size: 12px; color: var(--fg-mute); margin-top: 8px; }
+  .sel {
+    appearance: none; -webkit-appearance: none;
+    width: 100%; height: 44px; padding: 0 36px 0 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-strong);
+    background: var(--glass) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238A8FB5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>") right 12px center/14px no-repeat;
+    color: var(--fg); font: inherit; font-size: 14px; cursor: pointer;
+    backdrop-filter: blur(12px);
+  }
+  .sel:focus { outline: 0; border-color: var(--c-violet); box-shadow: 0 0 0 4px rgba(139,92,246,0.18); }
+  .sel option { background: var(--bg-2); color: var(--fg); }
+  .modal-foot {
+    display: flex; justify-content: flex-end; gap: 10px;
+    padding: 16px 20px;
+    border-top: 1px solid var(--border);
+  }
+  .slug { letter-spacing: 0.02em; font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+
+<!--
+  ROLES & PERMISSIONS screen for isme (SSO admin console) — AURORA theme.
+  Visual port of cursor-permissions-design.html: functional spec is identical
+  (already implemented in React); only the theme changes. Shares the aurora
+  topbar shell with aurora-users-design.html.
+
+  RBAC model (see cursor mock for full notes):
+    role             { id, code, name, description, is_system, created_* … }
+    permission       { id, resource, action }              // resource × action catalog
+    role_permission  { role_id, permission_id }
+    user_role        { user_id, role_id, app_service_id? } // app_service_id NULL = global
+
+  Resources mirror isme domains: user · user_session · app_service · role.
+  Actions: read · create · update · delete (+ SPECIAL: user:reset_password,
+  user_session:revoke, app_service:rotate_secret, role:assign).
+  user_session has NO create/update — rendered as "—".
+  System roles (admin/member/viewer) are seeded + immutable (is_system=true):
+  selecting one renders the matrix READ-ONLY (all checkboxes disabled, lock
+  notice replaces the unsaved bar, Rename/Delete hidden). Custom role
+  "content-ops" is selected here → editable matrix.
+
+  Layout: roles list (left rail) + detail panel with 3 tabs:
+    Permissions (matrix) · Members · App scope. Tabs toggled with light JS.
+-->
+
+<!-- ====== Topbar shell (aurora AppShell/Topbar — tab nav, no sidebar) ====== -->
+<header class="app-bar">
+  <div class="bar-left">
+    <div class="brand-row">
+      <div class="brand-mark"><span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 7l8 5 8-5-8-5Z"/><path d="m4 17 8 5 8-5"/><path d="m4 12 8 5 8-5"/></svg></span></div>
+      <div class="brand-name">isme</div>
+    </div>
+    <nav class="nav" aria-label="Primary">
+      <a href="#">Overview</a>
+      <a href="#">Users</a>
+      <a href="#" class="active">Roles &amp; Permissions</a>
+      <a href="#">App Services</a>
+      <a href="#">Sessions</a>
+    </nav>
+  </div>
+  <div class="bar-right">
+    <button class="icon-btn" aria-label="Notifications">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+      <span class="badge"></span>
+    </button>
+    <div class="user-chip" tabindex="0">
+      <div class="avatar-lg">VK</div>
+      <div class="meta"><b>Vu Ky</b><span>kyndv@hasaki.vn</span></div>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--fg-mute);margin-left:4px;"><path d="m6 9 6 6 6-6"/></svg>
+    </div>
+  </div>
+</header>
+
+<main class="app-main">
+
+  <!-- Page head -->
+  <div class="page-head">
+    <div>
+      <h1>Roles &amp; Permissions</h1>
+      <p class="page-sub"><span class="num">4</span> roles · <span class="num">3</span> system · <span class="num">1</span> custom</p>
+    </div>
+    <!-- on click: open create-role modal (bottom of file) -->
+    <button class="btn btn-primary" onclick="document.getElementById('role-modal').classList.remove('hidden')">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+      New role
+    </button>
+  </div>
+
+  <div class="rbac-grid">
+
+    <!-- ============ ROLES LIST (left rail) ============
+         System roles show a lock glyph; custom roles get rename/delete in the
+         detail header instead. on click item: load role into detail panel —
+         selecting a system role switches the matrix to read-only. -->
+    <section class="panel">
+      <div class="rail-head">Roles</div>
+
+      <div class="role-item">
+        <div class="role-icon violet"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V6l-8-4-8 4v6c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg></div>
+        <div class="role-meta">
+          <div class="role-name">admin
+            <svg class="lock" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-label="System role — immutable"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+          </div>
+          <div class="role-desc">full access · all apps</div>
+        </div>
+        <span class="count-pill">3</span>
+      </div>
+
+      <div class="role-item">
+        <div class="role-icon cyan"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+        <div class="role-meta">
+          <div class="role-name">member
+            <svg class="lock" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-label="System role — immutable"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+          </div>
+          <div class="role-desc">default on signup</div>
+        </div>
+        <span class="count-pill">1,156</span>
+      </div>
+
+      <div class="role-item">
+        <div class="role-icon mint"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></div>
+        <div class="role-meta">
+          <div class="role-name">viewer
+            <svg class="lock" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-label="System role — immutable"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+          </div>
+          <div class="role-desc">read-only</div>
+        </div>
+        <span class="count-pill">97</span>
+      </div>
+
+      <!-- SELECTED custom role -->
+      <div class="role-item is-selected" aria-current="true">
+        <div class="role-icon amber"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div>
+        <div class="role-meta">
+          <div class="role-name">content-ops</div>
+          <div class="role-desc">custom · scoped to medioa</div>
+        </div>
+        <span class="count-pill">28</span>
+      </div>
+
+      <div class="rail-foot">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+        system roles seeded · immutable
+      </div>
+    </section>
+
+    <!-- ============ DETAIL PANEL ============ -->
+    <section class="panel">
+
+      <!-- Role header — custom role → Rename + Delete shown
+           (delete asks to reassign 28 members first; system role hides both) -->
+      <div class="detail-head">
+        <div class="detail-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div>
+        <div class="detail-meta">
+          <div class="detail-title">content-ops <span class="pill custom">custom</span></div>
+          <div class="detail-sub">role_id · <code>rol_8f2k1m9q</code> · created 2026-04-11 by kyndv@hasaki.vn</div>
+        </div>
+        <button class="btn btn-ghost btn-sm">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3Z"/></svg>
+          Rename
+        </button>
+        <button class="btn btn-danger btn-sm">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          Delete
+        </button>
+      </div>
+
+      <!-- Tabs — light JS toggle -->
+      <div class="tabs" role="tablist">
+        <button onclick="showTab('permissions')" id="tab-permissions" class="tab tab-active" role="tab" aria-selected="true">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg>
+          Permissions
+        </button>
+        <button onclick="showTab('members')" id="tab-members" class="tab" role="tab" aria-selected="false">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Members <span class="count-pill">28</span>
+        </button>
+        <button onclick="showTab('apps')" id="tab-apps" class="tab" role="tab" aria-selected="false">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 8h20"/><path d="M6 4v4"/><path d="M10 4v4"/></svg>
+          App scope
+        </button>
+      </div>
+
+      <!-- ===== TAB 1 · PERMISSION MATRIX =====
+           Rows grouped by resource (mirrors isme domains): IDENTITY (user,
+           user_session) vs PLATFORM (app_service, role). Checkbox = role_permission
+           row. SPECIAL column holds non-CRUD actions. user_session has no
+           create/update → "—". System roles render every checkbox disabled and
+           show a lock notice instead of the unsaved bar. -->
+      <div id="panel-permissions" role="tabpanel">
+        <table>
+          <thead>
+            <tr>
+              <th>Resource</th>
+              <th class="c">Read</th>
+              <th class="c">Create</th>
+              <th class="c">Update</th>
+              <th class="c">Delete</th>
+              <th style="width:220px;">Special</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- group · IDENTITY -->
+            <tr class="group-row"><td colspan="6">Identity</td></tr>
+            <tr class="perm-row">
+              <td>
+                <div class="res-cell">
+                  <div class="res-icon violet"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+                  <div><div class="res-name">Users</div><div class="res-code">user</div></div>
+                </div>
+              </td>
+              <td class="c"><label class="check"><input type="checkbox" checked aria-label="user:read" /></label></td>
+              <td class="c"><label class="check"><input type="checkbox" aria-label="user:create" /></label></td>
+              <td class="c"><label class="check"><input type="checkbox" checked aria-label="user:update" /></label></td>
+              <td class="c"><label class="check"><input type="checkbox" aria-label="user:delete" /></label></td>
+              <td><label class="special-chip"><input type="checkbox" class="check-mini" aria-label="user:reset_password" />reset_password</label></td>
+            </tr>
+            <tr class="perm-row">
+              <td>
+                <div class="res-cell">
+                  <div class="res-icon cyan"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg></div>
+                  <div><div class="res-name">Sessions</div><div class="res-code">user_session</div></div>
+                </div>
+              </td>
+              <td class="c"><label class="check"><input type="checkbox" checked aria-label="user_session:read" /></label></td>
+              <!-- user_session has no create/update actions -->
+              <td class="c"><span class="na">—</span></td>
+              <td class="c"><span class="na">—</span></td>
+              <td class="c"><label class="check"><input type="checkbox" aria-label="user_session:delete" /></label></td>
+              <td><label class="special-chip"><input type="checkbox" checked aria-label="user_session:revoke" />revoke</label></td>
+            </tr>
+            <!-- group · PLATFORM -->
+            <tr class="group-row"><td colspan="6">Platform</td></tr>
+            <tr class="perm-row">
+              <td>
+                <div class="res-cell">
+                  <div class="res-icon mint"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 8h20"/><path d="M6 4v4"/><path d="M10 4v4"/></svg></div>
+                  <div><div class="res-name">App Services</div><div class="res-code">app_service</div></div>
+                </div>
+              </td>
+              <td class="c"><label class="check"><input type="checkbox" checked aria-label="app_service:read" /></label></td>
+              <td class="c"><label class="check"><input type="checkbox" aria-label="app_service:create" /></label></td>
+              <td class="c"><label class="check"><input type="checkbox" aria-label="app_service:update" /></label></td>
+              <td class="c"><label class="check"><input type="checkbox" aria-label="app_service:delete" /></label></td>
+              <td><label class="special-chip"><input type="checkbox" aria-label="app_service:rotate_secret" />rotate_secret</label></td>
+            </tr>
+            <tr class="perm-row">
+              <td>
+                <div class="res-cell">
+                  <div class="res-icon amber"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg></div>
+                  <div><div class="res-name">Roles</div><div class="res-code">role</div></div>
+                </div>
+              </td>
+              <td class="c"><label class="check"><input type="checkbox" checked aria-label="role:read" /></label></td>
+              <td class="c"><label class="check"><input type="checkbox" aria-label="role:create" /></label></td>
+              <td class="c"><label class="check"><input type="checkbox" aria-label="role:update" /></label></td>
+              <td class="c"><label class="check"><input type="checkbox" aria-label="role:delete" /></label></td>
+              <td><label class="special-chip"><input type="checkbox" aria-label="role:assign" />assign</label></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Unsaved-changes bar — appears after first checkbox toggle.
+             When a SYSTEM role is selected this bar is replaced by a lock notice:
+             "🔒 system role — permissions are immutable" and all checkboxes disabled. -->
+        <div class="unsaved-bar">
+          <span class="chg">2 unsaved changes</span>
+          <span class="vline"></span>
+          <button class="btn btn-ghost btn-sm">Discard</button>
+          <button class="btn btn-primary btn-sm">Save changes</button>
+          <span class="note">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+            takes effect on next token refresh
+          </span>
+        </div>
+      </div>
+
+      <!-- ===== TAB 2 · MEMBERS ===== (hidden; toggled by tab)
+           Typeahead searches users NOT yet in this role; Enter assigns
+           (insert user_role). Dropdown is mocked in its OPEN state. -->
+      <div id="panel-members" class="hidden" role="tabpanel" style="display:none;">
+        <div class="member-toolbar">
+          <label class="input-wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="text" placeholder="Add member — search by name or email…" value="mi" />
+          </label>
+          <!-- typeahead dropdown — OPEN state. on Enter / click row: assign role to user -->
+          <div class="typeahead">
+            <div class="ta-hint">Users not in this role</div>
+            <div class="ta-row hl">
+              <div class="avatar" style="background:linear-gradient(135deg,#3A3F6E,#23264A);box-shadow:none;">MT</div>
+              <div class="m-meta">
+                <div class="m-name">Minh Tran</div>
+                <div class="m-mail">minh.tran@hasaki.vn</div>
+              </div>
+              <span class="kbd">↵ add</span>
+            </div>
+            <div class="ta-row">
+              <div class="avatar av-2">MC</div>
+              <div class="m-meta">
+                <div class="m-name">Mi Chau</div>
+                <div class="m-mail">mi.chau@hasaki.vn</div>
+              </div>
+            </div>
+            <!-- empty-result state: "No matching users — invite them first from Users" -->
+          </div>
+        </div>
+
+        <div class="member-row">
+          <div class="avatar av-4">NH</div>
+          <div class="m-meta">
+            <div class="m-name" title="Nguyen Hoang Long Phi Truong Giang">Nguyen Hoang Long Phi Truong Giang</div>
+            <div class="m-mail">long.giang.marketing.team@hasaki.vn</div>
+          </div>
+          <span class="m-added">added 2026-04-11</span>
+          <!-- on click: remove user_role row (confirm dialog) -->
+          <button class="qa danger" title="Remove from role"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+        </div>
+        <div class="member-row">
+          <div class="avatar av-2">LA</div>
+          <div class="m-meta">
+            <div class="m-name">Linh Anh</div>
+            <div class="m-mail">linh.anh@hasaki.vn</div>
+          </div>
+          <span class="m-added">added 2026-05-02</span>
+          <button class="qa danger" title="Remove from role"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+        </div>
+        <div class="member-row">
+          <div class="avatar av-5">QB</div>
+          <div class="m-meta">
+            <div class="m-name">Quoc Bao</div>
+            <div class="m-mail">quoc.bao@hasaki.vn</div>
+          </div>
+          <span class="m-added">added 2026-05-28</span>
+          <button class="qa danger" title="Remove from role"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+        </div>
+
+        <div class="pager">
+          <div>3 of 28 shown</div>
+          <div style="display:flex;gap:8px;">
+            <button class="pg-btn" disabled aria-label="Previous page"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
+            <button class="pg-btn" aria-label="Next page"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== TAB 3 · APP SCOPE ===== (hidden; toggled by tab)
+           READ-ONLY scope distribution — scope is set PER ASSIGNMENT
+           (user_role.app_service_id), not per role, so there are no toggles
+           here. Each row shows how many of the 28 member assignments are
+           scoped to that app. NULL app_service_id = global. -->
+      <div id="panel-apps" class="hidden" role="tabpanel" style="display:none;">
+
+        <div class="scope-row">
+          <div class="role-icon plain"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M2 12h20"/><path d="M12 3a15.3 15.3 0 0 1 4 9 15.3 15.3 0 0 1-4 9 15.3 15.3 0 0 1-4-9 15.3 15.3 0 0 1 4-9z"/></svg></div>
+          <div class="scope-meta">
+            <div class="scope-name">Global (all apps)</div>
+            <div class="scope-sub"><code>app_service_id = NULL</code> · assignment applies everywhere</div>
+          </div>
+          <div class="scope-dist">
+            <div class="scope-count"><span>assignments</span><b>9 / 28</b></div>
+            <div class="meter"><span style="width:32%;"></span></div>
+          </div>
+        </div>
+
+        <div class="scope-row">
+          <div class="role-icon violet"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 7l8 5 8-5-8-5Z"/><path d="m4 17 8 5 8-5"/><path d="m4 12 8 5 8-5"/></svg></div>
+          <div class="scope-meta">
+            <div class="scope-name">Medioa <span class="pill ok"><span class="dot"></span>active</span></div>
+            <div class="scope-sub">app_code · <code>medioa</code> · app.medioa.local/auth/callback</div>
+          </div>
+          <div class="scope-dist">
+            <div class="scope-count"><span>assignments</span><b>16 / 28</b></div>
+            <div class="meter"><span style="width:57%;"></span></div>
+          </div>
+        </div>
+
+        <div class="scope-row">
+          <div class="role-icon cyan"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div>
+          <div class="scope-meta">
+            <div class="scope-name">Rainy <span class="pill ok"><span class="dot"></span>active</span></div>
+            <div class="scope-sub">app_code · <code>rainy</code> · rainy.local/auth/callback</div>
+          </div>
+          <div class="scope-dist">
+            <div class="scope-count"><span>assignments</span><b>3 / 28</b></div>
+            <div class="meter"><span style="width:11%;"></span></div>
+          </div>
+        </div>
+
+        <div class="scope-row dim">
+          <div class="role-icon plain"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 8h20"/><path d="M6 4v4"/><path d="M10 4v4"/></svg></div>
+          <div class="scope-meta">
+            <div class="scope-name">Sandbox <span class="pill off"><span class="dot"></span>inactive</span></div>
+            <div class="scope-sub">app_code · <code>sandbox</code> · localhost:3000/callback</div>
+          </div>
+          <div class="scope-dist">
+            <div class="scope-count"><span>assignments</span><b>0 / 28</b></div>
+            <div class="meter"><span style="width:0%;"></span></div>
+          </div>
+        </div>
+
+        <div class="scope-note">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto;"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+          <span>Read-only — scope is stored per assignment on <code>user_roles.app_service_id</code> (NULL = global) and set when assigning the role to a member, not here.</span>
+        </div>
+      </div>
+
+    </section>
+  </div>
+
+  <!-- RBAC model reference (design note) -->
+  <section class="panel">
+    <div class="model-head">RBAC model · resources mirror isme domains</div>
+    <div class="model-grid">
+      <div class="model-card">
+        <div class="t violet">role</div>
+        id · code · name<br/>description · is_system<br/>created_* / updated_*
+      </div>
+      <div class="model-card">
+        <div class="t cyan">permission</div>
+        id · resource · action<br/><em>user · user_session<br/>app_service · role</em>
+      </div>
+      <div class="model-card">
+        <div class="t mint">role_permission</div>
+        role_id<br/>permission_id
+      </div>
+      <div class="model-card">
+        <div class="t amber">user_role</div>
+        user_id · role_id<br/>app_service_id?<br/><em>NULL = global</em>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ================= CREATE ROLE MODAL =================
+     Opened by "New role". Creates an empty custom role; permissions are then
+     edited in the matrix. Optionally clone from an existing role.
+     on click overlay (outside card) or ✕: close modal -->
+<div id="role-modal" class="overlay hidden" onclick="if(event.target===this)this.classList.add('hidden')">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="role-title">
+    <div class="modal-head">
+      <div class="modal-title" id="role-title">
+        <div class="modal-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg>
+        </div>
+        New role
+      </div>
+      <button class="modal-x" onclick="document.getElementById('role-modal').classList.add('hidden')" aria-label="Close">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <label class="field">
+        <span class="field-label">Code <span class="opt">· unique slug, immutable after create</span></span>
+        <span class="input-wrap">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg>
+          <input type="text" class="slug" placeholder="support-agent" />
+        </span>
+      </label>
+      <label class="field">
+        <span class="field-label">Name</span>
+        <span class="input-wrap">
+          <input type="text" placeholder="Support Agent" />
+        </span>
+      </label>
+      <label class="field">
+        <span class="field-label">Description</span>
+        <span class="input-wrap">
+          <input type="text" placeholder="What this role is for…" />
+        </span>
+      </label>
+      <label class="field">
+        <span class="field-label">Clone permissions from <span class="opt">· optional</span></span>
+        <select class="sel">
+          <option selected>— start empty —</option>
+          <option>admin</option>
+          <option>member</option>
+          <option>viewer</option>
+          <option>content-ops</option>
+        </select>
+        <div class="helper">Copies the role_permission set; members and scope are not cloned.</div>
+      </label>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="document.getElementById('role-modal').classList.add('hidden')">Cancel</button>
+      <button class="btn btn-primary">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+        Create role
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  function showTab(name){
+    ['permissions','members','apps'].forEach(function(t){
+      var panel = document.getElementById('panel-'+t);
+      var tab = document.getElementById('tab-'+t);
+      panel.style.display = (t===name) ? '' : 'none';
+      tab.classList.toggle('tab-active', t===name);
+      tab.setAttribute('aria-selected', t===name ? 'true' : 'false');
+    });
+  }
+</script>
+
+</body>
+</html>

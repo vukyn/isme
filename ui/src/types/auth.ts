@@ -50,8 +50,15 @@ export interface AuthTokens {
 	expires_at: string;
 }
 
+/** Maps to internal/domains/auth/models.GetMeResponse. */
 export interface GetMeResponse {
 	id: string;
 	name: string;
 	email: string;
+	/** omitempty on the backend — absent for non-admins. */
+	is_admin?: boolean;
+	/** Global role codes of the current user (RBAC). */
+	roles: string[];
+	/** Permission codes as "resource:action" (e.g. "role:assign"). Admins bypass. */
+	perms: string[];
 }

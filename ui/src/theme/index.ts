@@ -61,6 +61,9 @@ const config = defineConfig({
 				focusRing: {
 					value: "0 0 0 4px {colors.glow.violetSoft}, 0 0 24px {colors.glow.violetSoft}",
 				},
+				glassPop: {
+					value: "0 20px 60px rgba(99,102,241,0.25), 0 4px 12px rgba(0,0,0,0.35)",
+				},
 			},
 			radii: {
 				glass: { value: "16px" },

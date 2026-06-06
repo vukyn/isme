@@ -35,7 +35,7 @@ func (r *repository) Create(ctx context.Context, req models.CreateRequest) (stri
 		ID:     cryp.ULID(),
 		Name:   req.Name,
 		Email:  req.Email,
-		Status: constants.UserStatusActive,
+		Status: int32(constants.UserStatusActive),
 	}
 	_, err := r.db.NewInsert().
 		Model(user).
@@ -163,4 +163,93 @@ func (r *repository) IsAdmin(ctx context.Context, id string) (bool, error) {
 	}
 
 	return user.IsAdmin, nil
+}
+
+func (r *repository) List(ctx context.Context, req models.ListRequest) ([]entity.User, int64, error) {
+	// validation
+	if err := req.Validate(); err != nil {
+		return nil, 0, pkgErr.InvalidRequest(err.Error())
+	}
+
+	query := r.db.NewSelect().
+		Model((*entity.User)(nil)).
+		Where("deleted_at IS NULL")
+
+	// Apply search filter
+	if req.Search != "" {
+		query = query.Where("name ILIKE ? OR email ILIKE ?", "%"+req.Search+"%", "%"+req.Search+"%")
+	}
+
+	// Apply status filter (only if status is set and non-zero)
+	if req.Status != 0 {
+		query = query.Where("status = ?", req.Status)
+	}
+
+	// Apply isAdmin filter
+	if req.IsAdmin != nil {
+		query = query.Where("is_admin = ?", *req.IsAdmin)
+	}
+
+	// Get total count
+	total, err := query.Count(ctx)
+	if err != nil {
+		return nil, 0, pkgErr.DatabaseError(err.Error())
+	}
+
+	// Apply pagination
+	users := make([]entity.User, 0)
+	offset := (req.Page - 1) * req.PageSize
+	err = query.
+		Offset(offset).
+		Limit(req.PageSize).
+		Order("created_at DESC").
+		Scan(ctx, &users)
+	if err != nil {
+		return nil, 0, pkgErr.DatabaseError(err.Error())
+	}
+
+	return users, int64(total), nil
+}
+
+func (r *repository) UpdateStatus(ctx context.Context, id string, status int32) error {
+	if id == "" {
+		return pkgErr.InvalidRequest("id is required")
+	}
+	if status != 1 && status != 2 {
+		return pkgErr.InvalidRequest("invalid status, must be 1 (active) or 2 (inactive)")
+	}
+
+	user := &entity.User{
+		ID:     id,
+		Status: status,
+	}
+	_, err := r.db.NewUpdate().
+		Model(user).
+		Column("status").
+		Where("id = ?", id).
+		Exec(ctx)
+	if err != nil {
+		return pkgErr.DatabaseError(err.Error())
+	}
+	return nil
+}
+
+func (r *repository) SoftDelete(ctx context.Context, id string) error {
+	if id == "" {
+		return pkgErr.InvalidRequest("id is required")
+	}
+
+	user := &entity.User{
+		ID:        id,
+		DeletedAt: time.Now().UTC(),
+	}
+	_, err := r.db.NewUpdate().
+		Model(user).
+		Column("deleted_at").
+		Where("id = ?", id).
+		Exec(ctx)
+	if err != nil {
+		return pkgErr.DatabaseError(err.Error())
+	}
+	return nil
 }

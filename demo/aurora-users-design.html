@@ -1,0 +1,1026 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>isme — Users management · Aurora UI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  /* ====== Aurora design tokens — extracted from demo/auth-mockup.html ====== */
+  :root {
+    --bg-0: #07071A;
+    --bg-1: #0B0B23;
+    --bg-2: #12122E;
+    --fg: #F4F5FF;
+    --fg-soft: #C7CAE8;
+    --fg-mute: #8A8FB5;
+    --border: rgba(255,255,255,0.10);
+    --border-strong: rgba(255,255,255,0.18);
+    --glass: rgba(255,255,255,0.06);
+    --glass-strong: rgba(255,255,255,0.10);
+
+    --c-cyan: #22D3EE;
+    --c-blue: #6366F1;
+    --c-violet: #8B5CF6;
+    --c-magenta: #EC4899;
+    --c-amber: #F59E0B;
+    --c-mint: #34D399;
+
+    --accent: var(--c-violet);
+    --accent-glow: rgba(139,92,246,0.45);
+
+    --radius: 16px;
+    --radius-sm: 12px;
+    --easing: cubic-bezier(.2,.8,.2,1);
+    --shadow-glass: 0 1px 0 rgba(255,255,255,0.06) inset, 0 8px 32px rgba(0,0,0,0.45);
+    --shadow-pop: 0 20px 60px rgba(99,102,241,0.25), 0 4px 12px rgba(0,0,0,0.35);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter','DM Sans',system-ui,-apple-system,sans-serif;
+    color: var(--fg);
+    background: var(--bg-0);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
+    overflow-x: hidden;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+
+  /* Aurora background — global, same as auth-mockup */
+  body::before {
+    content: ""; position: fixed; inset: 0; z-index: -2;
+    background:
+      radial-gradient(60% 50% at 12% 10%, rgba(99,102,241,0.45), transparent 60%),
+      radial-gradient(45% 40% at 88% 18%, rgba(34,211,238,0.35), transparent 60%),
+      radial-gradient(55% 45% at 75% 92%, rgba(236,72,153,0.32), transparent 60%),
+      radial-gradient(50% 40% at 18% 80%, rgba(139,92,246,0.32), transparent 60%),
+      linear-gradient(180deg, #07071A 0%, #0B0B23 60%, #04040E 100%);
+    background-size: 200% 200%;
+    animation: auroraFlow 14s ease-in-out infinite alternate;
+    filter: saturate(1.15);
+  }
+  body::after {
+    content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 3px 3px;
+    mix-blend-mode: overlay;
+    opacity: 0.45;
+  }
+  @keyframes auroraFlow {
+    0%   { background-position: 0% 0%, 100% 0%, 100% 100%, 0% 100%, 0 0; }
+    50%  { background-position: 30% 20%, 60% 30%, 70% 70%, 30% 60%, 0 0; }
+    100% { background-position: 100% 100%, 0% 100%, 0% 0%, 100% 0%, 0 0; }
+  }
+
+  /* ====== Topbar shell (same anatomy as auth-mockup Welcome screen) ====== */
+  .app-bar {
+    position: sticky; top: 0; z-index: 50;
+    height: 64px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 28px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(7,7,26,0.62);
+    backdrop-filter: blur(20px) saturate(1.2);
+  }
+  .bar-left { display: flex; align-items: center; gap: 24px; }
+  .bar-right { display: flex; align-items: center; gap: 10px; }
+
+  .brand-row { display: flex; align-items: center; gap: 12px; }
+  .brand-mark {
+    width: 34px; height: 34px; border-radius: 10px;
+    background: conic-gradient(from 180deg at 50% 50%, var(--c-cyan), var(--c-blue), var(--c-violet), var(--c-magenta), var(--c-cyan));
+    display: grid; place-items: center;
+    box-shadow: 0 8px 24px rgba(99,102,241,0.45);
+  }
+  .brand-mark > span {
+    width: 26px; height: 26px; border-radius: 7px;
+    background: var(--bg-0); display: grid; place-items: center;
+  }
+  .brand-name { font-weight: 700; font-size: 17px; letter-spacing: -0.01em; }
+
+  .nav { display: flex; gap: 4px; }
+  .nav a {
+    font-size: 14px; padding: 8px 14px; border-radius: 10px;
+    color: var(--fg-mute); text-decoration: none; font-weight: 500;
+    transition: all .15s var(--easing);
+    border: 1px solid transparent;
+  }
+  .nav a.active {
+    color: var(--fg);
+    background: var(--glass);
+    border-color: var(--border-strong);
+    box-shadow: 0 0 20px rgba(99,102,241,0.20);
+  }
+  .nav a:hover { color: var(--fg); }
+
+  .icon-btn {
+    width: 40px; height: 40px;
+    background: var(--glass); border: 1px solid var(--border-strong);
+    border-radius: 10px;
+    display: grid; place-items: center;
+    color: var(--fg-soft); cursor: pointer;
+    backdrop-filter: blur(12px);
+    transition: all .15s var(--easing);
+    position: relative;
+  }
+  .icon-btn:hover { color: var(--fg); border-color: rgba(255,255,255,0.28); }
+  .icon-btn .badge {
+    position: absolute; top: 6px; right: 6px;
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--c-magenta); box-shadow: 0 0 8px var(--c-magenta);
+  }
+
+  .user-chip {
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 4px 10px 4px 4px;
+    border: 1px solid var(--border-strong); border-radius: 999px;
+    background: var(--glass); backdrop-filter: blur(12px);
+    cursor: pointer; transition: all .15s var(--easing);
+  }
+  .user-chip:hover { background: var(--glass-strong); }
+  .avatar-lg {
+    width: 32px; height: 32px; border-radius: 999px;
+    background: conic-gradient(from 200deg, var(--c-cyan), var(--c-blue), var(--c-violet), var(--c-magenta), var(--c-cyan));
+    color: #fff; display: grid; place-items: center;
+    font-weight: 700; font-size: 13px;
+    box-shadow: 0 0 16px var(--accent-glow);
+  }
+  .user-chip .meta { font-size: 13px; line-height: 1.15; }
+  .user-chip .meta b { display: block; font-weight: 600; color: var(--fg); }
+  .user-chip .meta span { color: var(--fg-mute); font-size: 12px; }
+
+  /* ====== Main layout ====== */
+  .app-main { max-width: 1280px; margin: 0 auto; padding: 32px 28px 72px; display: grid; gap: 20px; }
+
+  .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .page-head h1 {
+    margin: 0; font-size: 32px; font-weight: 700; letter-spacing: -0.025em; line-height: 1.1;
+  }
+  .page-head h1 .grad {
+    background: linear-gradient(135deg, var(--c-cyan), var(--c-violet) 60%, var(--c-magenta));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .page-sub { margin: 6px 0 0; color: var(--fg-mute); font-size: 14px; }
+  .page-sub .num { color: var(--c-cyan); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .page-sub .num.ok { color: var(--c-mint); }
+  .head-actions { display: flex; gap: 10px; }
+
+  /* buttons — same tokens as auth-mockup, auto width */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+    height: 44px; padding: 0 18px;
+    border-radius: var(--radius-sm); border: 1px solid transparent;
+    font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+    transition: transform .15s var(--easing), box-shadow .2s var(--easing), background .2s var(--easing);
+  }
+  .btn:active { transform: translateY(1px) scale(0.995); }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--c-blue) 0%, var(--c-violet) 50%, var(--c-magenta) 100%);
+    color: #fff;
+    box-shadow: 0 10px 30px rgba(99,102,241,0.45), 0 0 0 1px rgba(255,255,255,0.10) inset;
+    background-size: 200% 200%;
+  }
+  .btn-primary:hover { background-position: 100% 100%; box-shadow: 0 14px 40px rgba(139,92,246,0.55); }
+  .btn-primary:focus-visible { outline: 0; box-shadow: 0 0 0 4px rgba(139,92,246,0.35), 0 14px 40px rgba(139,92,246,0.55); }
+  .btn-ghost {
+    background: var(--glass); color: var(--fg);
+    border-color: var(--border-strong);
+    backdrop-filter: blur(12px);
+  }
+  .btn-ghost:hover { background: var(--glass-strong); border-color: rgba(255,255,255,0.28); }
+  .btn-sm { height: 34px; padding: 0 12px; font-size: 13px; border-radius: 10px; }
+  .btn-danger {
+    background: rgba(236,72,153,0.10); color: var(--c-magenta);
+    border-color: rgba(236,72,153,0.35);
+  }
+  .btn-danger:hover { background: rgba(236,72,153,0.18); }
+
+  /* ====== Glass panel ====== */
+  .panel {
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    backdrop-filter: blur(20px) saturate(1.15);
+    box-shadow: var(--shadow-glass);
+    overflow: hidden;
+  }
+
+  /* toolbar */
+  .toolbar { display: flex; align-items: center; gap: 10px; padding: 14px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .input-wrap {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--glass);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    padding: 0 14px; height: 44px;
+    transition: border-color .2s var(--easing), box-shadow .2s var(--easing), background .2s var(--easing);
+    backdrop-filter: blur(12px);
+  }
+  .input-wrap:hover { border-color: rgba(255,255,255,0.28); }
+  .input-wrap:focus-within {
+    border-color: var(--c-violet);
+    box-shadow: 0 0 0 4px rgba(139,92,246,0.18), 0 0 24px rgba(139,92,246,0.25);
+    background: rgba(255,255,255,0.08);
+  }
+  .input-wrap svg { color: var(--fg-mute); flex: 0 0 auto; }
+  .input-wrap:focus-within svg { color: var(--c-cyan); }
+  .input-wrap input {
+    flex: 1; border: 0; outline: 0; background: transparent;
+    font: inherit; font-size: 14px; color: var(--fg); height: 100%;
+  }
+  .input-wrap input::placeholder { color: var(--fg-mute); }
+  .search { flex: 1; min-width: 240px; }
+  .kbd {
+    font-size: 11px; color: var(--fg-mute);
+    border: 1px solid var(--border-strong); background: var(--glass);
+    padding: 2px 7px; border-radius: 6px;
+  }
+
+  .filter-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    height: 44px; padding: 0 14px;
+    border-radius: var(--radius-sm); cursor: pointer;
+    font: inherit; font-size: 13px; font-weight: 600;
+    background: rgba(139,92,246,0.14);
+    border: 1px solid rgba(139,92,246,0.45);
+    color: var(--c-violet);
+    box-shadow: 0 0 18px rgba(139,92,246,0.20);
+  }
+  .filter-btn .count {
+    min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px;
+    display: grid; place-items: center; font-size: 11px;
+    background: rgba(139,92,246,0.25); color: #fff;
+  }
+
+  /* filter row (open state) */
+  .filters {
+    display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap;
+    padding: 16px 14px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(7,7,26,0.35);
+  }
+  .flabel {
+    display: block; font-size: 11px; font-weight: 600;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--fg-mute); margin-bottom: 8px;
+  }
+  .seg {
+    display: inline-flex; align-items: center;
+    border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+    overflow: hidden; background: var(--glass); backdrop-filter: blur(12px);
+  }
+  .seg button {
+    display: inline-flex; align-items: center; gap: 7px;
+    height: 40px; padding: 0 14px;
+    border: 0; background: transparent; cursor: pointer;
+    font: inherit; font-size: 13px; font-weight: 500; color: var(--fg-mute);
+    border-right: 1px solid var(--border);
+    transition: all .15s var(--easing);
+  }
+  .seg button:last-child { border-right: 0; }
+  .seg button:hover { color: var(--fg); }
+  .seg button.on {
+    color: var(--fg);
+    background: linear-gradient(135deg, rgba(99,102,241,0.30), rgba(139,92,246,0.25));
+    box-shadow: 0 0 16px rgba(139,92,246,0.25) inset;
+  }
+  .sel {
+    appearance: none; -webkit-appearance: none;
+    height: 40px; padding: 0 36px 0 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-strong);
+    background: var(--glass) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238A8FB5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>") right 12px center/14px no-repeat;
+    color: var(--fg); font: inherit; font-size: 13px; cursor: pointer;
+    backdrop-filter: blur(12px);
+  }
+  .sel:focus { outline: 0; border-color: var(--c-violet); box-shadow: 0 0 0 4px rgba(139,92,246,0.18); }
+  .sel option { background: var(--bg-2); color: var(--fg); }
+  .filters .spacer { margin-left: auto; display: flex; gap: 10px; }
+  .filters .map-note {
+    width: 100%; font-size: 12px; color: var(--fg-mute);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .filters .map-note code { color: var(--fg-soft); font-family: inherit; }
+
+  /* ====== Table ====== */
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  thead th {
+    text-align: left; padding: 12px 14px;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--fg-mute);
+    border-bottom: 1px solid var(--border);
+  }
+  tbody td { padding: 13px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tr.row { cursor: pointer; transition: background .15s var(--easing); }
+  tr.row:hover { background: rgba(255,255,255,0.04); }
+  tr.row.selected { background: rgba(139,92,246,0.10); }
+  tr.row.muted > td { opacity: 0.65; }
+  tr.row.muted > td:last-child { opacity: 1; }
+
+  .check { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; color: var(--fg-soft); font-size: 14px; }
+  .check input {
+    appearance: none; -webkit-appearance: none;
+    width: 18px; height: 18px; border-radius: 5px;
+    border: 1.5px solid var(--border-strong);
+    background: var(--glass);
+    display: grid; place-items: center; cursor: pointer;
+    transition: all .15s var(--easing);
+    margin: 0;
+  }
+  .check input:checked {
+    background: linear-gradient(135deg, var(--c-blue), var(--c-violet));
+    border-color: var(--c-violet);
+    box-shadow: 0 0 12px var(--accent-glow);
+  }
+  .check input:checked::after {
+    content: ""; width: 10px; height: 10px;
+    background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='3,8.5 7,12 13,4'/></svg>") center/contain no-repeat;
+  }
+
+  .u-cell { display: flex; align-items: center; gap: 12px; min-width: 0; max-width: 300px; }
+  .avatar {
+    width: 32px; height: 32px; border-radius: 999px; flex: 0 0 auto;
+    display: grid; place-items: center;
+    font-weight: 700; font-size: 12px; color: #fff;
+    box-shadow: 0 0 14px rgba(99,102,241,0.30);
+  }
+  .av-1 { background: conic-gradient(from 200deg, var(--c-cyan), var(--c-blue), var(--c-violet), var(--c-magenta), var(--c-cyan)); }
+  .av-2 { background: linear-gradient(135deg, var(--c-cyan), var(--c-mint)); }
+  .av-3 { background: linear-gradient(135deg, #3A3F6E, #23264A); box-shadow: none; }
+  .av-4 { background: linear-gradient(135deg, var(--c-amber), var(--c-magenta)); }
+  .av-5 { background: linear-gradient(135deg, var(--c-mint), var(--c-cyan)); }
+  .av-pending {
+    background: var(--glass); color: var(--fg-mute);
+    border: 1.5px dashed var(--border-strong); box-shadow: none;
+  }
+  .u-meta { min-width: 0; line-height: 1.25; }
+  .u-name { font-size: 14px; font-weight: 600; color: var(--fg); display: flex; align-items: center; gap: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .u-name .shield { color: var(--c-violet); filter: drop-shadow(0 0 6px var(--accent-glow)); flex: 0 0 auto; }
+  .u-mail { font-size: 12px; color: var(--fg-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* pills — same shape as auth-mockup .pill */
+  .pill {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-size: 12px; font-weight: 500;
+    padding: 4px 11px; border-radius: 999px;
+    background: var(--glass);
+    border: 1px solid var(--border-strong);
+    backdrop-filter: blur(12px);
+    color: var(--fg-soft);
+    white-space: nowrap;
+  }
+  .pill .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .pill.ok { color: var(--c-mint); border-color: rgba(52,211,153,0.35); background: rgba(52,211,153,0.10); }
+  .pill.ok .dot { background: var(--c-mint); box-shadow: 0 0 10px var(--c-mint); }
+  .pill.off { color: var(--fg-mute); }
+  .pill.off .dot { background: var(--fg-mute); }
+  .pill.pend { color: var(--c-amber); border-color: rgba(245,158,11,0.35); background: rgba(245,158,11,0.10); }
+  .pill.pend .dot { background: var(--c-amber); box-shadow: 0 0 10px var(--c-amber); }
+  .pill.r-admin { color: var(--c-violet); border-color: rgba(139,92,246,0.40); background: rgba(139,92,246,0.12); }
+  .pill.r-member { color: var(--c-cyan); border-color: rgba(34,211,238,0.40); background: rgba(34,211,238,0.10); }
+  .pill.r-viewer { color: var(--c-mint); border-color: rgba(52,211,153,0.35); background: rgba(52,211,153,0.10); }
+  .pill.r-ops { color: var(--c-amber); border-color: rgba(245,158,11,0.35); background: rgba(245,158,11,0.10); }
+
+  .num { font-variant-numeric: tabular-nums; color: var(--fg-soft); font-size: 13px; }
+  .num.hot { color: var(--c-cyan); font-weight: 600; }
+  .num.dim { color: var(--fg-mute); }
+
+  /* row actions — hidden until row hover; stay visible on selected/expanded rows */
+  .row-actions { display: flex; justify-content: flex-end; gap: 6px; opacity: 0; transition: opacity .15s var(--easing); }
+  tr.row:hover .row-actions, tr.row.selected .row-actions, tr.row.show-actions .row-actions { opacity: 1; }
+  .qa {
+    width: 32px; height: 32px; border-radius: 9px;
+    display: grid; place-items: center; cursor: pointer;
+    background: rgba(7,7,26,0.55);
+    border: 1px solid var(--border-strong);
+    color: var(--fg-soft);
+    backdrop-filter: blur(12px);
+    transition: all .15s var(--easing);
+  }
+  .qa:hover { background: var(--glass-strong); color: var(--fg); border-color: rgba(255,255,255,0.30); }
+  .qa.warn { color: var(--c-amber); }
+  .qa.good { color: var(--c-mint); }
+  .qa.danger { color: var(--c-magenta); }
+  .qa.danger:hover { background: rgba(236,72,153,0.15); border-color: rgba(236,72,153,0.40); }
+  .qa.cyan { color: var(--c-cyan); }
+  .qa:disabled { opacity: 0.35; cursor: not-allowed; }
+  .qa:disabled:hover { background: rgba(7,7,26,0.55); border-color: var(--border-strong); }
+
+  /* expanded session sub-row */
+  tr.sub td { padding: 0 14px 16px 60px; background: rgba(7,7,26,0.30); }
+  .sessions-box {
+    border: 1px solid var(--border-strong);
+    border-radius: 14px;
+    background: var(--glass);
+    backdrop-filter: blur(16px);
+    overflow: hidden;
+  }
+  .sessions-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 14px;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--fg-mute);
+    border-bottom: 1px solid var(--border);
+  }
+  .session-line {
+    display: flex; align-items: center; gap: 18px;
+    padding: 11px 14px; font-size: 13px;
+  }
+  .session-line + .session-line { border-top: 1px solid var(--border); }
+  .session-line .dev { display: flex; align-items: center; gap: 9px; color: var(--fg); font-weight: 500; }
+  .session-line .dev svg { color: var(--c-cyan); }
+  .session-line .meta { color: var(--fg-mute); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .revoke-btn {
+    margin-left: auto;
+    display: inline-flex; align-items: center; gap: 7px;
+    height: 32px; padding: 0 12px; border-radius: 9px; cursor: pointer;
+    font: inherit; font-size: 12px; font-weight: 600;
+    background: rgba(236,72,153,0.08);
+    border: 1px solid rgba(236,72,153,0.35);
+    color: var(--c-magenta);
+    transition: background .15s var(--easing);
+  }
+  .revoke-btn:hover { background: rgba(236,72,153,0.16); }
+
+  /* bulk-select bar */
+  .bulk-bar {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px;
+    background: linear-gradient(90deg, rgba(139,92,246,0.16), rgba(99,102,241,0.08));
+    border-top: 1px solid rgba(139,92,246,0.30);
+    font-size: 13px;
+  }
+  .bulk-bar .sel-count { color: var(--c-violet); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .bulk-bar .vline { width: 1px; height: 18px; background: var(--border-strong); }
+  .bulk-btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    height: 32px; padding: 0 12px; border-radius: 9px; cursor: pointer;
+    font: inherit; font-size: 12px; font-weight: 600;
+    background: var(--glass); border: 1px solid var(--border-strong);
+    color: var(--fg-soft); backdrop-filter: blur(12px);
+    transition: all .15s var(--easing);
+  }
+  .bulk-btn:hover { background: var(--glass-strong); color: var(--fg); }
+  .bulk-btn.danger { color: var(--c-magenta); border-color: rgba(236,72,153,0.35); background: rgba(236,72,153,0.08); }
+  .bulk-btn.danger:hover { background: rgba(236,72,153,0.16); }
+  .bulk-bar .close-x { margin-left: auto; }
+
+  /* pagination */
+  .pager {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px;
+    font-size: 12px; color: var(--fg-mute);
+    font-variant-numeric: tabular-nums;
+  }
+  .pager .pg-controls { display: flex; align-items: center; gap: 8px; }
+  .pg-btn {
+    width: 32px; height: 32px; border-radius: 9px; cursor: pointer;
+    display: grid; place-items: center;
+    background: var(--glass); border: 1px solid var(--border-strong);
+    color: var(--fg-soft);
+    transition: all .15s var(--easing);
+  }
+  .pg-btn:hover { background: var(--glass-strong); color: var(--fg); }
+  .pg-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .pager .sel { height: 32px; padding: 0 30px 0 10px; font-size: 12px; border-radius: 9px; }
+
+  /* legend card */
+  .legend {
+    display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+    padding: 16px 18px; font-size: 12px; color: var(--fg-mute);
+  }
+  .legend .item { display: inline-flex; align-items: center; gap: 9px; }
+  .legend code { color: var(--fg-soft); font-family: inherit; }
+
+  /* ====== Modal ====== */
+  .overlay {
+    position: fixed; inset: 0; z-index: 100;
+    background: rgba(4,4,14,0.70);
+    backdrop-filter: blur(10px);
+    display: grid; place-items: center;
+  }
+  .overlay.hidden { display: none; }
+  .modal {
+    width: 480px; max-width: calc(100vw - 32px);
+    border-radius: 20px;
+    border: 1px solid var(--border-strong);
+    background: linear-gradient(180deg, rgba(18,18,46,0.92), rgba(11,11,35,0.94));
+    box-shadow: var(--shadow-pop);
+    overflow: hidden;
+  }
+  .modal-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .modal-title { display: flex; align-items: center; gap: 12px; font-size: 15px; font-weight: 600; }
+  .modal-icon {
+    width: 36px; height: 36px; border-radius: 11px;
+    display: grid; place-items: center;
+    background: linear-gradient(135deg, rgba(99,102,241,0.25), rgba(236,72,153,0.20));
+    border: 1px solid var(--border-strong);
+    color: var(--c-cyan);
+  }
+  .modal-x {
+    width: 32px; height: 32px; border-radius: 9px; cursor: pointer;
+    display: grid; place-items: center;
+    background: transparent; border: 0; color: var(--fg-mute);
+    transition: all .15s var(--easing);
+  }
+  .modal-x:hover { background: var(--glass); color: var(--fg); }
+  .modal-body { padding: 20px; display: grid; gap: 16px; }
+  .field-label { display: block; font-size: 13px; font-weight: 500; color: var(--fg-soft); margin-bottom: 8px; }
+  .field-label .opt { color: var(--fg-mute); font-weight: 400; font-size: 12px; }
+  .modal .sel { width: 100%; height: 44px; font-size: 14px; }
+  .modal-note {
+    display: flex; align-items: center; gap: 9px;
+    padding: 11px 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--glass);
+    font-size: 12px; color: var(--fg-mute);
+  }
+  .modal-note .hl { color: var(--c-amber); font-weight: 600; }
+  .modal-foot {
+    display: flex; justify-content: flex-end; gap: 10px;
+    padding: 16px 20px;
+    border-top: 1px solid var(--border);
+  }
+</style>
+</head>
+<body>
+
+<!--
+  USERS MANAGEMENT screen for isme (SSO admin console) — AURORA theme.
+  Visual port of cursor-users-design.html: functional spec is identical
+  (already implemented in React); only the theme changes. Shares the aurora
+  topbar shell (auth-mockup.html Welcome screen / ui AppShell+Topbar) with
+  aurora-permissions-design.html — "Users" and "Roles & Permissions" are
+  sibling nav tabs.
+
+  Data maps to internal/domains/user/entity.User:
+    id · name · email · status (1=active, 2=inactive) · is_admin · last_login_at · created_at
+  Session sub-rows map to internal/domains/user_session/entity.UserSession:
+    client_ip · user_agent · last_login_at · expires_at · status
+  ROLE column is RBAC assignment (role domain); "pending" status = invite flow.
+-->
+
+<!-- ====== Topbar shell (aurora AppShell/Topbar — tab nav, no sidebar) ====== -->
+<header class="app-bar">
+  <div class="bar-left">
+    <div class="brand-row">
+      <div class="brand-mark"><span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 7l8 5 8-5-8-5Z"/><path d="m4 17 8 5 8-5"/><path d="m4 12 8 5 8-5"/></svg></span></div>
+      <div class="brand-name">isme</div>
+    </div>
+    <nav class="nav" aria-label="Primary">
+      <a href="#">Overview</a>
+      <a href="#" class="active">Users</a>
+      <a href="#">Roles &amp; Permissions</a>
+      <a href="#">App Services</a>
+      <a href="#">Sessions</a>
+    </nav>
+  </div>
+  <div class="bar-right">
+    <button class="icon-btn" aria-label="Notifications">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+      <span class="badge"></span>
+    </button>
+    <div class="user-chip" tabindex="0">
+      <div class="avatar-lg">VK</div>
+      <div class="meta"><b>Vu Ky</b><span>kyndv@hasaki.vn</span></div>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--fg-mute);margin-left:4px;"><path d="m6 9 6 6 6-6"/></svg>
+    </div>
+  </div>
+</header>
+
+<main class="app-main">
+
+  <!-- Page head -->
+  <div class="page-head">
+    <div>
+      <h1>Users</h1>
+      <p class="page-sub"><span class="num">1,284</span> accounts · <span class="num ok">37</span> active sessions</p>
+    </div>
+    <div class="head-actions">
+      <button class="btn btn-ghost">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>
+        Export CSV
+      </button>
+      <!-- on click: open invite modal (bottom of file) -->
+      <button class="btn btn-primary" onclick="document.getElementById('invite-modal').classList.remove('hidden')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/></svg>
+        Invite user
+      </button>
+    </div>
+  </div>
+
+  <!-- ====== Users panel ====== -->
+  <section class="panel">
+
+    <!-- Toolbar: search + filter trigger (ACTIVE state — filter row open, 2 filters applied).
+         on click Filter: toggle filter row -->
+    <div class="toolbar">
+      <label class="input-wrap search">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" placeholder="Search by name or email…" />
+        <span class="kbd">⌘K</span>
+      </label>
+      <button class="filter-btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3Z"/></svg>
+        Filter
+        <span class="count">2</span>
+      </button>
+    </div>
+
+    <!-- Filter row (open state) -->
+    <div class="filters">
+
+      <!-- STATUS: segmented — maps to user.status (1 active / 2 inactive); pending = invite not yet accepted -->
+      <div>
+        <span class="flabel">Status</span>
+        <div class="seg" role="group" aria-label="Status filter">
+          <button>all</button>
+          <button class="on">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m9 12 2 2 4-4"/></svg>
+            active
+          </button>
+          <button>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m5.7 5.7 12.6 12.6"/></svg>
+            inactive
+          </button>
+          <button>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
+            pending
+          </button>
+        </div>
+      </div>
+
+      <!-- ROLE: select — options come from roles list (role domain) -->
+      <div>
+        <span class="flabel">Role</span>
+        <select class="sel" aria-label="Role filter">
+          <option>all</option>
+          <option selected>admin</option>
+          <option>member</option>
+          <option>viewer</option>
+          <option>content-ops</option>
+        </select>
+      </div>
+
+      <!-- LAST LOGIN: select — derived from last_login_at -->
+      <div>
+        <span class="flabel">Last login</span>
+        <select class="sel" aria-label="Last login filter">
+          <option selected>any time</option>
+          <option>last 24h</option>
+          <option>last 7 days</option>
+          <option>last 30 days</option>
+          <option>never</option>
+        </select>
+      </div>
+
+      <div class="spacer">
+        <!-- on click: clear filters and close row -->
+        <button class="btn btn-ghost btn-sm">Reset</button>
+        <!-- on click: apply filters → refetch user list -->
+        <button class="btn btn-primary btn-sm">Apply</button>
+      </div>
+
+      <div class="map-note">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+        status · <code>user.status</code> &nbsp;·&nbsp; role · rbac assignment &nbsp;·&nbsp; last login · <code>last_login_at</code>
+      </div>
+    </div>
+
+    <!-- ================= TABLE =================
+         Row anatomy: checkbox · avatar+name+email · status pill · role badge ·
+         sessions count · last login · created · row actions.
+         Hover reveals row actions; selected rows keep them visible.
+         on click row body: expand session sub-row (row 2 shows expanded state).
+         Row actions: edit · deactivate/activate · reset password (DISABLED — deferred feature) · soft delete. -->
+    <table>
+      <thead>
+        <tr>
+          <th style="width:44px;"><label class="check"><input type="checkbox" aria-label="Select all" /></label></th>
+          <th>User</th>
+          <th>Status</th>
+          <th>Role</th>
+          <th>Sessions</th>
+          <th>Last login</th>
+          <th>Created</th>
+          <th style="width:170px;"></th>
+        </tr>
+      </thead>
+      <tbody>
+
+        <!-- ROW 1 · admin user · SELECTED state -->
+        <tr class="row selected">
+          <td><label class="check"><input type="checkbox" checked /></label></td>
+          <td>
+            <div class="u-cell">
+              <div class="avatar av-1">VK</div>
+              <div class="u-meta">
+                <div class="u-name">Vu Ky
+                  <!-- is_admin=true → shield badge inline next to name -->
+                  <svg class="shield" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-label="Administrator"><path d="M12 22s8-4 8-10V6l-8-4-8 4v6c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg>
+                </div>
+                <div class="u-mail">kyndv@hasaki.vn</div>
+              </div>
+            </div>
+          </td>
+          <td><span class="pill ok"><span class="dot"></span>active</span></td>
+          <td><span class="pill r-admin">admin</span></td>
+          <td><span class="num hot">2</span></td>
+          <td><span class="num">6/06 09:14</span></td>
+          <td><span class="num dim">2025-01-12</span></td>
+          <td>
+            <div class="row-actions">
+              <button class="qa" title="Edit"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3Z"/></svg></button>
+              <button class="qa warn" title="Deactivate"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m5.7 5.7 12.6 12.6"/></svg></button>
+              <!-- reset password — deferred feature: rendered DISABLED until backend endpoint ships -->
+              <button class="qa" title="Reset password — coming soon" disabled><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg></button>
+              <button class="qa danger" title="Delete"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+            </div>
+          </td>
+        </tr>
+
+        <!-- ROW 2 · member · EXPANDED state — session sub-row visible below (user_session data) -->
+        <tr class="row show-actions" style="background: rgba(255,255,255,0.03); border-bottom: 0;">
+          <td style="border-bottom:0;"><label class="check"><input type="checkbox" /></label></td>
+          <td style="border-bottom:0;">
+            <div class="u-cell">
+              <div class="avatar av-2">LA</div>
+              <div class="u-meta">
+                <div class="u-name">Linh Anh</div>
+                <div class="u-mail">linh.anh@hasaki.vn</div>
+              </div>
+            </div>
+          </td>
+          <td style="border-bottom:0;"><span class="pill ok"><span class="dot"></span>active</span></td>
+          <td style="border-bottom:0;"><span class="pill r-member">member</span></td>
+          <td style="border-bottom:0;"><span class="num hot">1</span></td>
+          <td style="border-bottom:0;"><span class="num">6/06 08:02</span></td>
+          <td style="border-bottom:0;"><span class="num dim">2025-03-08</span></td>
+          <td style="border-bottom:0;">
+            <div class="row-actions">
+              <button class="qa" title="Edit"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3Z"/></svg></button>
+              <button class="qa warn" title="Deactivate"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m5.7 5.7 12.6 12.6"/></svg></button>
+              <button class="qa" title="Reset password — coming soon" disabled><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg></button>
+              <button class="qa danger" title="Delete"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+            </div>
+          </td>
+        </tr>
+        <!-- Session sub-row for ROW 2 — active sessions from user_session domain.
+             on click "Revoke": invalidate refresh_token (status → revoked) -->
+        <tr class="sub">
+          <td colspan="8">
+            <div class="sessions-box">
+              <div class="sessions-head">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+                Active sessions · 1
+              </div>
+              <div class="session-line">
+                <span class="dev">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+                  Chrome · macOS
+                </span>
+                <span class="meta">113.161.72.40</span>
+                <span class="meta">last login 6/06 08:02</span>
+                <span class="meta">expires 6/13 08:02</span>
+                <button class="revoke-btn">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
+                  Revoke
+                </button>
+              </div>
+            </div>
+          </td>
+        </tr>
+
+        <!-- ROW 3 · inactive user (status=2) — muted row, "Activate" replaces "Deactivate" -->
+        <tr class="row muted">
+          <td><label class="check"><input type="checkbox" /></label></td>
+          <td>
+            <div class="u-cell">
+              <div class="avatar av-3">MT</div>
+              <div class="u-meta">
+                <div class="u-name">Minh Tran</div>
+                <div class="u-mail">minh.tran@hasaki.vn</div>
+              </div>
+            </div>
+          </td>
+          <td><span class="pill off"><span class="dot"></span>inactive</span></td>
+          <td><span class="pill r-member">member</span></td>
+          <td><span class="num dim">0</span></td>
+          <td><span class="num">4/22 17:40</span></td>
+          <td><span class="num dim">2025-02-19</span></td>
+          <td>
+            <div class="row-actions">
+              <button class="qa" title="Edit"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3Z"/></svg></button>
+              <button class="qa good" title="Activate"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m9 12 2 2 4-4"/></svg></button>
+              <button class="qa" title="Reset password — coming soon" disabled><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg></button>
+              <button class="qa danger" title="Delete"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+            </div>
+          </td>
+        </tr>
+
+        <!-- ROW 4 · pending invite — no password set yet; "Resend invite" replaces edit/status actions -->
+        <tr class="row">
+          <td><label class="check"><input type="checkbox" /></label></td>
+          <td>
+            <div class="u-cell">
+              <div class="avatar av-pending">?</div>
+              <div class="u-meta">
+                <div class="u-name" style="color:var(--fg-mute);">—</div>
+                <div class="u-mail">thao.nguyen@hasaki.vn</div>
+              </div>
+            </div>
+          </td>
+          <td><span class="pill pend"><span class="dot"></span>pending</span></td>
+          <td><span class="pill r-viewer">viewer</span></td>
+          <td><span class="num dim">0</span></td>
+          <td><span class="num dim">never</span></td>
+          <td><span class="num dim">2026-06-02</span></td>
+          <td>
+            <div class="row-actions">
+              <button class="qa cyan" title="Resend invite"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg></button>
+              <button class="qa danger" title="Delete"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+            </div>
+          </td>
+        </tr>
+
+        <!-- ROW 5 · long name truncate case — full name via title tooltip -->
+        <tr class="row">
+          <td><label class="check"><input type="checkbox" /></label></td>
+          <td>
+            <div class="u-cell">
+              <div class="avatar av-4">NH</div>
+              <div class="u-meta">
+                <div class="u-name" title="Nguyen Hoang Long Phi Truong Giang">Nguyen Hoang Long Phi Truong Giang</div>
+                <div class="u-mail">long.giang.marketing.team@hasaki.vn</div>
+              </div>
+            </div>
+          </td>
+          <td><span class="pill ok"><span class="dot"></span>active</span></td>
+          <td><span class="pill r-ops">content-ops</span></td>
+          <td><span class="num hot">3</span></td>
+          <td><span class="num">6/05 21:33</span></td>
+          <td><span class="num dim">2025-08-30</span></td>
+          <td>
+            <div class="row-actions">
+              <button class="qa" title="Edit"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3Z"/></svg></button>
+              <button class="qa warn" title="Deactivate"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m5.7 5.7 12.6 12.6"/></svg></button>
+              <button class="qa" title="Reset password — coming soon" disabled><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg></button>
+              <button class="qa danger" title="Delete"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+            </div>
+          </td>
+        </tr>
+
+        <!-- ROW 6 · viewer, never logged in -->
+        <tr class="row">
+          <td><label class="check"><input type="checkbox" /></label></td>
+          <td>
+            <div class="u-cell">
+              <div class="avatar av-5">QB</div>
+              <div class="u-meta">
+                <div class="u-name">Quoc Bao</div>
+                <div class="u-mail">quoc.bao@hasaki.vn</div>
+              </div>
+            </div>
+          </td>
+          <td><span class="pill ok"><span class="dot"></span>active</span></td>
+          <td><span class="pill r-viewer">viewer</span></td>
+          <td><span class="num dim">0</span></td>
+          <td><span class="num dim">never</span></td>
+          <td><span class="num dim">2026-05-28</span></td>
+          <td>
+            <div class="row-actions">
+              <button class="qa" title="Edit"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3Z"/></svg></button>
+              <button class="qa warn" title="Deactivate"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m5.7 5.7 12.6 12.6"/></svg></button>
+              <button class="qa" title="Reset password — coming soon" disabled><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg></button>
+              <button class="qa danger" title="Delete"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+            </div>
+          </td>
+        </tr>
+
+      </tbody>
+    </table>
+
+    <!-- Bulk-select bar — appears when ≥1 row selected (row 1 selected here). on click ✕: clear selection -->
+    <div class="bulk-bar">
+      <span class="sel-count">1 selected</span>
+      <span class="vline"></span>
+      <button class="bulk-btn">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m9 12 2 2 4-4"/></svg>
+        Activate
+      </button>
+      <button class="bulk-btn">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m5.7 5.7 12.6 12.6"/></svg>
+        Deactivate
+      </button>
+      <button class="bulk-btn">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg>
+        Assign role
+      </button>
+      <button class="bulk-btn danger">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        Delete
+      </button>
+      <button class="qa close-x" title="Clear selection"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pager">
+      <div>Page 1 / 129 · 6 of 1,284 shown</div>
+      <div class="pg-controls">
+        <span>Rows</span>
+        <select class="sel" aria-label="Rows per page"><option>10</option><option>25</option><option>50</option></select>
+        <button class="pg-btn" disabled aria-label="Previous page"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
+        <button class="pg-btn" aria-label="Next page"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Status mapping legend (design reference) -->
+  <section class="panel">
+    <div class="legend">
+      <span style="font-size:11px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;">Status mapping · <code>user.status</code></span>
+      <span class="item"><span class="pill ok"><span class="dot"></span>active</span> status = 1</span>
+      <span class="item"><span class="pill off"><span class="dot"></span>inactive</span> status = 2</span>
+      <span class="item"><span class="pill pend"><span class="dot"></span>pending</span> invite sent, no password</span>
+      <span class="item">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--c-violet)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V6l-8-4-8 4v6c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg>
+        is_admin = true
+      </span>
+    </div>
+  </section>
+
+</main>
+
+<!-- ================= INVITE USER MODAL =================
+     Opened by "Invite user". Creates a pending account: backend sends invite email
+     with a set-password link; user.status stays pending until accepted.
+     on click overlay (outside card) or ✕: close modal -->
+<div id="invite-modal" class="overlay hidden" onclick="if(event.target===this)this.classList.add('hidden')">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="invite-title">
+    <div class="modal-head">
+      <div class="modal-title" id="invite-title">
+        <div class="modal-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/></svg>
+        </div>
+        Invite user
+      </div>
+      <button class="modal-x" onclick="document.getElementById('invite-modal').classList.add('hidden')" aria-label="Close">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <label class="field">
+        <span class="field-label">Email</span>
+        <span class="input-wrap">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
+          <input type="email" placeholder="name@hasaki.vn" />
+        </span>
+      </label>
+      <label class="field">
+        <span class="field-label">Name <span class="opt">· optional, user can edit on first login</span></span>
+        <span class="input-wrap">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <input type="text" placeholder="Full name" />
+        </span>
+      </label>
+      <label class="field">
+        <span class="field-label">Role</span>
+        <select class="sel">
+          <option>admin</option>
+          <option selected>member</option>
+          <option>viewer</option>
+          <option>content-ops</option>
+        </select>
+      </label>
+      <!-- checked → is_admin = true on the created user -->
+      <label class="check">
+        <input type="checkbox" />
+        Grant administrator <span style="color:var(--fg-mute);font-size:12px;">· sets is_admin = true</span>
+      </label>
+      <div class="modal-note">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto;"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+        <span>Invite link expires after 72h · account stays <span class="hl">pending</span> until password is set</span>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="document.getElementById('invite-modal').classList.add('hidden')">Cancel</button>
+      <button class="btn btn-primary">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+        Send invite
+      </button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

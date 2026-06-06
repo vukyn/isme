@@ -7,6 +7,8 @@ import { Welcome } from "./pages/Welcome";
 import { ForgotPassword } from "./pages/ForgotPassword";
 import { Sessions } from "./pages/Sessions";
 import { Team } from "./pages/Team";
+import { Users } from "./pages/Users";
+import { Roles } from "./pages/Roles";
 import { Settings } from "./pages/Settings";
 import { NotFound } from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -43,6 +45,22 @@ function App() {
 						element={
 							<ProtectedRoute>
 								<Team />
+							</ProtectedRoute>
+						}
+					/>
+					<Route
+						path="/users"
+						element={
+							<ProtectedRoute>
+								<Users />
+							</ProtectedRoute>
+						}
+					/>
+					<Route
+						path="/roles"
+						element={
+							<ProtectedRoute>
+								<Roles />
 							</ProtectedRoute>
 						}
 					/>

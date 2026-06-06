@@ -22,4 +22,10 @@ type IRepository interface {
 	PromoteAdmin(ctx context.Context, id string) error
 	// IsAdmin: check if isAdmin equals 1
 	IsAdmin(ctx context.Context, id string) (bool, error)
+	// List users with pagination and filters
+	List(ctx context.Context, req models.ListRequest) ([]entity.User, int64, error)
+	// Update user status (1=active, 2=inactive)
+	UpdateStatus(ctx context.Context, id string, status int32) error
+	// Soft delete a user
+	SoftDelete(ctx context.Context, id string) error
 }

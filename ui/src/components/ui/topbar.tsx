@@ -4,7 +4,7 @@ import { LuBell } from "react-icons/lu";
 import { BrandMark } from "./brand-mark";
 import { UserChip } from "./user-chip";
 
-export type TopbarTab = "overview" | "sessions" | "team" | "settings";
+export type TopbarTab = "overview" | "users" | "roles" | "sessions" | "team" | "settings";
 
 interface TopbarProps {
 	active: TopbarTab;
@@ -13,6 +13,8 @@ interface TopbarProps {
 
 const NAV: { key: TopbarTab; label: string; to: string }[] = [
 	{ key: "overview", label: "Overview", to: "/welcome" },
+	{ key: "users", label: "Users", to: "/users" },
+	{ key: "roles", label: "Roles & Permissions", to: "/roles" },
 	{ key: "sessions", label: "Sessions", to: "/sessions" },
 	{ key: "team", label: "Team", to: "/team" },
 	{ key: "settings", label: "Settings", to: "/settings" },

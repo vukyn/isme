@@ -1,0 +1,85 @@
+import type {
+	InviteUserRequest,
+	ListUsersRequest,
+	ListUsersResponse,
+	UserListItem,
+	UserSessionItem,
+	UserStatus,
+} from "@/types";
+import { API_ENDPOINTS } from "@/consts";
+import { apiClient } from "@/utils/axios";
+
+/** kuery http/base.Response envelope — every endpoint wraps its payload in `data`. */
+interface Envelope<T> {
+	code: number;
+	message: string;
+	data: T;
+}
+
+const STUB_DELAY_MS = 250;
+
+const stub = <T>(data: T): Promise<T> =>
+	new Promise((resolve) => {
+		setTimeout(() => resolve(data), STUB_DELAY_MS);
+	});
+
+export const listUsers = async (request: ListUsersRequest): Promise<ListUsersResponse> => {
+	const response = await apiClient.get<Envelope<ListUsersResponse>>(API_ENDPOINTS.USERS, {
+		params: {
+			page: request.page,
+			size: request.size,
+			query: request.query || undefined,
+			status: request.status || undefined,
+			role: request.role || undefined,
+		},
+	});
+	const data = response.data.data;
+	return { items: data.items ?? [], total: data.total, page: data.page };
+};
+
+export const updateUserStatus = async (userId: string, status: UserStatus): Promise<void> => {
+	await apiClient.patch(API_ENDPOINTS.USER_STATUS(userId), { status });
+};
+
+export const softDeleteUser = async (userId: string): Promise<void> => {
+	await apiClient.delete(API_ENDPOINTS.USER_DETAIL(userId));
+};
+
+export const listUserSessions = async (userId: string): Promise<UserSessionItem[]> => {
+	const response = await apiClient.get<Envelope<UserSessionItem[]>>(API_ENDPOINTS.USER_SESSIONS(userId));
+	return response.data.data ?? [];
+};
+
+export const revokeUserSession = async (userId: string, sessionId: string): Promise<void> => {
+	await apiClient.post(API_ENDPOINTS.USER_SESSION_REVOKE(userId, sessionId));
+};
+
+export const resetUserPassword = async (userId: string): Promise<void> => {
+	// TODO(backend): deferred by user decision — needs email infra to send the
+	// reset link. The Users screen disables this row action until it lands.
+	void userId;
+	return stub(undefined);
+};
+
+export const inviteUser = async (request: InviteUserRequest): Promise<UserListItem> => {
+	// TODO(backend): phase 2 (no email infra yet) — POST /api/v1/users/invite
+	// should create a pending account and send an invite email with a
+	// set-password link (expires after 72h).
+	return stub({
+		id: `usr_invite_${Date.now()}`,
+		name: request.name ?? "",
+		email: request.email,
+		status: 3,
+		is_admin: request.is_admin,
+		role: request.role,
+		sessions_count: 0,
+		last_login_at: "",
+		created_at: new Date().toISOString(),
+	});
+};
+
+export const resendUserInvite = async (userId: string): Promise<void> => {
+	// TODO(backend): phase 2 (no email infra yet) — POST /api/v1/users/:id/resend-invite.
+	void userId;
+	return stub(undefined);
+};
