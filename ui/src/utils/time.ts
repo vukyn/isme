@@ -40,3 +40,32 @@ export const formatRelativeTime = (timestamp: string | Date): string => {
 	return `${diffInMonths} month${diffInMonths > 1 ? "s" : ""} ago`;
 };
 
+/**
+ * Go zero time / empty timestamp check (bun nullzero fields serialize as 0001-01-01…)
+ */
+export const isZeroTime = (timestamp?: string): boolean => {
+	return !timestamp || timestamp.startsWith("0001-01-01");
+};
+
+const pad2 = (value: number): string => String(value).padStart(2, "0");
+
+/**
+ * Compact datetime for table cells, e.g. "6/06 09:14". Zero time → "never".
+ */
+export const formatShortDateTime = (timestamp?: string): string => {
+	if (isZeroTime(timestamp)) return "never";
+	const date = new Date(timestamp as string);
+	if (Number.isNaN(date.getTime())) return "never";
+	return `${date.getMonth() + 1}/${pad2(date.getDate())} ${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
+};
+
+/**
+ * ISO date only, e.g. "2025-01-12". Zero time → "—".
+ */
+export const formatDateOnly = (timestamp?: string): string => {
+	if (isZeroTime(timestamp)) return "—";
+	const date = new Date(timestamp as string);
+	if (Number.isNaN(date.getTime())) return "—";
+	return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+};
+

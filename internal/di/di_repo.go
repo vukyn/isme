@@ -3,6 +3,7 @@ package di
 import (
 	"github.com/vukyn/isme/internal/constants"
 	appServiceRepo "github.com/vukyn/isme/internal/domains/app_service/repository"
+	roleRepo "github.com/vukyn/isme/internal/domains/role/repository"
 	userRepo "github.com/vukyn/isme/internal/domains/user/repository"
 	userSessionRepo "github.com/vukyn/isme/internal/domains/user_session/repository"
 
@@ -16,6 +17,7 @@ func defineRepository() []*di.Def {
 		defineUserRepository(),
 		defineUserSessionRepository(),
 		defineAppServiceRepository(),
+		defineRoleRepository(),
 	}
 }
 
@@ -92,4 +94,29 @@ func GetAppServiceRepository(ctn di.Container) (appServiceRepo.IRepository, erro
 		return nil, err
 	}
 	return repo.(appServiceRepo.IRepository), nil
+}
+
+func defineRoleRepository() *di.Def {
+	def := &di.Def{
+		Name:  constants.CONTAINER_NAME_ROLE_REPOSITORY,
+		Scope: di.Request,
+		Build: func(ctn di.Container) (any, error) {
+			db := ctn.Get(constants.CONTAINER_NAME_DB).(*bun.DB)
+			log.New().Debug("Role repository initialized")
+			return roleRepo.NewRepository(db), nil
+		},
+		Close: func(obj any) error {
+			log.New().Debug("Role repository destroyed")
+			return nil
+		},
+	}
+	return def
+}
+
+func GetRoleRepository(ctn di.Container) (roleRepo.IRepository, error) {
+	repo, err := ctn.SafeGet(constants.CONTAINER_NAME_ROLE_REPOSITORY)
+	if err != nil {
+		return nil, err
+	}
+	return repo.(roleRepo.IRepository), nil
 }

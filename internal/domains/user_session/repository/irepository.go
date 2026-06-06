@@ -16,10 +16,16 @@ type IRepository interface {
 	InactiveAllUserSession(ctx context.Context, userID string) error
 	// Inactive specific user session by token ID
 	InactiveSessionByTokenID(ctx context.Context, tokenID string) error
+	// Inactive specific user session by ID
+	InactiveSessionByID(ctx context.Context, sessionID string) error
 	// Find user session by refresh token
 	FindByRefreshToken(ctx context.Context, refreshToken string) (entity.UserSession, error)
 	// Find user session by token ID
 	FindByTokenID(ctx context.Context, tokenID string) (entity.UserSession, error)
+	// Find user session by ID
+	GetByID(ctx context.Context, sessionID string) (entity.UserSession, error)
 	// Get list of active user sessions by user ID
 	GetListActiveByUserID(ctx context.Context, userID string) ([]entity.UserSession, error)
+	// Count active sessions per user for multiple user IDs
+	CountActiveByUserIDs(ctx context.Context, userIDs []string) (map[string]int, error)
 }

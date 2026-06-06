@@ -11,4 +11,17 @@ export const API_ENDPOINTS = {
 
 	// User
 	USER_ME: "/api/user/me",
+	USERS: "/api/v1/users",
+	USER_DETAIL: (userId: string) => `/api/v1/users/${userId}`,
+	USER_STATUS: (userId: string) => `/api/v1/users/${userId}/status`,
+	USER_SESSIONS: (userId: string) => `/api/v1/users/${userId}/sessions`,
+	USER_SESSION_REVOKE: (userId: string, sessionId: string) => `/api/v1/users/${userId}/sessions/${sessionId}/revoke`,
+
+	// Role / RBAC
+	ROLES: "/api/v1/roles",
+	ROLE_DETAIL: (roleId: string) => `/api/v1/roles/${roleId}`,
+	ROLE_PERMISSIONS: (roleId: string) => `/api/v1/roles/${roleId}/permissions`,
+	ROLE_MEMBERS: (roleId: string) => `/api/v1/roles/${roleId}/members`,
+	ROLE_MEMBER_DETAIL: (roleId: string, userId: string) => `/api/v1/roles/${roleId}/members/${userId}`,
+	PERMISSIONS: "/api/v1/permissions",
 } as const;

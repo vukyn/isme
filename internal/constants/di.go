@@ -12,8 +12,11 @@ const (
 	CONTAINER_NAME_USER_REPOSITORY         = "user_repository"
 	CONTAINER_NAME_USER_SESSION_REPOSITORY = "user_session_repository"
 	CONTAINER_NAME_APP_SERVICE_REPOSITORY  = "app_service_repository"
+	CONTAINER_NAME_ROLE_REPOSITORY         = "role_repository"
 
 	// Usecases
 	CONTAINER_NAME_AUTH_USECASE        = "auth_usecase"
 	CONTAINER_NAME_APP_SERVICE_USECASE = "app_service_usecase"
+	CONTAINER_NAME_USER_USECASE        = "user_usecase"
+	CONTAINER_NAME_ROLE_USECASE        = "role_usecase"
 )

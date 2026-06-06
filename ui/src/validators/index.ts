@@ -37,3 +37,16 @@ export const signupSchema = z.object({
 });
 
 export type SignupFormData = z.infer<typeof signupSchema>;
+
+/**
+ * Invite user form schema (Users management)
+ * Name is optional — the invitee can edit it on first login.
+ */
+export const inviteUserSchema = z.object({
+	email: z.email("Invalid email address"),
+	name: z.string().optional(),
+	role: z.string().min(1, "Role is required"),
+	is_admin: z.boolean(),
+});
+
+export type InviteUserFormData = z.infer<typeof inviteUserSchema>;
