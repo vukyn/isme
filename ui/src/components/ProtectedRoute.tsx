@@ -38,7 +38,7 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
 							// Verify with /me after refresh
 							await getCurrentUser();
 							setIsAuthenticated(true);
-						} catch (refreshError) {
+						} catch {
 							// Refresh failed, redirect to login
 							setIsAuthenticated(false);
 						}
@@ -51,7 +51,7 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
 					try {
 						await getCurrentUser();
 						setIsAuthenticated(true);
-					} catch (error) {
+					} catch {
 						// /me failed, try refresh
 						if (tokens.refresh_token) {
 							try {
@@ -61,7 +61,7 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
 								saveTokens(response.data);
 								await getCurrentUser();
 								setIsAuthenticated(true);
-							} catch (refreshError) {
+							} catch {
 								setIsAuthenticated(false);
 							}
 						} else {
@@ -69,7 +69,7 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
 						}
 					}
 				}
-			} catch (error) {
+			} catch {
 				setIsAuthenticated(false);
 			} finally {
 				setIsLoading(false);

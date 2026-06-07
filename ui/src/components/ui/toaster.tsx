@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- Chakra UI v3 snippet: co-exports the toaster store with the Toaster component by design */
 "use client"
 
 import {
