@@ -4,10 +4,10 @@ import { Box, Center, Heading, Spinner, Stack, Text } from "@chakra-ui/react";
 import { LuUsers } from "react-icons/lu";
 import { GlassCard } from "@/components/ui/glass-card";
 import { AppShell } from "@/layouts/AppShell";
-import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useUser } from "@/hooks/useUser";
 
 export const Team = () => {
-	const { user, loading } = useCurrentUser();
+	const { user, loading } = useUser();
 	const name = user?.name || "User";
 	const email = user?.email || "";
 

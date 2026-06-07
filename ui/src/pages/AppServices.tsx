@@ -24,7 +24,7 @@ import { VerifyAppServiceDialog } from "@/components/VerifyAppServiceDialog";
 import { toaster } from "@/components/ui/toaster";
 import { APP_SERVICE_CTX_INFO_OPTIONS, APP_SERVICE_STATUS, APP_SERVICE_STATUS_FILTER_OPTIONS, APP_SERVICES_PAGE_SIZE_OPTIONS } from "@/consts";
 import { AURORA_CTA_STYLE } from "@/consts/styles";
-import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useUser } from "@/hooks/useUser";
 import { AppShell } from "@/layouts/AppShell";
 import type { AppService, AppServiceCtxInfo, AppServiceStatus } from "@/types";
 import { formatDateOnly } from "@/utils";
@@ -229,7 +229,7 @@ const secretSubLabel = (service: AppService) => {
 };
 
 export const AppServices = () => {
-	const { user: currentUser } = useCurrentUser();
+	const { user: currentUser } = useUser();
 
 	const [services, setServices] = useState<AppService[]>([]);
 	const [total, setTotal] = useState(0);

@@ -8,11 +8,11 @@ import { StatCard } from "@/components/ui/stat-card";
 import { ActivityRow } from "@/components/ui/activity-row";
 import { AppShell } from "@/layouts/AppShell";
 import { MOCK_STATS, MOCK_ACTIVITY } from "@/consts/mock";
-import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useUser } from "@/hooks/useUser";
 import { AURORA_CTA_STYLE } from "@/consts/styles";
 
 export const Welcome = () => {
-	const { user, loading, error } = useCurrentUser();
+	const { user, loading, error } = useUser();
 	const name = user?.name || "User";
 	const email = user?.email || "";
 
@@ -20,7 +20,7 @@ export const Welcome = () => {
 		return (
 			<AppShell active="overview" user={{ name, email }}>
 				<Center py="20">
-					<Text color="danger">{error}</Text>
+					<Text color="danger">{error.message}</Text>
 				</Center>
 			</AppShell>
 		);

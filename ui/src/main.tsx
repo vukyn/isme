@@ -4,12 +4,15 @@ import "@/index.css";
 import App from "@/App.tsx";
 import { Provider } from "@/components/ui/provider";
 import { Toaster } from "@/components/ui/toaster";
+import { UserProvider } from "@/contexts/UserProvider";
 
 createRoot(document.getElementById("root")!).render(
 	<StrictMode>
 		<Provider>
-			<App />
-			<Toaster />
+			<UserProvider>
+				<App />
+				<Toaster />
+			</UserProvider>
 		</Provider>
 	</StrictMode>
 );

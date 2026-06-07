@@ -6,6 +6,7 @@ import type {
 	RefreshTokenRequest,
 	RefreshTokenResponse,
 	LogoutResponse,
+	GetMeResponse,
 } from "@/types";
 import { API_ENDPOINTS } from "@/consts";
 import { apiClient } from "@/utils/axios";
@@ -20,8 +21,8 @@ export const signup = async (data: SignupRequest): Promise<SignupResponse> => {
 	return response.data;
 };
 
-export const getCurrentUser = async () => {
-	const response = await apiClient.get(API_ENDPOINTS.AUTH_ME);
+export const getCurrentUser = async (): Promise<{ data: GetMeResponse }> => {
+	const response = await apiClient.get<{ data: GetMeResponse }>(API_ENDPOINTS.AUTH_ME);
 	return response.data;
 };
 
