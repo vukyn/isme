@@ -14,6 +14,7 @@ export const API_ENDPOINTS = {
 	USERS: "/api/v1/users",
 	USER_DETAIL: (userId: string) => `/api/v1/users/${userId}`,
 	USER_STATUS: (userId: string) => `/api/v1/users/${userId}/status`,
+	USER_VERIFY: (userId: string) => `/api/v1/users/${userId}/verify`,
 	USER_SESSIONS: (userId: string) => `/api/v1/users/${userId}/sessions`,
 	USER_SESSION_REVOKE: (userId: string, sessionId: string) => `/api/v1/users/${userId}/sessions/${sessionId}/revoke`,
 

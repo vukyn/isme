@@ -106,6 +106,10 @@ func (f *fakeUserRepository) IsAdmin(ctx context.Context, id string) (bool, erro
 	return f.isAdmin, nil
 }
 
+func (f *fakeUserRepository) Verify(ctx context.Context, id string) error {
+	return nil
+}
+
 func (f *fakeUserRepository) List(ctx context.Context, req userModels.ListRequest) ([]userEntity.User, int64, error) {
 	return nil, 0, nil
 }

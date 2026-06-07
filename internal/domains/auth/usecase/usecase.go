@@ -199,6 +199,12 @@ func (u *usecase) Login(ctx context.Context, req models.LoginRequest) (models.Lo
 		return models.LoginResponse{}, pkgErr.InvalidRequest("invalid email or password")
 	}
 
+	// block unverified accounts only after the credentials checked out,
+	// so a wrong password never leaks the verification state
+	if !user.IsVerified {
+		return models.LoginResponse{}, pkgErr.Forbidden("account pending verification")
+	}
+
 	// upgrade legacy hash to the current scheme; best-effort, must not fail the login
 	if needsRehash {
 		_ = u.userRepo.SetPassword(ctx, user.ID, req.Password)

@@ -20,6 +20,8 @@ export interface UserListItem {
 	email: string;
 	status: UserStatus;
 	is_admin: boolean;
+	/** One-way verification flag — false blocks login ("account pending verification"). */
+	is_verified: boolean;
 	/** Global RBAC role code; omitted when the user has no global role. */
 	role?: string;
 	sessions_count: number;
@@ -35,6 +37,8 @@ export interface ListUsersRequest {
 	query?: string;
 	status?: UserStatus;
 	role?: string;
+	/** Filter by verification state — omitted = all. */
+	verified?: boolean;
 }
 
 export interface ListUsersResponse {

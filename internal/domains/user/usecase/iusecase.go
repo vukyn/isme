@@ -11,6 +11,8 @@ type IUseCase interface {
 	List(ctx context.Context, req models.ListRequest) (models.ListResponse, error)
 	// Update user status (active/inactive)
 	UpdateStatus(ctx context.Context, id string, req models.UpdateStatusRequest) error
+	// Verify a user account (one-way — unblocks login; there is no unverify)
+	VerifyUser(ctx context.Context, id string) error
 	// Soft delete a user and revoke all their sessions
 	SoftDelete(ctx context.Context, id string) error
 	// List active sessions of a user

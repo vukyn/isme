@@ -24,6 +24,7 @@ type fakeUserRepository struct {
 	usersByID       map[string]entity.User
 	updatedStatuses map[string]int32
 	softDeletedIDs  []string
+	verifiedIDs     []string
 }
 
 var _ userRepo.IRepository = (*fakeUserRepository)(nil)
@@ -61,6 +62,11 @@ func (f *fakeUserRepository) PromoteAdmin(ctx context.Context, id string) error 
 
 func (f *fakeUserRepository) IsAdmin(ctx context.Context, id string) (bool, error) {
 	return false, nil
+}
+
+func (f *fakeUserRepository) Verify(ctx context.Context, id string) error {
+	f.verifiedIDs = append(f.verifiedIDs, id)
+	return nil
 }
 
 func (f *fakeUserRepository) List(ctx context.Context, req models.ListRequest) ([]entity.User, int64, error) {
@@ -315,6 +321,46 @@ func TestSoftDelete(t *testing.T) {
 			}
 			if !slices.Contains(fakeUserSession.inactivatedUserAlls, tt.targetUserID) {
 				t.Errorf("sessions of user %q were not revoked", tt.targetUserID)
+			}
+		})
+	}
+}
+
+func TestVerifyUser(t *testing.T) {
+	tests := []struct {
+		name         string
+		targetUserID string
+		wantErr      string
+	}{
+		{"unverified user verified", "user-unverified", ""},
+		{"missing user rejected", "user-unknown", "user not found"},
+		{"already verified rejected", "user-verified", "user already verified"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fakeUser := newFakeUserRepository()
+			fakeUser.usersByID["user-unverified"] = entity.User{ID: "user-unverified"}
+			fakeUser.usersByID["user-verified"] = entity.User{ID: "user-verified", IsVerified: true}
+			testUsecase := NewUsecase(fakeUser, newFakeUserSessionRepository(), &fakeRoleRepository{})
+
+			err := testUsecase.VerifyUser(context.Background(), tt.targetUserID)
+			if tt.wantErr != "" {
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				if err.Error() != tt.wantErr {
+					t.Errorf("error = %q, want %q", err.Error(), tt.wantErr)
+				}
+				if len(fakeUser.verifiedIDs) != 0 {
+					t.Error("user was verified despite rejection")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("VerifyUser() error = %v", err)
+			}
+			if !slices.Contains(fakeUser.verifiedIDs, tt.targetUserID) {
+				t.Errorf("user %q was not verified", tt.targetUserID)
 			}
 		})
 	}

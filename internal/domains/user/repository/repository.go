@@ -190,6 +190,11 @@ func (r *repository) List(ctx context.Context, req models.ListRequest) ([]entity
 		query = query.Where("is_admin = ?", *req.IsAdmin)
 	}
 
+	// Apply verified filter
+	if req.Verified != nil {
+		query = query.Where("is_verified = ?", *req.Verified)
+	}
+
 	// Get total count
 	total, err := query.Count(ctx)
 	if err != nil {
@@ -209,6 +214,26 @@ func (r *repository) List(ctx context.Context, req models.ListRequest) ([]entity
 	}
 
 	return users, int64(total), nil
+}
+
+func (r *repository) Verify(ctx context.Context, id string) error {
+	if id == "" {
+		return pkgErr.InvalidRequest("id is required")
+	}
+
+	user := &entity.User{
+		ID:         id,
+		IsVerified: true,
+	}
+	_, err := r.db.NewUpdate().
+		Model(user).
+		Column("is_verified").
+		Where("id = ?", id).
+		Exec(ctx)
+	if err != nil {
+		return pkgErr.DatabaseError(err.Error())
+	}
+	return nil
 }
 
 func (r *repository) UpdateStatus(ctx context.Context, id string, status int32) error {

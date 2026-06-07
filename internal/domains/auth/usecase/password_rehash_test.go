@@ -63,6 +63,10 @@ func (f *fakeUserRepository) IsAdmin(ctx context.Context, id string) (bool, erro
 	return false, nil
 }
 
+func (f *fakeUserRepository) Verify(ctx context.Context, id string) error {
+	return nil
+}
+
 func (f *fakeUserRepository) List(ctx context.Context, req userModels.ListRequest) ([]userEntity.User, int64, error) {
 	return nil, 0, nil
 }
@@ -227,10 +231,11 @@ func newTestUsecaseWithRoles(t *testing.T, userRepository *fakeUserRepository, r
 func TestLoginRehashesBcryptPassword(t *testing.T) {
 	userRepository := &fakeUserRepository{
 		user: userEntity.User{
-			ID:       "user-1",
-			Email:    "user@example.com",
-			Password: cryp.HashBcrypt("s3cret-password", 4),
-			Status:   userConstants.UserStatusActive,
+			ID:         "user-1",
+			Email:      "user@example.com",
+			Password:   cryp.HashBcrypt("s3cret-password", 4),
+			Status:     userConstants.UserStatusActive,
+			IsVerified: true,
 		},
 	}
 	authUsecase := newTestUsecase(t, userRepository)
@@ -258,10 +263,11 @@ func TestLoginRehashesBcryptPassword(t *testing.T) {
 func TestLoginArgon2idPasswordNoRehash(t *testing.T) {
 	userRepository := &fakeUserRepository{
 		user: userEntity.User{
-			ID:       "user-1",
-			Email:    "user@example.com",
-			Password: cryp.HashArgon2id("s3cret-password"),
-			Status:   userConstants.UserStatusActive,
+			ID:         "user-1",
+			Email:      "user@example.com",
+			Password:   cryp.HashArgon2id("s3cret-password"),
+			Status:     userConstants.UserStatusActive,
+			IsVerified: true,
 		},
 	}
 	authUsecase := newTestUsecase(t, userRepository)
@@ -282,10 +288,11 @@ func TestLoginArgon2idPasswordNoRehash(t *testing.T) {
 func TestLoginRehashFailureDoesNotFailLogin(t *testing.T) {
 	userRepository := &fakeUserRepository{
 		user: userEntity.User{
-			ID:       "user-1",
-			Email:    "user@example.com",
-			Password: cryp.HashBcrypt("s3cret-password", 4),
-			Status:   userConstants.UserStatusActive,
+			ID:         "user-1",
+			Email:      "user@example.com",
+			Password:   cryp.HashBcrypt("s3cret-password", 4),
+			Status:     userConstants.UserStatusActive,
+			IsVerified: true,
 		},
 		setPasswordErr: errors.New("database unavailable"),
 	}
@@ -306,10 +313,11 @@ func TestLoginRehashFailureDoesNotFailLogin(t *testing.T) {
 func TestLoginWrongPassword(t *testing.T) {
 	userRepository := &fakeUserRepository{
 		user: userEntity.User{
-			ID:       "user-1",
-			Email:    "user@example.com",
-			Password: cryp.HashBcrypt("s3cret-password", 4),
-			Status:   userConstants.UserStatusActive,
+			ID:         "user-1",
+			Email:      "user@example.com",
+			Password:   cryp.HashBcrypt("s3cret-password", 4),
+			Status:     userConstants.UserStatusActive,
+			IsVerified: true,
 		},
 	}
 	authUsecase := newTestUsecase(t, userRepository)
@@ -327,5 +335,45 @@ func TestLoginWrongPassword(t *testing.T) {
 
 	if len(userRepository.setPasswordCalls) != 0 {
 		t.Errorf("expected no SetPassword call on failed login, got %d", len(userRepository.setPasswordCalls))
+	}
+}
+
+func TestLoginBlockedWhenUnverified(t *testing.T) {
+	userRepository := &fakeUserRepository{
+		user: userEntity.User{
+			ID:         "user-1",
+			Email:      "user@example.com",
+			Password:   cryp.HashArgon2id("s3cret-password"),
+			Status:     userConstants.UserStatusActive,
+			IsVerified: false,
+		},
+	}
+	authUsecase := newTestUsecase(t, userRepository)
+
+	// correct password → the verification block surfaces
+	res, err := authUsecase.Login(context.Background(), models.LoginRequest{
+		Email:    "user@example.com",
+		Password: "s3cret-password",
+	})
+	if err == nil {
+		t.Fatal("expected login to fail for unverified account")
+	}
+	if !strings.Contains(err.Error(), "account pending verification") {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if res.AccessToken != "" {
+		t.Error("expected no access token for unverified account")
+	}
+
+	// wrong password → generic error, never leaks the verification state
+	_, err = authUsecase.Login(context.Background(), models.LoginRequest{
+		Email:    "user@example.com",
+		Password: "wrong-password",
+	})
+	if err == nil {
+		t.Fatal("expected login to fail with wrong password")
+	}
+	if !strings.Contains(err.Error(), "invalid email or password") {
+		t.Errorf("wrong password must not leak verification state, got: %v", err)
 	}
 }

@@ -31,6 +31,7 @@ export const listUsers = async (request: ListUsersRequest): Promise<ListUsersRes
 			query: request.query || undefined,
 			status: request.status || undefined,
 			role: request.role || undefined,
+			verified: request.verified,
 		},
 	});
 	const data = response.data.data;
@@ -39,6 +40,11 @@ export const listUsers = async (request: ListUsersRequest): Promise<ListUsersRes
 
 export const updateUserStatus = async (userId: string, status: UserStatus): Promise<void> => {
 	await apiClient.patch(API_ENDPOINTS.USER_STATUS(userId), { status });
+};
+
+/** One-way: flips is_verified to true and unblocks login — there is no unverify. */
+export const verifyUser = async (userId: string): Promise<void> => {
+	await apiClient.post(API_ENDPOINTS.USER_VERIFY(userId));
 };
 
 export const softDeleteUser = async (userId: string): Promise<void> => {
@@ -71,6 +77,8 @@ export const inviteUser = async (request: InviteUserRequest): Promise<UserListIt
 		email: request.email,
 		status: 3,
 		is_admin: request.is_admin,
+		// new accounts always start unverified (login blocked until verified)
+		is_verified: false,
 		role: request.role,
 		sessions_count: 0,
 		last_login_at: "",

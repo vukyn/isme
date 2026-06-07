@@ -32,6 +32,7 @@ type ListRequest struct {
 	Status   int32  `json:"status" query:"status"`     // 1=active, 2=inactive
 	RoleID   string `json:"role" query:"role"`         // filter by role
 	IsAdmin  *bool  `json:"is_admin" query:"is_admin"` // filter by admin status
+	Verified *bool  `json:"verified" query:"verified"` // filter by verification state (nil=all)
 }
 
 func (r ListRequest) Validate() error {
@@ -51,6 +52,7 @@ type UserListItem struct {
 	Email         string `json:"email"`
 	Status        int32  `json:"status"`
 	IsAdmin       bool   `json:"is_admin"`
+	IsVerified    bool   `json:"is_verified"`
 	Role          string `json:"role"` // global role code
 	SessionsCount int    `json:"sessions_count"`
 	LastLoginAt   string `json:"last_login_at"`

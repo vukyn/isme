@@ -46,7 +46,23 @@ func UpdateUserStatus(c *fiber.Ctx) error {
 		return pkgHttp.Err(c, err)
 	}
 
-	if err := uc.UpdateStatus(pkgCtx.NewContextFromFiberCtx(c), c.Params("id"), updateStatusRequest); err != nil {
+	if err := uc.UpdateStatus(pkgCtx.NewContextFromFiberCtx(c), c.Params("userID"), updateStatusRequest); err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	return pkgHttp.OK(c, nil)
+}
+
+func VerifyUser(c *fiber.Ctx) error {
+	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
+	defer ctn.Delete()
+
+	uc, err := idi.GetUserUsecase(ctn)
+	if err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	if err := uc.VerifyUser(pkgCtx.NewContextFromFiberCtx(c), c.Params("userID")); err != nil {
 		return pkgHttp.Err(c, err)
 	}
 
@@ -62,7 +78,7 @@ func DeleteUser(c *fiber.Ctx) error {
 		return pkgHttp.Err(c, err)
 	}
 
-	if err := uc.SoftDelete(pkgCtx.NewContextFromFiberCtx(c), c.Params("id")); err != nil {
+	if err := uc.SoftDelete(pkgCtx.NewContextFromFiberCtx(c), c.Params("userID")); err != nil {
 		return pkgHttp.Err(c, err)
 	}
 
@@ -78,7 +94,7 @@ func ListUserSessions(c *fiber.Ctx) error {
 		return pkgHttp.Err(c, err)
 	}
 
-	sessions, err := uc.ListSessions(pkgCtx.NewContextFromFiberCtx(c), c.Params("id"))
+	sessions, err := uc.ListSessions(pkgCtx.NewContextFromFiberCtx(c), c.Params("userID"))
 	if err != nil {
 		return pkgHttp.Err(c, err)
 	}
@@ -95,7 +111,7 @@ func RevokeUserSession(c *fiber.Ctx) error {
 		return pkgHttp.Err(c, err)
 	}
 
-	if err := uc.RevokeSession(pkgCtx.NewContextFromFiberCtx(c), c.Params("id"), c.Params("sessionId")); err != nil {
+	if err := uc.RevokeSession(pkgCtx.NewContextFromFiberCtx(c), c.Params("userID"), c.Params("sessionID")); err != nil {
 		return pkgHttp.Err(c, err)
 	}
 

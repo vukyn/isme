@@ -58,7 +58,7 @@ func GetRoleDetail(c *fiber.Ctx) error {
 		return pkgHttp.Err(c, err)
 	}
 
-	detailResponse, err := uc.GetDetail(pkgCtx.NewContextFromFiberCtx(c), c.Params("id"))
+	detailResponse, err := uc.GetDetail(pkgCtx.NewContextFromFiberCtx(c), c.Params("roleID"))
 	if err != nil {
 		return pkgHttp.Err(c, err)
 	}
@@ -80,7 +80,7 @@ func UpdateRole(c *fiber.Ctx) error {
 		return pkgHttp.Err(c, err)
 	}
 
-	if err := uc.Update(pkgCtx.NewContextFromFiberCtx(c), c.Params("id"), updateRequest); err != nil {
+	if err := uc.Update(pkgCtx.NewContextFromFiberCtx(c), c.Params("roleID"), updateRequest); err != nil {
 		return pkgHttp.Err(c, err)
 	}
 
@@ -96,7 +96,7 @@ func DeleteRole(c *fiber.Ctx) error {
 		return pkgHttp.Err(c, err)
 	}
 
-	if err := uc.Delete(pkgCtx.NewContextFromFiberCtx(c), c.Params("id")); err != nil {
+	if err := uc.Delete(pkgCtx.NewContextFromFiberCtx(c), c.Params("roleID")); err != nil {
 		return pkgHttp.Err(c, err)
 	}
 
@@ -117,7 +117,7 @@ func SetRolePermissions(c *fiber.Ctx) error {
 		return pkgHttp.Err(c, err)
 	}
 
-	if err := uc.SetPermissions(pkgCtx.NewContextFromFiberCtx(c), c.Params("id"), setPermissionsRequest); err != nil {
+	if err := uc.SetPermissions(pkgCtx.NewContextFromFiberCtx(c), c.Params("roleID"), setPermissionsRequest); err != nil {
 		return pkgHttp.Err(c, err)
 	}
 
@@ -138,7 +138,7 @@ func ListRoleMembers(c *fiber.Ctx) error {
 		return pkgHttp.Err(c, err)
 	}
 
-	listMembersResponse, err := uc.ListMembers(pkgCtx.NewContextFromFiberCtx(c), c.Params("id"), listMembersRequest)
+	listMembersResponse, err := uc.ListMembers(pkgCtx.NewContextFromFiberCtx(c), c.Params("roleID"), listMembersRequest)
 	if err != nil {
 		return pkgHttp.Err(c, err)
 	}
@@ -160,7 +160,7 @@ func AddRoleMembers(c *fiber.Ctx) error {
 		return pkgHttp.Err(c, err)
 	}
 
-	if err := uc.AddMembers(pkgCtx.NewContextFromFiberCtx(c), c.Params("id"), addMembersRequest); err != nil {
+	if err := uc.AddMembers(pkgCtx.NewContextFromFiberCtx(c), c.Params("roleID"), addMembersRequest); err != nil {
 		return pkgHttp.Err(c, err)
 	}
 
@@ -181,7 +181,7 @@ func RemoveRoleMember(c *fiber.Ctx) error {
 		appServiceID = &appServiceIDQuery
 	}
 
-	if err := uc.RemoveMember(pkgCtx.NewContextFromFiberCtx(c), c.Params("id"), c.Params("userId"), appServiceID); err != nil {
+	if err := uc.RemoveMember(pkgCtx.NewContextFromFiberCtx(c), c.Params("roleID"), c.Params("userID"), appServiceID); err != nil {
 		return pkgHttp.Err(c, err)
 	}
 

@@ -4,13 +4,14 @@ import (
 	"github.com/vukyn/kuery/rbac"
 )
 
-// Permission codes (must match the catalog seeded by 010_seed_rbac)
+// Permission codes (must match the catalog seeded by 010_seed_rbac + 012_add_user_verification — 19 permissions)
 var (
 	PERM_USER_READ           = rbac.Perm("user", "read")
 	PERM_USER_CREATE         = rbac.Perm("user", "create")
 	PERM_USER_UPDATE         = rbac.Perm("user", "update")
 	PERM_USER_DELETE         = rbac.Perm("user", "delete")
 	PERM_USER_RESET_PASSWORD = rbac.Perm("user", "reset_password")
+	PERM_USER_VERIFY         = rbac.Perm("user", "verify")
 
 	PERM_USER_SESSION_READ   = rbac.Perm("user_session", "read")
 	PERM_USER_SESSION_DELETE = rbac.Perm("user_session", "delete")
