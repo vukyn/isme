@@ -41,8 +41,12 @@ func defineAuthUsecase() *di.Def {
 			if err != nil {
 				return nil, err
 			}
+			roleRepo, err := GetRoleRepository(ctn)
+			if err != nil {
+				return nil, err
+			}
 			log.New().Debug("Auth usecase initialized")
-			return authUsecase.NewUsecase(cfg, cache, userRepo, userSessionRepo, appServiceRepo), nil
+			return authUsecase.NewUsecase(cfg, cache, userRepo, userSessionRepo, appServiceRepo, roleRepo), nil
 		},
 		Close: func(obj any) error {
 			log.New().Debug("Auth usecase destroyed")
