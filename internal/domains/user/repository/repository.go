@@ -91,7 +91,7 @@ func (r *repository) SetPassword(ctx context.Context, id string, password string
 
 	user := &entity.User{
 		ID:       id,
-		Password: cryp.HashBcrypt(password, 10),
+		Password: cryp.HashArgon2id(password),
 	}
 	columns := []string{"password"}
 	_, err := r.db.NewUpdate().

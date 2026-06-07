@@ -191,8 +191,14 @@ func (u *usecase) Login(ctx context.Context, req models.LoginRequest) (models.Lo
 	}
 
 	// check if password is correct
-	if !cryp.CompareBcrypt(req.Password, user.Password) {
+	ok, needsRehash := cryp.VerifyPassword(req.Password, user.Password)
+	if !ok {
 		return models.LoginResponse{}, pkgErr.InvalidRequest("invalid email or password")
+	}
+
+	// upgrade legacy hash to the current scheme; best-effort, must not fail the login
+	if needsRehash {
+		_ = u.userRepo.SetPassword(ctx, user.ID, req.Password)
 	}
 
 	// generate access tokens
@@ -343,7 +349,8 @@ func (u *usecase) ChangePassword(ctx context.Context, req models.ChangePasswordR
 	}
 
 	// verify old password
-	if !cryp.CompareBcrypt(req.OldPassword, user.Password) {
+	ok, needsRehash := cryp.VerifyPassword(req.OldPassword, user.Password)
+	if !ok {
 		return pkgErr.InvalidRequest("old password is incorrect")
 	}
 
@@ -353,6 +360,9 @@ func (u *usecase) ChangePassword(ctx context.Context, req models.ChangePasswordR
 		if err != nil {
 			return err
 		}
+	} else if needsRehash {
+		// upgrade legacy hash to the current scheme; best-effort, must not fail the request
+		_ = u.userRepo.SetPassword(ctx, userID, req.OldPassword)
 	}
 
 	// revoke all user sessions
