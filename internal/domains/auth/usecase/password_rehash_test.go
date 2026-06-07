@@ -12,6 +12,8 @@ import (
 
 	"github.com/vukyn/isme/internal/config"
 	"github.com/vukyn/isme/internal/domains/auth/models"
+	roleEntity "github.com/vukyn/isme/internal/domains/role/entity"
+	roleModels "github.com/vukyn/isme/internal/domains/role/models"
 	userConstants "github.com/vukyn/isme/internal/domains/user/constants"
 	userEntity "github.com/vukyn/isme/internal/domains/user/entity"
 	userModels "github.com/vukyn/isme/internal/domains/user/models"
@@ -119,6 +121,74 @@ func (f *fakeUserSessionRepository) CountActiveByUserIDs(ctx context.Context, us
 	return nil, nil
 }
 
+type fakeRoleRepository struct {
+	permissionCodes []string
+}
+
+func (f *fakeRoleRepository) Create(ctx context.Context, req roleModels.CreateRequest) (string, error) {
+	return "", nil
+}
+
+func (f *fakeRoleRepository) GetByID(ctx context.Context, id string) (roleEntity.Role, error) {
+	return roleEntity.Role{}, nil
+}
+
+func (f *fakeRoleRepository) GetByCode(ctx context.Context, code string) (roleEntity.Role, error) {
+	return roleEntity.Role{}, nil
+}
+
+func (f *fakeRoleRepository) List(ctx context.Context) ([]roleModels.RoleListItem, error) {
+	return nil, nil
+}
+
+func (f *fakeRoleRepository) Update(ctx context.Context, id string, req roleModels.UpdateRequest) error {
+	return nil
+}
+
+func (f *fakeRoleRepository) SoftDelete(ctx context.Context, id string) error {
+	return nil
+}
+
+func (f *fakeRoleRepository) ListPermissions(ctx context.Context) ([]roleEntity.Permission, error) {
+	return nil, nil
+}
+
+func (f *fakeRoleRepository) GetPermissionsByRoleID(ctx context.Context, roleID string) ([]roleEntity.Permission, error) {
+	return nil, nil
+}
+
+func (f *fakeRoleRepository) ReplaceRolePermissions(ctx context.Context, roleID string, permissionIDs []int64) error {
+	return nil
+}
+
+func (f *fakeRoleRepository) ListMembers(ctx context.Context, roleID string, req roleModels.ListMembersRequest) ([]roleModels.MemberItem, int, error) {
+	return nil, 0, nil
+}
+
+func (f *fakeRoleRepository) CountMembersByRoleID(ctx context.Context, roleID string) (int, error) {
+	return 0, nil
+}
+
+func (f *fakeRoleRepository) AddMembers(ctx context.Context, roleID string, userIDs []string, appServiceID *string) error {
+	return nil
+}
+
+func (f *fakeRoleRepository) RemoveMember(ctx context.Context, roleID string, userID string, appServiceID *string) error {
+	return nil
+}
+
+func (f *fakeRoleRepository) GetPermissionCodesByUserID(ctx context.Context, userID string, appServiceID string) ([]string, error) {
+	return f.permissionCodes, nil
+}
+
+func (f *fakeRoleRepository) GetRoleCodesByUserID(ctx context.Context, userID string, appServiceID string) ([]string, error) {
+	return nil, nil
+}
+
+func (f *fakeRoleRepository) GetGlobalRoleCodesByUserIDs(ctx context.Context, userIDs []string) (map[string]string, error) {
+	return nil, nil
+}
+
 func newTestConfig(t *testing.T) *config.Config {
 	t.Helper()
 
@@ -130,9 +200,18 @@ func newTestConfig(t *testing.T) *config.Config {
 		Type:  "RSA PRIVATE KEY",
 		Bytes: x509.MarshalPKCS1PrivateKey(privateKey),
 	})
+	publicKeyDER, err := x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
+	if err != nil {
+		t.Fatalf("failed to marshal RSA public key: %v", err)
+	}
+	publicKeyPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "PUBLIC KEY",
+		Bytes: publicKeyDER,
+	})
 
 	cfg := &config.Config{}
 	cfg.Auth.AccessTokenPrivateKey = string(privateKeyPEM)
+	cfg.Auth.AccessTokenPublicKey = string(publicKeyPEM)
 	cfg.Auth.AccessTokenExpireIn = 3600
 	cfg.Auth.RefreshTokenSecretKey = "test-refresh-secret"
 	cfg.Auth.RefreshTokenExpireIn = 7200
@@ -141,7 +220,12 @@ func newTestConfig(t *testing.T) *config.Config {
 
 func newTestUsecase(t *testing.T, userRepository *fakeUserRepository) IUseCase {
 	t.Helper()
-	return NewUsecase(newTestConfig(t), nil, userRepository, &fakeUserSessionRepository{}, nil)
+	return newTestUsecaseWithRoles(t, userRepository, &fakeRoleRepository{})
+}
+
+func newTestUsecaseWithRoles(t *testing.T, userRepository *fakeUserRepository, roleRepository *fakeRoleRepository) IUseCase {
+	t.Helper()
+	return NewUsecase(newTestConfig(t), nil, userRepository, &fakeUserSessionRepository{}, nil, roleRepository)
 }
 
 func TestLoginRehashesBcryptPassword(t *testing.T) {

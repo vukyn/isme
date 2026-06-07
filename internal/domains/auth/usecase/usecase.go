@@ -9,6 +9,7 @@ import (
 	"github.com/vukyn/isme/internal/config"
 	appServiceRepo "github.com/vukyn/isme/internal/domains/app_service/repository"
 	"github.com/vukyn/isme/internal/domains/auth/models"
+	roleRepo "github.com/vukyn/isme/internal/domains/role/repository"
 	userConstants "github.com/vukyn/isme/internal/domains/user/constants"
 	userModels "github.com/vukyn/isme/internal/domains/user/models"
 	userRepo "github.com/vukyn/isme/internal/domains/user/repository"
@@ -29,6 +30,7 @@ type usecase struct {
 	userRepo        userRepo.IRepository
 	userSessionRepo userSessionRepo.IRepository
 	appServiceRepo  appServiceRepo.IRepository
+	roleRepo        roleRepo.IRepository
 }
 
 func NewUsecase(
@@ -37,6 +39,7 @@ func NewUsecase(
 	userRepo userRepo.IRepository,
 	userSessionRepo userSessionRepo.IRepository,
 	appServiceRepo appServiceRepo.IRepository,
+	roleRepo roleRepo.IRepository,
 ) IUseCase {
 	return &usecase{
 		cfg:             cfg,
@@ -44,6 +47,7 @@ func NewUsecase(
 		userRepo:        userRepo,
 		userSessionRepo: userSessionRepo,
 		appServiceRepo:  appServiceRepo,
+		roleRepo:        roleRepo,
 	}
 }
 
@@ -59,10 +63,9 @@ func (u *usecase) GetMe(ctx context.Context) (models.GetMeResponse, error) {
 	}
 
 	return models.GetMeResponse{
-		ID:      user.ID,
-		Name:    user.Name,
-		Email:   user.Email,
-		IsAdmin: user.IsAdmin,
+		ID:    user.ID,
+		Name:  user.Name,
+		Email: user.Email,
 	}, nil
 }
 
@@ -207,8 +210,14 @@ func (u *usecase) Login(ctx context.Context, req models.LoginRequest) (models.Lo
 		_ = u.userRepo.SetPassword(ctx, user.ID, req.Password)
 	}
 
+	// load authorization data for the access token claims
+	permissionCodes, err := u.roleRepo.GetPermissionCodesByUserID(ctx, user.ID, "")
+	if err != nil {
+		return models.LoginResponse{}, err
+	}
+
 	// generate access tokens
-	accessToken, accessTokenClaims, err := u.generateAccessTokens(user.ID, user.Email)
+	accessToken, accessTokenClaims, err := u.generateAccessTokens(user.ID, user.Email, user.IsAdmin, permissionCodes)
 	if err != nil {
 		return models.LoginResponse{}, err
 	}
@@ -303,8 +312,14 @@ func (u *usecase) RefreshToken(ctx context.Context, req models.RefreshTokenReque
 		return models.RefreshTokenResponse{}, pkgErr.InvalidRequest("invalid refresh token")
 	}
 
+	// re-load authorization data from the database so revoked rights never survive a refresh
+	permissionCodes, err := u.roleRepo.GetPermissionCodesByUserID(ctx, user.ID, "")
+	if err != nil {
+		return models.RefreshTokenResponse{}, err
+	}
+
 	// generate new access tokens
-	newAccessToken, accessTokenClaims, err := u.generateAccessTokens(user.ID, user.Email)
+	newAccessToken, accessTokenClaims, err := u.generateAccessTokens(user.ID, user.Email, user.IsAdmin, permissionCodes)
 	if err != nil {
 		return models.RefreshTokenResponse{}, err
 	}

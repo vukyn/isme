@@ -796,7 +796,7 @@ export const Users = () => {
 					</Text>
 				</Box>
 				<HStack gap="2.5">
-					<Button h="11" px="4.5" fontSize="sm" {...GHOST_BUTTON_PROPS} onClick={handleExportCsv}>
+					<Button h="11" px="4.5" fontSize="sm" {...GHOST_BUTTON_PROPS} onClick={handleExportCsv} disabled>
 						<LuDownload size={16} /> Export CSV
 					</Button>
 					<Button

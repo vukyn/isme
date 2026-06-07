@@ -50,15 +50,13 @@ export interface AuthTokens {
 	expires_at: string;
 }
 
-/** Maps to internal/domains/auth/models.GetMeResponse. */
+/**
+ * Maps to internal/domains/auth/models.GetMeResponse.
+ * Authorization data (admin flag, permissions) is NOT here —
+ * it lives in the access token JWT claims (see utils/jwt.ts).
+ */
 export interface GetMeResponse {
 	id: string;
 	name: string;
 	email: string;
-	/** omitempty on the backend — absent for non-admins. */
-	is_admin?: boolean;
-	/** Global role codes of the current user (RBAC). */
-	roles: string[];
-	/** Permission codes as "resource:action" (e.g. "role:assign"). Admins bypass. */
-	perms: string[];
 }
