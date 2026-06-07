@@ -17,12 +17,11 @@ import (
 func TestLoginAccessTokenCarriesAdminClaim(t *testing.T) {
 	userRepository := &fakeUserRepository{
 		user: userEntity.User{
-			ID:         "user-admin",
-			Email:      "admin@example.com",
-			Password:   cryp.HashArgon2id("s3cret-password"),
-			Status:     userConstants.UserStatusActive,
-			IsVerified: true,
-			IsAdmin:    true,
+			ID:       "user-admin",
+			Email:    "admin@example.com",
+			Password: cryp.HashArgon2id("s3cret-password"),
+			Status:   userConstants.UserStatusActive,
+			IsAdmin:  true,
 		},
 	}
 	cfg := newTestConfig(t)
@@ -48,11 +47,10 @@ func TestLoginAccessTokenCarriesAdminClaim(t *testing.T) {
 func TestLoginAccessTokenCarriesPermissionClaims(t *testing.T) {
 	userRepository := &fakeUserRepository{
 		user: userEntity.User{
-			ID:         "user-member",
-			Email:      "member@example.com",
-			Password:   cryp.HashArgon2id("s3cret-password"),
-			Status:     userConstants.UserStatusActive,
-			IsVerified: true,
+			ID:       "user-member",
+			Email:    "member@example.com",
+			Password: cryp.HashArgon2id("s3cret-password"),
+			Status:   userConstants.UserStatusActive,
 		},
 	}
 	roleRepository := &fakeRoleRepository{
