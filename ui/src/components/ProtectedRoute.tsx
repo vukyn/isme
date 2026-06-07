@@ -1,85 +1,58 @@
-import { useEffect, useState } from "react";
+"use client";
+
+import { useEffect, useRef, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { Box, Spinner, Stack } from "@chakra-ui/react";
-import { getTokens, isTokenExpired } from "@/utils/axios";
-import { getCurrentUser } from "@/apis/auth";
+import { getTokens, isTokenExpired, saveTokens } from "@/utils/axios";
 import { refreshToken } from "@/apis/auth";
-import { saveTokens } from "@/utils/axios";
+import { useUser } from "@/hooks/useUser";
 
 interface ProtectedRouteProps {
 	children: React.ReactNode;
 }
 
 export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
-	const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
-	const [isLoading, setIsLoading] = useState(true);
+	const { user, loading, error, refetch } = useUser();
+
+	// One-shot recovery guard: refresh the token at most once per mount
+	// before declaring the session unauthenticated.
+	const recoveryAttempted = useRef(false);
+	const [recoveryDone, setRecoveryDone] = useState(false);
 
 	useEffect(() => {
-		const checkAuth = async () => {
+		if (loading || user || recoveryAttempted.current) return;
+
+		const tokens = getTokens();
+		if (!tokens.access_token) return;
+		recoveryAttempted.current = true;
+
+		const recover = async () => {
 			try {
-				const tokens = getTokens();
-
-				// No tokens at all
-				if (!tokens.access_token) {
-					setIsAuthenticated(false);
-					setIsLoading(false);
-					return;
-				}
-
-				// Check if token is expired
-				if (isTokenExpired()) {
-					// Try to refresh token
-					if (tokens.refresh_token) {
-						try {
-							const response = await refreshToken({
-								refresh_token: tokens.refresh_token,
-							});
-							saveTokens(response.data);
-							// Verify with /me after refresh
-							await getCurrentUser();
-							setIsAuthenticated(true);
-						} catch {
-							// Refresh failed, redirect to login
-							setIsAuthenticated(false);
-						}
-					} else {
-						// No refresh token, redirect to login
-						setIsAuthenticated(false);
-					}
+				if (error || isTokenExpired()) {
+					// Context fetch 401ed or the token expired before any fetch —
+					// refresh once, then refetch /me with the new token.
+					if (!tokens.refresh_token) return;
+					const response = await refreshToken({ refresh_token: tokens.refresh_token });
+					saveTokens(response.data);
+					await refetch();
 				} else {
-					// Token not expired, verify with /me
-					try {
-						await getCurrentUser();
-						setIsAuthenticated(true);
-					} catch {
-						// /me failed, try refresh
-						if (tokens.refresh_token) {
-							try {
-								const response = await refreshToken({
-									refresh_token: tokens.refresh_token,
-								});
-								saveTokens(response.data);
-								await getCurrentUser();
-								setIsAuthenticated(true);
-							} catch {
-								setIsAuthenticated(false);
-							}
-						} else {
-							setIsAuthenticated(false);
-						}
-					}
+					// Token present but no user yet (e.g. session created after the
+					// provider's initial fetch settled) — fetch once.
+					await refetch();
 				}
 			} catch {
-				setIsAuthenticated(false);
+				// Recovery failed — fall through to the unauthenticated redirect.
 			} finally {
-				setIsLoading(false);
+				setRecoveryDone(true);
 			}
 		};
+		void recover();
+	}, [loading, user, error, refetch]);
 
-		checkAuth();
-	}, []);
+	const hasAccessToken = !!getTokens().access_token;
+	const recoveryPending = hasAccessToken && !user && !recoveryDone;
 
-	if (isLoading) {
+	if (loading || recoveryPending) {
 		return (
 			<Box w="full" h="100vh" display="flex" alignItems="center" justifyContent="center">
 				<Stack align="center" gap="4">
@@ -89,7 +62,7 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
 		);
 	}
 
-	if (!isAuthenticated) {
+	if (!user) {
 		return <Navigate to="/login" replace />;
 	}
 

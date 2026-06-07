@@ -39,7 +39,7 @@ import { CreateRoleDialog } from "@/components/CreateRoleDialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toaster } from "@/components/ui/toaster";
 import { AURORA_CTA_STYLE } from "@/consts/styles";
-import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useUser } from "@/hooks/useUser";
 import { usePermissions } from "@/hooks/usePermissions";
 import { AppShell } from "@/layouts/AppShell";
 import type { PermissionItem, RoleDetailResponse, RoleListItem, RoleMemberItem, UserListItem } from "@/types";
@@ -286,7 +286,7 @@ const MemberAvatar = ({ id, name }: { id: string; name: string }) => (
 );
 
 export const Roles = () => {
-	const { user: currentUser } = useCurrentUser();
+	const { user: currentUser } = useUser();
 	const { can } = usePermissions();
 
 	const canCreate = can("role:create");

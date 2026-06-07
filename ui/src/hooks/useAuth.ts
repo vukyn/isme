@@ -1,8 +1,8 @@
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { login as loginApi, signup as signupApi, getCurrentUser, logout as logoutApi } from "@/apis/auth";
+import { login as loginApi, signup as signupApi, logout as logoutApi } from "@/apis/auth";
 import { saveTokens, clearTokens, getTokens } from "@/utils/axios";
-import { clearCurrentUser } from "@/hooks/useCurrentUser";
+import { useUser } from "@/hooks/useUser";
 import type { LoginRequest, LoginResponse, SignupRequest } from "@/types";
 
 interface ApiErrorLike {
@@ -20,7 +20,6 @@ interface UseAuthReturn {
 	signup: (data: SignupRequest) => Promise<void>;
 	logout: () => Promise<void>;
 	refreshToken: () => Promise<void>;
-	getCurrentUser: () => Promise<unknown>;
 	isAuthenticated: boolean;
 	loading: boolean;
 	error: Error | null;
@@ -30,6 +29,7 @@ export const useAuth = (): UseAuthReturn => {
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<Error | null>(null);
 	const navigate = useNavigate();
+	const { refetch: refetchUser, clear: clearUser } = useUser();
 
 	const isAuthenticated = !!getTokens().access_token;
 
@@ -40,8 +40,10 @@ export const useAuth = (): UseAuthReturn => {
 				setError(null);
 				const response = await loginApi(data);
 				saveTokens(response.data);
-				// Only navigate if this is not an SSO login (no redirect_url)
+				// Only navigate if this is not an SSO login (no redirect_url);
+				// SSO logins leave the app, so skip the /me prefetch.
 				if (!response.data.redirect_url) {
+					await refetchUser();
 					navigate("/welcome");
 				}
 				return response;
@@ -54,7 +56,7 @@ export const useAuth = (): UseAuthReturn => {
 				setLoading(false);
 			}
 		},
-		[navigate]
+		[navigate, refetchUser]
 	);
 
 	const signup = useCallback(
@@ -87,11 +89,11 @@ export const useAuth = (): UseAuthReturn => {
 			setError(new Error(errorMessage));
 		} finally {
 			clearTokens();
-			clearCurrentUser();
+			clearUser();
 			navigate("/login");
 			setLoading(false);
 		}
-	}, [navigate]);
+	}, [navigate, clearUser]);
 
 	const refreshToken = useCallback(async () => {
 		try {
@@ -107,26 +109,11 @@ export const useAuth = (): UseAuthReturn => {
 		}
 	}, []);
 
-	const getCurrentUserData = useCallback(async () => {
-		try {
-			setLoading(true);
-			setError(null);
-			return await getCurrentUser();
-		} catch (err) {
-			const error = err instanceof Error ? err : new Error("Failed to get user data");
-			setError(error);
-			throw error;
-		} finally {
-			setLoading(false);
-		}
-	}, []);
-
 	return {
 		login,
 		signup,
 		logout,
 		refreshToken,
-		getCurrentUser: getCurrentUserData,
 		isAuthenticated,
 		loading,
 		error,

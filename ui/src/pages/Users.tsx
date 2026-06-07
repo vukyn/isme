@@ -61,7 +61,7 @@ import {
 	USERS_PAGE_SIZE_OPTIONS,
 } from "@/consts";
 import { AURORA_CTA_STYLE } from "@/consts/styles";
-import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useUser } from "@/hooks/useUser";
 import { usePermissions } from "@/hooks/usePermissions";
 import { AppShell } from "@/layouts/AppShell";
 import type { RoleListItem, UserListItem, UserSessionItem, UserStatus } from "@/types";
@@ -414,7 +414,7 @@ const SessionsPanel = ({
 );
 
 export const Users = () => {
-	const { user: currentUser } = useCurrentUser();
+	const { user: currentUser } = useUser();
 	const { can } = usePermissions();
 
 	const canAssignRole = can("role:assign") && can("role:read");
