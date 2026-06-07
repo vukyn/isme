@@ -1,7 +1,6 @@
 package di
 
 import (
-	"github.com/vukyn/isme/cache"
 	"github.com/vukyn/isme/internal/config"
 	"github.com/vukyn/isme/internal/constants"
 	appServiceUsecase "github.com/vukyn/isme/internal/domains/app_service/usecase"
@@ -36,7 +35,7 @@ func defineAuthUsecase() *di.Def {
 				return nil, err
 			}
 			cfg := ctn.Get(constants.CONTAINER_NAME_CONFIG).(*config.Config)
-			cache := ctn.Get(constants.CONTAINER_NAME_CACHE).(*cache.Cache)
+			cache := GetCache(ctn)
 			appServiceRepo, err := GetAppServiceRepository(ctn)
 			if err != nil {
 				return nil, err
