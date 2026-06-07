@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/vukyn/isme/cache"
 	"github.com/vukyn/isme/internal/config"
 	appServiceRepo "github.com/vukyn/isme/internal/domains/app_service/repository"
 	"github.com/vukyn/isme/internal/domains/auth/models"
@@ -15,18 +14,19 @@ import (
 	userRepo "github.com/vukyn/isme/internal/domains/user/repository"
 	userSessionConstants "github.com/vukyn/isme/internal/domains/user_session/constants"
 	userSessionRepo "github.com/vukyn/isme/internal/domains/user_session/repository"
+	pkgCache "github.com/vukyn/kuery/cache"
 	pkgClaims "github.com/vukyn/kuery/claims"
-	pkgCtx "github.com/vukyn/kuery/ctx"
-	"github.com/vukyn/kuery/jwt"
 	"github.com/vukyn/kuery/cryp/aes"
+	pkgCtx "github.com/vukyn/kuery/ctx"
 	pkgErr "github.com/vukyn/kuery/http/errors"
+	"github.com/vukyn/kuery/jwt"
 
 	"github.com/vukyn/kuery/cryp"
 )
 
 type usecase struct {
 	cfg             *config.Config
-	cache           *cache.Cache
+	cache           *pkgCache.Cache[string, string]
 	userRepo        userRepo.IRepository
 	userSessionRepo userSessionRepo.IRepository
 	appServiceRepo  appServiceRepo.IRepository
@@ -35,7 +35,7 @@ type usecase struct {
 
 func NewUsecase(
 	cfg *config.Config,
-	cache *cache.Cache,
+	cache *pkgCache.Cache[string, string],
 	userRepo userRepo.IRepository,
 	userSessionRepo userSessionRepo.IRepository,
 	appServiceRepo appServiceRepo.IRepository,
