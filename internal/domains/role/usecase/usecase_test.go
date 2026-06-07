@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	appServiceEntity "github.com/vukyn/isme/internal/domains/app_service/entity"
+	appServiceModels "github.com/vukyn/isme/internal/domains/app_service/models"
 	appServiceRepo "github.com/vukyn/isme/internal/domains/app_service/repository"
 	"github.com/vukyn/isme/internal/domains/role/entity"
 	"github.com/vukyn/isme/internal/domains/role/models"
@@ -172,6 +173,14 @@ func (f *fakeAppServiceRepository) GetByCode(ctx context.Context, code string) (
 }
 
 func (f *fakeAppServiceRepository) Update(ctx context.Context, req appServiceEntity.UpdateRequest) error {
+	return nil
+}
+
+func (f *fakeAppServiceRepository) List(ctx context.Context, req appServiceModels.ListRequest) ([]appServiceEntity.AppService, int64, error) {
+	return nil, 0, nil
+}
+
+func (f *fakeAppServiceRepository) UpdateStatus(ctx context.Context, id string, status int32) error {
 	return nil
 }
 
