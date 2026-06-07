@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/vukyn/isme/internal/domains/app_service/entity"
+	"github.com/vukyn/isme/internal/domains/app_service/models"
 )
 
 type IRepository interface {
@@ -14,4 +15,8 @@ type IRepository interface {
 	GetByCode(ctx context.Context, code string) (entity.AppService, error)
 	// Update app service
 	Update(ctx context.Context, req entity.UpdateRequest) error
+	// List app services with pagination and filters
+	List(ctx context.Context, req models.ListRequest) ([]entity.AppService, int64, error)
+	// Update app service status
+	UpdateStatus(ctx context.Context, id string, status int32) error
 }

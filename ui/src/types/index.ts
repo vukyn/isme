@@ -19,6 +19,19 @@ export type {
 	LogoutResponse,
 } from "./auth";
 export type {
+	AppService,
+	AppServiceCtxInfo,
+	AppServiceStatus,
+	ListAppServicesRequest,
+	ListAppServicesResponse,
+	RegisterAppServiceRequest,
+	RegisterAppServiceResponse,
+	VerifyAppServiceRequest,
+	VerifyAppServiceResponse,
+	RefreshAppServiceRequest,
+	RefreshAppServiceResponse,
+} from "./appService";
+export type {
 	RoleListItem,
 	PermissionItem,
 	RoleDetailResponse,

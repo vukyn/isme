@@ -4,8 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 
 	"github.com/vukyn/isme/internal/domains/app_service/entity"
+	"github.com/vukyn/isme/internal/domains/app_service/models"
 
 	pkgCtx "github.com/vukyn/kuery/ctx"
 	pkgErr "github.com/vukyn/kuery/http/errors"
@@ -114,5 +116,69 @@ func (r *repository) Update(ctx context.Context, req entity.UpdateRequest) error
 		}
 	}
 
+	return nil
+}
+
+func (r *repository) List(ctx context.Context, req models.ListRequest) ([]entity.AppService, int64, error) {
+	query := r.db.NewSelect().
+		Model((*entity.AppService)(nil))
+
+	// Apply search filter (LOWER + LIKE for SQLite compatibility)
+	if req.Search != "" {
+		pattern := "%" + strings.ToLower(req.Search) + "%"
+		query = query.Where("(LOWER(app_name) LIKE ? OR LOWER(app_code) LIKE ?)", pattern, pattern)
+	}
+
+	// Apply status filter (only if status is set and non-zero)
+	if req.Status != 0 {
+		query = query.Where("status = ?", req.Status)
+	}
+
+	// Apply ctx_info filter
+	if req.CtxInfo != "" {
+		query = query.Where("ctx_info = ?", req.CtxInfo)
+	}
+
+	// Get total count
+	total, err := query.Count(ctx)
+	if err != nil {
+		return nil, 0, pkgErr.DatabaseError(err.Error())
+	}
+
+	// Apply pagination
+	appServices := make([]entity.AppService, 0)
+	offset := (req.Page - 1) * req.PageSize
+	err = query.
+		Offset(offset).
+		Limit(req.PageSize).
+		Order("created_at DESC").
+		Scan(ctx, &appServices)
+	if err != nil {
+		return nil, 0, pkgErr.DatabaseError(err.Error())
+	}
+
+	return appServices, int64(total), nil
+}
+
+func (r *repository) UpdateStatus(ctx context.Context, id string, status int32) error {
+	// validation
+	if id == "" {
+		return pkgErr.InvalidRequest("id is required")
+	}
+
+	userID := pkgCtx.GetUserID(ctx)
+	appService := &entity.AppService{
+		ID:        id,
+		Status:    status,
+		UpdatedBy: userID,
+	}
+	_, err := r.db.NewUpdate().
+		Model(appService).
+		Column("status", "updated_by").
+		Where("id = ?", id).
+		Exec(ctx)
+	if err != nil {
+		return pkgErr.DatabaseError(err.Error())
+	}
 	return nil
 }
