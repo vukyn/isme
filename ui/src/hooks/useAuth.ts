@@ -5,6 +5,16 @@ import { saveTokens, clearTokens, getTokens } from "@/utils/axios";
 import { clearCurrentUser } from "@/hooks/useCurrentUser";
 import type { LoginRequest, LoginResponse, SignupRequest } from "@/types";
 
+interface ApiErrorLike {
+	response?: { data?: { message?: string } };
+	message?: string;
+}
+
+const getApiErrorMessage = (err: unknown, fallback: string): string => {
+	const apiError = err as ApiErrorLike | null | undefined;
+	return apiError?.response?.data?.message || apiError?.message || fallback;
+};
+
 interface UseAuthReturn {
 	login: (data: LoginRequest) => Promise<LoginResponse>;
 	signup: (data: SignupRequest) => Promise<void>;
@@ -35,8 +45,8 @@ export const useAuth = (): UseAuthReturn => {
 					navigate("/welcome");
 				}
 				return response;
-			} catch (err: any) {
-				const errorMessage = err?.response?.data?.message || err?.message || "Login failed. Please check your credentials.";
+			} catch (err) {
+				const errorMessage = getApiErrorMessage(err, "Login failed. Please check your credentials.");
 				const error = new Error(errorMessage);
 				setError(error);
 				throw error;
@@ -54,8 +64,8 @@ export const useAuth = (): UseAuthReturn => {
 				setError(null);
 				await signupApi(data);
 				navigate("/login");
-			} catch (err: any) {
-				const errorMessage = err?.response?.data?.message || err?.message || "Signup failed. Please try again.";
+			} catch (err) {
+				const errorMessage = getApiErrorMessage(err, "Signup failed. Please try again.");
 				const error = new Error(errorMessage);
 				setError(error);
 				throw error;
@@ -71,9 +81,9 @@ export const useAuth = (): UseAuthReturn => {
 			setLoading(true);
 			setError(null);
 			await logoutApi();
-		} catch (err: any) {
+		} catch (err) {
 			// Even if API call fails, we should still clear tokens and log out locally
-			const errorMessage = err?.response?.data?.message || err?.message || "Logout failed";
+			const errorMessage = getApiErrorMessage(err, "Logout failed");
 			setError(new Error(errorMessage));
 		} finally {
 			clearTokens();
