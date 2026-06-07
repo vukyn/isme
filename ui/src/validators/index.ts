@@ -50,3 +50,41 @@ export const inviteUserSchema = z.object({
 });
 
 export type InviteUserFormData = z.infer<typeof inviteUserSchema>;
+
+/**
+ * ctx_info fixed set — mirrors app_service constants.AllowedCtxInfos.
+ */
+const appServiceCtxInfoSchema = z.enum(["authen", "app_service"], "Context must be authen or app_service");
+
+/**
+ * Register app service form schema (App Services management)
+ * Mirrors models.RegisterRequest.Validate() — all four fields required.
+ */
+export const registerAppServiceSchema = z.object({
+	app_code: z.string().min(1, "App code is required"),
+	app_name: z.string().min(1, "App name is required"),
+	redirect_url: z.url("Redirect URL must be a valid URL"),
+	ctx_info: appServiceCtxInfoSchema,
+});
+
+export type RegisterAppServiceFormData = z.infer<typeof registerAppServiceSchema>;
+
+/**
+ * Rotate secret form schema — the refresh API requires the CURRENT secret.
+ */
+export const rotateAppServiceSecretSchema = z.object({
+	app_secret: z.string().min(1, "Current secret is required"),
+});
+
+export type RotateAppServiceSecretFormData = z.infer<typeof rotateAppServiceSecretSchema>;
+
+/**
+ * Verify credentials form schema — mirrors models.VerifyRequest.Validate().
+ */
+export const verifyAppServiceSchema = z.object({
+	app_code: z.string().min(1, "App code is required"),
+	ctx_info: appServiceCtxInfoSchema,
+	app_secret: z.string().min(1, "App secret is required"),
+});
+
+export type VerifyAppServiceFormData = z.infer<typeof verifyAppServiceSchema>;

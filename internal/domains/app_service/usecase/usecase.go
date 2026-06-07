@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"time"
 
 	"github.com/vukyn/isme/internal/config"
 	"github.com/vukyn/isme/internal/domains/app_service/constants"
@@ -95,6 +96,13 @@ func (u *usecase) VerifyApp(ctx context.Context, req models.VerifyRequest) (mode
 		}, nil
 	}
 
+	// only active app services can be verified
+	if appService.Status != constants.AppServiceStatusActive {
+		return models.VerifyResponse{
+			Ok: false,
+		}, nil
+	}
+
 	// verify ctx_info matches
 	if req.CtxInfo != appService.CtxInfo {
 		return models.VerifyResponse{
@@ -143,6 +151,11 @@ func (u *usecase) RefreshApp(ctx context.Context, req models.RefreshRequest) (mo
 		return models.RefreshResponse{}, pkgErr.InvalidRequest("app_code not found")
 	}
 
+	// terminated app services cannot be refreshed
+	if appService.Status == constants.AppServiceStatusTerminated {
+		return models.RefreshResponse{}, pkgErr.InvalidRequest("app service is terminated")
+	}
+
 	// verify ctx_info matches
 	if req.CtxInfo != appService.CtxInfo {
 		return models.RefreshResponse{}, pkgErr.InvalidRequest("invalid ctx_info")
@@ -184,4 +197,75 @@ func (u *usecase) RefreshApp(ctx context.Context, req models.RefreshRequest) (mo
 	return models.RefreshResponse{
 		AppSecret: appSecret,
 	}, nil
+}
+
+func (u *usecase) ListApps(ctx context.Context, req models.ListRequest) (models.ListResponse, error) {
+	// validation
+	if err := req.Validate(); err != nil {
+		return models.ListResponse{}, pkgErr.InvalidRequest(err.Error())
+	}
+	req.Normalize()
+
+	appServices, total, err := u.appServiceRepo.List(ctx, req)
+	if err != nil {
+		return models.ListResponse{}, err
+	}
+
+	items := make([]models.AppServiceListItem, 0, len(appServices))
+	for _, appService := range appServices {
+		updatedAt := ""
+		if !appService.UpdatedAt.IsZero() {
+			updatedAt = appService.UpdatedAt.Format(time.RFC3339)
+		}
+		createdAt := ""
+		if !appService.CreatedAt.IsZero() {
+			createdAt = appService.CreatedAt.Format(time.RFC3339)
+		}
+		items = append(items, models.AppServiceListItem{
+			ID:          appService.ID,
+			AppCode:     appService.AppCode,
+			AppName:     appService.AppName,
+			RedirectURL: appService.RedirectURL,
+			CtxInfo:     appService.CtxInfo,
+			Status:      appService.Status,
+			CreatedAt:   createdAt,
+			CreatedBy:   appService.CreatedBy,
+			UpdatedAt:   updatedAt,
+			UpdatedBy:   appService.UpdatedBy,
+		})
+	}
+
+	return models.ListResponse{
+		Items: items,
+		Total: total,
+		Page:  req.Page,
+	}, nil
+}
+
+func (u *usecase) UpdateStatus(ctx context.Context, id string, req models.UpdateStatusRequest) error {
+	// validation
+	if err := req.Validate(); err != nil {
+		return pkgErr.InvalidRequest(err.Error())
+	}
+
+	// check app service exists
+	appService, err := u.appServiceRepo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if appService.ID == "" {
+		return pkgErr.NotFound("app service not found")
+	}
+
+	// terminated is a terminal state
+	if appService.Status == constants.AppServiceStatusTerminated {
+		return pkgErr.InvalidRequest("app service is terminated")
+	}
+
+	// idempotent no-op when status is unchanged
+	if appService.Status == req.Status {
+		return nil
+	}
+
+	return u.appServiceRepo.UpdateStatus(ctx, id, req.Status)
 }

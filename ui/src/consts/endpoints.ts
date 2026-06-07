@@ -17,6 +17,13 @@ export const API_ENDPOINTS = {
 	USER_SESSIONS: (userId: string) => `/api/v1/users/${userId}/sessions`,
 	USER_SESSION_REVOKE: (userId: string, sessionId: string) => `/api/v1/users/${userId}/sessions/${sessionId}/revoke`,
 
+	// App service
+	APP_SERVICES: "/api/v1/app-service",
+	APP_SERVICE_REGISTER: "/api/v1/app-service/register",
+	APP_SERVICE_VERIFY: "/api/v1/app-service/verify",
+	APP_SERVICE_REFRESH: "/api/v1/app-service/refresh",
+	APP_SERVICE_STATUS: (appServiceId: string) => `/api/v1/app-service/${appServiceId}/status`,
+
 	// Role / RBAC
 	ROLES: "/api/v1/roles",
 	ROLE_DETAIL: (roleId: string) => `/api/v1/roles/${roleId}`,

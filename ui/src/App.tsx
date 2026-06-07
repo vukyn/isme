@@ -9,6 +9,7 @@ import { Sessions } from "./pages/Sessions";
 import { Team } from "./pages/Team";
 import { Users } from "./pages/Users";
 import { Roles } from "./pages/Roles";
+import { AppServices } from "./pages/AppServices";
 import { Settings } from "./pages/Settings";
 import { NotFound } from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -61,6 +62,14 @@ function App() {
 						element={
 							<ProtectedRoute>
 								<Roles />
+							</ProtectedRoute>
+						}
+					/>
+					<Route
+						path="/app-services"
+						element={
+							<ProtectedRoute>
+								<AppServices />
 							</ProtectedRoute>
 						}
 					/>
