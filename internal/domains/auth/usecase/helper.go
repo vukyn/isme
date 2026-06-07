@@ -10,9 +10,12 @@ import (
 	"github.com/vukyn/kuery/jwt"
 )
 
-func (u *usecase) generateAccessTokens(userID, email string) (string, pkgClaims.Claims, error) {
+func (u *usecase) generateAccessTokens(userID, email string, isAdmin bool, permissionCodes []string) (string, pkgClaims.Claims, error) {
 	authCfg := u.cfg.Auth
-	accessToken, claims, err := jwt.GenerateJWTWithRSAPrivateKey(authCfg.AccessTokenPrivateKey, authCfg.AccessTokenExpireIn, userID, email)
+	claims := pkgClaims.NewClaims(userID, email, int64(authCfg.AccessTokenExpireIn)).
+		WithIsAdmin(isAdmin).
+		WithPerms(permissionCodes)
+	accessToken, err := jwt.GenerateJWTWithRSAPrivateKeyFromClaims(authCfg.AccessTokenPrivateKey, claims)
 	if err != nil {
 		return "", pkgClaims.Claims{}, err
 	}
