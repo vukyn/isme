@@ -657,7 +657,7 @@ export const AppServices = () => {
 											<Table.Cell px="3.5" py="13px" {...NUM_PROPS} color="fg.muted">
 												{formatDateOnly(service.created_at)}
 												<Text display="block" fontSize="11px" color="fg.muted">
-													by {service.created_by || "—"}
+													by {service.created_by_email || service.created_by || "—"}
 												</Text>
 											</Table.Cell>
 											<Table.Cell px="3.5" py="13px">
