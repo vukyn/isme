@@ -623,7 +623,11 @@
 
   Resources mirror isme domains: user · user_session · app_service · role.
   Actions: read · create · update · delete (+ SPECIAL: user:reset_password,
-  user_session:revoke, app_service:rotate_secret, role:assign).
+  user:verify, user_session:revoke, app_service:rotate_secret, role:assign —
+  19 permissions in the catalog).
+  user:verify — NEW: grants the account-verification action on the Users screen
+  (one-way is_verified flip; unverified users cannot log in). Admin role always
+  holds it; here the custom role content-ops has been granted it too.
   user_session has NO create/update — rendered as "—".
   System roles (admin/member/viewer) are seeded + immutable (is_system=true):
   selecting one renders the matrix READ-ONLY (all checkboxes disabled, lock
@@ -787,7 +791,7 @@
               <th class="c">Create</th>
               <th class="c">Update</th>
               <th class="c">Delete</th>
-              <th style="width:220px;">Special</th>
+              <th style="width:250px;">Special</th>
             </tr>
           </thead>
           <tbody>
@@ -804,7 +808,16 @@
               <td class="c"><label class="check"><input type="checkbox" aria-label="user:create" /></label></td>
               <td class="c"><label class="check"><input type="checkbox" checked aria-label="user:update" /></label></td>
               <td class="c"><label class="check"><input type="checkbox" aria-label="user:delete" /></label></td>
-              <td><label class="special-chip"><input type="checkbox" class="check-mini" aria-label="user:reset_password" />reset_password</label></td>
+              <td>
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                  <label class="special-chip"><input type="checkbox" class="check-mini" aria-label="user:reset_password" />reset_password</label>
+                  <!-- user:verify — account verification (one-way is_verified flip).
+                       Checked: this role can use the Verify action on the Users
+                       screen; without it the Verify button is hidden there.
+                       Admin (system role) always shows this checked + disabled. -->
+                  <label class="special-chip"><input type="checkbox" checked aria-label="user:verify" />verify</label>
+                </div>
+              </td>
             </tr>
             <tr class="perm-row">
               <td>

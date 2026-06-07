@@ -19,6 +19,9 @@ export const USER_ROLE_OPTIONS = ["admin", "member", "viewer", "content-ops"] as
 
 export const USER_STATUS_FILTER_OPTIONS = ["all", "active", "inactive", "pending"] as const;
 
+/** user.is_verified segmented filter — wired server-side via ?verified=. */
+export const USER_VERIFIED_FILTER_OPTIONS = ["all", "verified", "unverified"] as const;
+
 export const USER_LAST_LOGIN_FILTER_OPTIONS = [
 	{ value: "any", label: "any time" },
 	{ value: "24h", label: "last 24h" },

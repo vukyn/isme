@@ -98,7 +98,9 @@ const MATRIX_GROUPS: MatrixGroup[] = [
 				accent: { color: "aurora.violet", bg: "rgba(139,92,246,0.15)" },
 				icon: <LuUsers size={14} />,
 				crud: { read: true, create: true, update: true, delete: true },
-				special: ["reset_password"],
+				// verify — account verification (one-way is_verified flip); the chip
+				// only renders once GET /permissions returns user:verify (migration 012)
+				special: ["reset_password", "verify"],
 			},
 			{
 				resource: "user_session",

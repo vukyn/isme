@@ -17,6 +17,7 @@ import {
 	Text,
 } from "@chakra-ui/react";
 import {
+	LuBadgeCheck,
 	LuChevronLeft,
 	LuChevronRight,
 	LuCircleCheck,
@@ -32,6 +33,7 @@ import {
 	LuPencil,
 	LuSearch,
 	LuShieldCheck,
+	LuShieldQuestion,
 	LuTrash2,
 	LuUserPlus,
 	LuX,
@@ -47,9 +49,17 @@ import {
 	updateUserStatus,
 } from "@/apis";
 import { InviteUserDialog } from "@/components/InviteUserDialog";
+import { VerifyUserDialog } from "@/components/VerifyUserDialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toaster } from "@/components/ui/toaster";
-import { USER_LAST_LOGIN_FILTER_OPTIONS, USER_STATUS, USER_STATUS_FILTER_OPTIONS, USER_ROLE_OPTIONS, USERS_PAGE_SIZE_OPTIONS } from "@/consts";
+import {
+	USER_LAST_LOGIN_FILTER_OPTIONS,
+	USER_STATUS,
+	USER_STATUS_FILTER_OPTIONS,
+	USER_VERIFIED_FILTER_OPTIONS,
+	USER_ROLE_OPTIONS,
+	USERS_PAGE_SIZE_OPTIONS,
+} from "@/consts";
 import { AURORA_CTA_STYLE } from "@/consts/styles";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -58,6 +68,7 @@ import type { RoleListItem, UserListItem, UserSessionItem, UserStatus } from "@/
 import { formatDateOnly, formatShortDateTime, isZeroTime, parseUserAgent } from "@/utils";
 
 type StatusFilter = (typeof USER_STATUS_FILTER_OPTIONS)[number];
+type VerifiedFilter = (typeof USER_VERIFIED_FILTER_OPTIONS)[number];
 type LastLoginFilter = (typeof USER_LAST_LOGIN_FILTER_OPTIONS)[number]["value"];
 
 const STATUS_FILTER_TO_VALUE: Record<Exclude<StatusFilter, "all">, UserStatus> = {
@@ -70,6 +81,11 @@ const STATUS_FILTER_ICONS: Partial<Record<StatusFilter, React.ReactNode>> = {
 	active: <LuCircleCheck size={13} />,
 	inactive: <LuCircleSlash size={13} />,
 	pending: <LuMail size={13} />,
+};
+
+const VERIFIED_FILTER_ICONS: Partial<Record<VerifiedFilter, React.ReactNode>> = {
+	verified: <LuBadgeCheck size={13} />,
+	unverified: <LuShieldQuestion size={13} />,
 };
 
 const LAST_LOGIN_WINDOW_MS: Record<string, number> = {
@@ -177,6 +193,28 @@ const StatusPill = ({ status }: { status: UserStatus }) => {
 		<Box {...PILL_BASE} color="aurora.amber" borderColor="rgba(245,158,11,0.35)" bg="rgba(245,158,11,0.10)">
 			<Box w="6px" h="6px" borderRadius="full" bg="aurora.amber" css={{ boxShadow: "0 0 10px #F59E0B" }} />
 			pending
+		</Box>
+	);
+};
+
+/** Mint badge-check = verified · amber shield-question = login blocked until verified. */
+const VerifiedPill = ({ verified }: { verified: boolean }) => {
+	if (verified) {
+		return (
+			<Box {...PILL_BASE} color="aurora.mint" borderColor="rgba(52,211,153,0.35)" bg="rgba(52,211,153,0.10)">
+				<LuBadgeCheck size={12} /> verified
+			</Box>
+		);
+	}
+	return (
+		<Box
+			{...PILL_BASE}
+			color="aurora.amber"
+			borderColor="rgba(245,158,11,0.35)"
+			bg="rgba(245,158,11,0.10)"
+			title="Login blocked until verified"
+		>
+			<LuShieldQuestion size={12} /> unverified
 		</Box>
 	);
 };
@@ -380,6 +418,7 @@ export const Users = () => {
 	const { can } = usePermissions();
 
 	const canAssignRole = can("role:assign") && can("role:read");
+	const canVerify = can("user:verify");
 
 	const [users, setUsers] = useState<UserListItem[]>([]);
 	const [total, setTotal] = useState(0);
@@ -395,13 +434,18 @@ export const Users = () => {
 
 	const [filterOpen, setFilterOpen] = useState(false);
 	const [draftStatus, setDraftStatus] = useState<StatusFilter>("all");
+	const [draftVerified, setDraftVerified] = useState<VerifiedFilter>("all");
 	const [draftRole, setDraftRole] = useState("all");
 	const [draftLastLogin, setDraftLastLogin] = useState<LastLoginFilter>("any");
 	// `at` is captured when filters are applied so the last-login window is
 	// computed against a stable timestamp (render must stay pure).
-	const [applied, setApplied] = useState<{ status: StatusFilter; role: string; lastLogin: LastLoginFilter; at: number }>(
-		{ status: "all", role: "all", lastLogin: "any", at: 0 }
-	);
+	const [applied, setApplied] = useState<{
+		status: StatusFilter;
+		verified: VerifiedFilter;
+		role: string;
+		lastLogin: LastLoginFilter;
+		at: number;
+	}>({ status: "all", verified: "all", role: "all", lastLogin: "any", at: 0 });
 
 	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 	const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -412,6 +456,16 @@ export const Users = () => {
 	const [pageSize, setPageSize] = useState(USERS_PAGE_SIZE_OPTIONS[0].value);
 
 	const [inviteOpen, setInviteOpen] = useState(false);
+
+	// One-way verify confirm (mock #verify-modal) — row action targets one
+	// user, the bulk button targets every selected unverified user.
+	const [verifyOpen, setVerifyOpen] = useState(false);
+	const [verifyTargets, setVerifyTargets] = useState<UserListItem[]>([]);
+	const [verifySkipped, setVerifySkipped] = useState(0);
+
+	// Global "pending verification" count — honest data from the server-side
+	// verified=false query's total (not derived from the loaded page).
+	const [pendingVerification, setPendingVerification] = useState<number | null>(null);
 
 	// Debounce search before hitting the server.
 	useEffect(() => {
@@ -438,6 +492,7 @@ export const Users = () => {
 			query: debouncedSearch || undefined,
 			status: applied.status !== "all" ? STATUS_FILTER_TO_VALUE[applied.status] : undefined,
 			role: applied.role !== "all" ? applied.role : undefined,
+			verified: applied.verified !== "all" ? applied.verified === "verified" : undefined,
 		})
 			.then((response) => {
 				if (!active) return;
@@ -454,6 +509,22 @@ export const Users = () => {
 			active = false;
 		};
 	}, [page, pageSize, debouncedSearch, applied, reloadKey]);
+
+	// Pending-verification subtitle count — a 1-row verified=false query just
+	// for its total. Refetched alongside the list (reloadKey bumps).
+	useEffect(() => {
+		let active = true;
+		listUsers({ page: 1, size: 1, verified: false })
+			.then((response) => {
+				if (active) setPendingVerification(response.total);
+			})
+			.catch(() => {
+				// non-fatal — the subtitle simply omits the count
+			});
+		return () => {
+			active = false;
+		};
+	}, [reloadKey]);
 
 	// Role options for the filter select + bulk assign (needs role:read).
 	useEffect(() => {
@@ -504,7 +575,10 @@ export const Users = () => {
 	const safePage = Math.min(page, totalPages);
 
 	const appliedCount =
-		(applied.status !== "all" ? 1 : 0) + (applied.role !== "all" ? 1 : 0) + (applied.lastLogin !== "any" ? 1 : 0);
+		(applied.status !== "all" ? 1 : 0) +
+		(applied.verified !== "all" ? 1 : 0) +
+		(applied.role !== "all" ? 1 : 0) +
+		(applied.lastLogin !== "any" ? 1 : 0);
 	const totalSessions = users.reduce((sum, user) => sum + user.sessions_count, 0);
 	const allOnPageSelected = paged.length > 0 && paged.every((user) => selectedIds.has(user.id));
 	const someOnPageSelected = paged.some((user) => selectedIds.has(user.id));
@@ -585,6 +659,26 @@ export const Users = () => {
 		toaster.create({ title: "Edit user is not available yet", type: "info", meta: { closable: true } });
 	};
 
+	const openVerifyDialog = (targets: UserListItem[], skipped: number) => {
+		setVerifyTargets(targets);
+		setVerifySkipped(skipped);
+		setVerifyOpen(true);
+	};
+
+	// Bulk verify applies ONLY to selected unverified rows — already-verified
+	// selections are skipped (reported in the success toast).
+	const handleBulkVerify = () => {
+		const selectedUsers = users.filter((user) => selectedIds.has(user.id));
+		const targets = selectedUsers.filter((user) => !user.is_verified);
+		openVerifyDialog(targets, selectedUsers.length - targets.length);
+	};
+
+	const handleVerified = (ids: string[]) => {
+		mutateUsers(ids, { is_verified: true });
+		// refetch list + pending-verification count from the server
+		setReloadKey((previous) => previous + 1);
+	};
+
 	const handleBulkStatus = async (status: UserStatus) => {
 		const ids = [...selectedIds];
 		await Promise.all(ids.map((id) => updateUserStatus(id, status)));
@@ -640,23 +734,24 @@ export const Users = () => {
 	};
 
 	const handleApplyFilters = () => {
-		setApplied({ status: draftStatus, role: draftRole, lastLogin: draftLastLogin, at: Date.now() });
+		setApplied({ status: draftStatus, verified: draftVerified, role: draftRole, lastLogin: draftLastLogin, at: Date.now() });
 		setPage(1);
 	};
 
 	const handleResetFilters = () => {
 		setDraftStatus("all");
+		setDraftVerified("all");
 		setDraftRole("all");
 		setDraftLastLogin("any");
-		setApplied({ status: "all", role: "all", lastLogin: "any", at: 0 });
+		setApplied({ status: "all", verified: "all", role: "all", lastLogin: "any", at: 0 });
 		setFilterOpen(false);
 		setPage(1);
 	};
 
 	const handleExportCsv = () => {
-		const header = "id,name,email,status,role,is_admin,sessions,last_login_at,created_at";
+		const header = "id,name,email,status,is_verified,role,is_admin,sessions,last_login_at,created_at";
 		const rows = paged.map((user) =>
-			[user.id, user.name, user.email, user.status, user.role || "member", user.is_admin, user.sessions_count, user.last_login_at, user.created_at]
+			[user.id, user.name, user.email, user.status, user.is_verified, user.role || "member", user.is_admin, user.sessions_count, user.last_login_at, user.created_at]
 				.map((value) => `"${String(value).replace(/"/g, '""')}"`)
 				.join(",")
 		);
@@ -688,6 +783,16 @@ export const Users = () => {
 							{totalSessions.toLocaleString()}
 						</Text>{" "}
 						active sessions on this page
+						{pendingVerification !== null && (
+							<>
+								{" "}
+								·{" "}
+								<Text as="span" color="aurora.amber" fontWeight="semibold" css={{ fontVariantNumeric: "tabular-nums" }}>
+									{pendingVerification.toLocaleString()}
+								</Text>{" "}
+								pending verification
+							</>
+						)}
 					</Text>
 				</Box>
 				<HStack gap="2.5">
@@ -837,6 +942,46 @@ export const Users = () => {
 						</Box>
 						<Box>
 							<Text {...LABEL_PROPS} mb="2">
+								Verified
+							</Text>
+							{/* maps to user.is_verified — unverified accounts are blocked at
+							    login until an admin / user:verify holder verifies them */}
+							<HStack
+								gap="0"
+								borderRadius="glassSm"
+								borderWidth="1px"
+								borderColor="border.strong"
+								overflow="hidden"
+								w="fit-content"
+								bg="bg.glass"
+								css={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
+							>
+								{USER_VERIFIED_FILTER_OPTIONS.map((option, index) => (
+									<HStack
+										key={option}
+										as="button"
+										h="10"
+										px="3.5"
+										gap="1.5"
+										fontSize="13px"
+										fontWeight="medium"
+										cursor="pointer"
+										bg={draftVerified === option ? "linear-gradient(135deg, rgba(99,102,241,0.30), rgba(139,92,246,0.25))" : "transparent"}
+										boxShadow={draftVerified === option ? "0 0 16px rgba(139,92,246,0.25) inset" : "none"}
+										color={draftVerified === option ? "fg" : "fg.muted"}
+										borderRightWidth={index < USER_VERIFIED_FILTER_OPTIONS.length - 1 ? "1px" : "0"}
+										borderColor="border"
+										_hover={{ color: "fg" }}
+										onClick={() => setDraftVerified(option)}
+									>
+										{VERIFIED_FILTER_ICONS[option]}
+										{option}
+									</HStack>
+								))}
+							</HStack>
+						</Box>
+						<Box>
+							<Text {...LABEL_PROPS} mb="2">
 								Role
 							</Text>
 							<NativeSelect.Root size="sm" w="40">
@@ -922,6 +1067,10 @@ export const Users = () => {
 								<Text as="span" color="fg.subtle">
 									user.status
 								</Text>{" "}
+								&nbsp;·&nbsp; verified ·{" "}
+								<Text as="span" color="fg.subtle">
+									user.is_verified
+								</Text>{" "}
 								&nbsp;·&nbsp; role · rbac assignment &nbsp;·&nbsp; last login ·{" "}
 								<Text as="span" color="fg.subtle">
 									last_login_at
@@ -949,7 +1098,7 @@ export const Users = () => {
 										onCheckedChange={toggleSelectAll}
 									/>
 								</Table.ColumnHeader>
-								{["User", "Status", "Role", "Sessions", "Last login", "Created"].map((label) => (
+								{["User", "Status", "Verified", "Role", "Sessions", "Last login", "Created"].map((label) => (
 									<Table.ColumnHeader key={label} px="3.5" py="3" bg="transparent" {...LABEL_PROPS}>
 										{label}
 									</Table.ColumnHeader>
@@ -960,7 +1109,7 @@ export const Users = () => {
 						<Table.Body>
 							{paged.length === 0 && (
 								<Table.Row bg="transparent">
-									<Table.Cell colSpan={8} px="3.5" py="8" textAlign="center" fontSize="sm" color="fg.muted">
+									<Table.Cell colSpan={9} px="3.5" py="8" textAlign="center" fontSize="sm" color="fg.muted">
 										No users match the current search / filters.
 									</Table.Cell>
 								</Table.Row>
@@ -1029,6 +1178,9 @@ export const Users = () => {
 												<StatusPill status={user.status} />
 											</Table.Cell>
 											<Table.Cell px="3.5" py="13px">
+												<VerifiedPill verified={user.is_verified} />
+											</Table.Cell>
+											<Table.Cell px="3.5" py="13px">
 												<RolePill role={user.role} />
 											</Table.Cell>
 											<Table.Cell
@@ -1048,6 +1200,13 @@ export const Users = () => {
 											</Table.Cell>
 											<Table.Cell px="3.5" py="13px">
 												<HStack className="row-actions" gap="1.5" justify="flex-end">
+													{/* verify (one-way) — rendered ONLY when is_verified=false AND the
+													    caller holds user:verify; verified rows never show it */}
+													{!user.is_verified && canVerify && (
+														<QuickActionButton label="Verify account" color="aurora.mint" onClick={() => openVerifyDialog([user], 0)}>
+															<LuBadgeCheck size={14} />
+														</QuickActionButton>
+													)}
 													{pending ? (
 														<>
 															<QuickActionButton label="Resend invite" color="aurora.cyan" onClick={() => handleResendInvite(user)}>
@@ -1086,7 +1245,7 @@ export const Users = () => {
 										{expanded && (
 											<Table.Row bg="rgba(7,7,26,0.30)">
 												<Table.Cell px="0" py="0" border="none" />
-												<Table.Cell colSpan={7} px="3.5" pt="0" pb="4">
+												<Table.Cell colSpan={8} px="3.5" pt="0" pb="4">
 													<SessionsPanel
 														sessions={sessionsByUser[user.id] ?? []}
 														loading={sessionsLoadingFor === user.id}
@@ -1117,6 +1276,31 @@ export const Users = () => {
 							{selectedIds.size} selected
 						</Text>
 						<Box h="18px" w="1px" bg="border.strong" />
+						{/* bulk verify — only selected unverified rows are sent; verified
+						    selections are skipped (reported in the toast). Hidden without user:verify. */}
+						{canVerify && (
+							<Button
+								h="8"
+								px="3"
+								variant="outline"
+								borderRadius="9px"
+								borderColor="rgba(52,211,153,0.35)"
+								bg="rgba(52,211,153,0.08)"
+								fontSize="12px"
+								fontWeight="semibold"
+								color="aurora.mint"
+								_hover={{ bg: "rgba(52,211,153,0.16)" }}
+								disabled={!users.some((user) => selectedIds.has(user.id) && !user.is_verified)}
+								title={
+									users.some((user) => selectedIds.has(user.id) && !user.is_verified)
+										? undefined
+										: "All selected accounts are already verified"
+								}
+								onClick={handleBulkVerify}
+							>
+								<LuBadgeCheck size={13} /> Verify
+							</Button>
+						)}
 						<Button {...GHOST_BUTTON_PROPS} h="8" px="3" fontSize="12px" borderRadius="9px" color="fg.subtle" onClick={() => handleBulkStatus(USER_STATUS.ACTIVE)}>
 							<LuCircleCheck size={13} /> Activate
 						</Button>
@@ -1281,6 +1465,14 @@ export const Users = () => {
 				open={inviteOpen}
 				onOpenChange={setInviteOpen}
 				onInvited={(invited) => setUsers((previous) => [invited, ...previous])}
+			/>
+
+			<VerifyUserDialog
+				open={verifyOpen}
+				targets={verifyTargets}
+				skippedCount={verifySkipped}
+				onOpenChange={setVerifyOpen}
+				onVerified={handleVerified}
 			/>
 		</AppShell>
 	);
