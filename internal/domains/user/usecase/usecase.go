@@ -68,6 +68,7 @@ func (u *usecase) List(ctx context.Context, req models.ListRequest) (models.List
 			Email:         user.Email,
 			Status:        user.Status,
 			IsAdmin:       user.IsAdmin,
+			IsVerified:    user.IsVerified,
 			Role:          roleCodes[user.ID],
 			SessionsCount: sessionCounts[user.ID],
 			LastLoginAt:   lastLoginAt,
@@ -98,6 +99,24 @@ func (u *usecase) UpdateStatus(ctx context.Context, id string, req models.Update
 	}
 
 	return u.userRepo.UpdateStatus(ctx, id, req.Status)
+}
+
+func (u *usecase) VerifyUser(ctx context.Context, id string) error {
+	// check user exists
+	user, err := u.userRepo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if user.ID == "" {
+		return pkgErr.NotFound("user not found")
+	}
+
+	// verification is one-way — re-verifying is rejected explicitly
+	if user.IsVerified {
+		return pkgErr.InvalidRequest("user already verified")
+	}
+
+	return u.userRepo.Verify(ctx, id)
 }
 
 func (u *usecase) SoftDelete(ctx context.Context, id string) error {

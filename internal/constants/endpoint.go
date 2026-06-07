@@ -25,6 +25,7 @@ const (
 	USER_ENDPOINT_ROOT           = ""
 	USER_ENDPOINT_DETAIL         = "/:userID"
 	USER_ENDPOINT_STATUS         = "/:userID/status"
+	USER_ENDPOINT_VERIFY         = "/:userID/verify"
 	USER_ENDPOINT_SESSIONS       = "/:userID/sessions"
 	USER_ENDPOINT_SESSION_REVOKE = "/:userID/sessions/:sessionID/revoke"
 

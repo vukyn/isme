@@ -9,6 +9,8 @@ import (
 	"github.com/vukyn/isme/internal/config"
 	appServiceHandlers "github.com/vukyn/isme/internal/domains/app_service/handlers/http"
 	authHandlers "github.com/vukyn/isme/internal/domains/auth/handlers/http"
+	roleHandlers "github.com/vukyn/isme/internal/domains/role/handlers/http"
+	userHandlers "github.com/vukyn/isme/internal/domains/user/handlers/http"
 
 	pkgCtx "github.com/vukyn/kuery/ctx"
 
@@ -67,6 +69,8 @@ func (s *Server) Start() {
 	apiV1 := s.app.Group("/api/v1")
 	authHandlers.SetupAuthRoutes(apiV1)
 	appServiceHandlers.SetupAppServiceRoutes(apiV1)
+	userHandlers.SetupUserRoutes(apiV1)
+	roleHandlers.SetupRoleRoutes(apiV1)
 
 	// web routes
 	s.webRoutes(s.app)

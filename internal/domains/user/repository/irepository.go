@@ -22,6 +22,8 @@ type IRepository interface {
 	PromoteAdmin(ctx context.Context, id string) error
 	// IsAdmin: check if isAdmin equals 1
 	IsAdmin(ctx context.Context, id string) (bool, error)
+	// Verify: one-way flip of isVerified to 1 (there is no unverify)
+	Verify(ctx context.Context, id string) error
 	// List users with pagination and filters
 	List(ctx context.Context, req models.ListRequest) ([]entity.User, int64, error)
 	// Update user status (1=active, 2=inactive)
