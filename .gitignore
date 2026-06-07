@@ -18,6 +18,9 @@ venv/
 # Certificates
 certs/
 
+# code-review-graph cache (local knowledge graph)
+.code-review-graph/
+
 # Local SQLite DB — runtime data, holds secrets (app_service secrets, session
 # tokens). Schema is created by db/migrate.go; never commit the binary.
 db/*.db
