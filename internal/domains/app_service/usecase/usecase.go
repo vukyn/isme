@@ -211,6 +211,22 @@ func (u *usecase) ListApps(ctx context.Context, req models.ListRequest) (models.
 		return models.ListResponse{}, err
 	}
 
+	// resolve creator emails once per distinct id
+	creatorEmails := make(map[string]string)
+	for _, appService := range appServices {
+		if appService.CreatedBy == "" {
+			continue
+		}
+		if _, resolved := creatorEmails[appService.CreatedBy]; resolved {
+			continue
+		}
+		creator, err := u.userRepo.GetByID(ctx, appService.CreatedBy)
+		if err != nil {
+			return models.ListResponse{}, err
+		}
+		creatorEmails[appService.CreatedBy] = creator.Email
+	}
+
 	items := make([]models.AppServiceListItem, 0, len(appServices))
 	for _, appService := range appServices {
 		updatedAt := ""
@@ -222,16 +238,17 @@ func (u *usecase) ListApps(ctx context.Context, req models.ListRequest) (models.
 			createdAt = appService.CreatedAt.Format(time.RFC3339)
 		}
 		items = append(items, models.AppServiceListItem{
-			ID:          appService.ID,
-			AppCode:     appService.AppCode,
-			AppName:     appService.AppName,
-			RedirectURL: appService.RedirectURL,
-			CtxInfo:     appService.CtxInfo,
-			Status:      appService.Status,
-			CreatedAt:   createdAt,
-			CreatedBy:   appService.CreatedBy,
-			UpdatedAt:   updatedAt,
-			UpdatedBy:   appService.UpdatedBy,
+			ID:             appService.ID,
+			AppCode:        appService.AppCode,
+			AppName:        appService.AppName,
+			RedirectURL:    appService.RedirectURL,
+			CtxInfo:        appService.CtxInfo,
+			Status:         appService.Status,
+			CreatedAt:      createdAt,
+			CreatedBy:      appService.CreatedBy,
+			CreatedByEmail: creatorEmails[appService.CreatedBy],
+			UpdatedAt:      updatedAt,
+			UpdatedBy:      appService.UpdatedBy,
 		})
 	}
 

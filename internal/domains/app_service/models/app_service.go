@@ -117,16 +117,17 @@ func (r *ListRequest) Normalize() {
 // AppServiceListItem represents an app service in the list response.
 // AppSecret is intentionally absent — it must never leave the usecase layer.
 type AppServiceListItem struct {
-	ID          string `json:"id"`
-	AppCode     string `json:"app_code"`
-	AppName     string `json:"app_name"`
-	RedirectURL string `json:"redirect_url"`
-	CtxInfo     string `json:"ctx_info"`
-	Status      int32  `json:"status"`
-	CreatedAt   string `json:"created_at"`
-	CreatedBy   string `json:"created_by"`
-	UpdatedAt   string `json:"updated_at"`
-	UpdatedBy   string `json:"updated_by"`
+	ID             string `json:"id"`
+	AppCode        string `json:"app_code"`
+	AppName        string `json:"app_name"`
+	RedirectURL    string `json:"redirect_url"`
+	CtxInfo        string `json:"ctx_info"`
+	Status         int32  `json:"status"`
+	CreatedAt      string `json:"created_at"`
+	CreatedBy      string `json:"created_by"`       // creator user id
+	CreatedByEmail string `json:"created_by_email"` // resolved creator email (empty when unresolvable)
+	UpdatedAt      string `json:"updated_at"`
+	UpdatedBy      string `json:"updated_by"`
 }
 
 // ListResponse for app service list endpoint

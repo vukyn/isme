@@ -23,6 +23,7 @@ export interface AppService {
 	status: AppServiceStatus;
 	created_at: string;
 	created_by: string;
+	created_by_email: string;
 	updated_at: string;
 	updated_by: string;
 }
