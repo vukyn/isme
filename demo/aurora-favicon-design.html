@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>isme — Aurora Favicon Design</title>
+<!--
+  aurora-favicon-design.html — presentation mock for the isme favicon (aurora theme).
+  Source asset: demo/aurora-favicon.svg (identical SVG inlined below for self-containment).
+  Concept: monogram "i" whose dot + rounded stem doubles as an abstract person
+  silhouette — identity / "is me". Gradient echoes the aurora brand-mark:
+  cyan #22D3EE -> violet #8B5CF6 (60%) -> magenta #EC4899, 135deg, radius 8/32 (25%).
+-->
+<style>
+  :root {
+    --bg-0: #07071A;
+    --bg-1: #0B0B23;
+    --fg: #F4F5FF;
+    --fg-soft: #C7CAE8;
+    --fg-mute: #8A8FB5;
+    --border: rgba(255,255,255,0.10);
+    --border-strong: rgba(255,255,255,0.18);
+    --glass: rgba(255,255,255,0.06);
+    --glass-strong: rgba(255,255,255,0.10);
+    --c-cyan: #22D3EE;
+    --c-blue: #6366F1;
+    --c-violet: #8B5CF6;
+    --c-magenta: #EC4899;
+    --radius: 16px;
+    --radius-sm: 12px;
+    --easing: cubic-bezier(.2,.8,.2,1);
+    --shadow-glass: 0 1px 0 rgba(255,255,255,0.06) inset, 0 8px 32px rgba(0,0,0,0.45);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter','DM Sans',system-ui,-apple-system,sans-serif;
+    color: var(--fg);
+    min-height: 100dvh;
+    background:
+      radial-gradient(60% 50% at 12% 10%, rgba(99,102,241,0.45), transparent 60%),
+      radial-gradient(45% 40% at 88% 18%, rgba(34,211,238,0.35), transparent 60%),
+      radial-gradient(55% 45% at 75% 92%, rgba(236,72,153,0.32), transparent 60%),
+      radial-gradient(50% 40% at 18% 80%, rgba(139,92,246,0.32), transparent 60%),
+      linear-gradient(180deg, #07071A 0%, #0B0B23 60%, #04040E 100%);
+    background-attachment: fixed;
+    padding: 48px 24px 80px;
+  }
+  .page { max-width: 960px; margin: 0 auto; display: grid; gap: 28px; }
+
+  header.hero { display: flex; align-items: center; gap: 18px; }
+  .hero-icon { width: 64px; height: 64px; flex: none; filter: drop-shadow(0 8px 24px rgba(99,102,241,0.45)); }
+  .hero h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
+  .hero p { color: var(--fg-mute); font-size: 14px; margin-top: 4px; max-width: 60ch; line-height: 1.6; }
+  .hero code { color: var(--fg-soft); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; background: var(--glass); border: 1px solid var(--border); border-radius: 6px; padding: 1px 6px; }
+
+  .card {
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-glass);
+    backdrop-filter: blur(14px);
+    padding: 24px;
+  }
+  .card h2 { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; margin-bottom: 4px; }
+  .card .sub { font-size: 13px; color: var(--fg-mute); margin-bottom: 20px; line-height: 1.5; }
+
+  /* ---- size ladder ---- */
+  .sizes { display: flex; align-items: flex-end; gap: 40px; flex-wrap: wrap; }
+  .size-item { display: grid; gap: 10px; justify-items: center; }
+  .size-item .label { font-size: 12px; color: var(--fg-mute); font-variant-numeric: tabular-nums; }
+  .size-item svg { display: block; }
+  .px-16 svg { width: 16px; height: 16px; }
+  .px-32 svg { width: 32px; height: 32px; }
+  .px-64 svg { width: 64px; height: 64px; }
+  .px-128 svg { width: 128px; height: 128px; }
+
+  /* ---- fake browser tab strips ---- */
+  .tabstrip { border-radius: var(--radius-sm) var(--radius-sm) 0 0; padding: 10px 12px 0; display: flex; gap: 6px; align-items: flex-end; overflow: hidden; }
+  .tabstrip.light { background: #DEE1E6; }
+  .tabstrip.dark  { background: #202124; }
+  .tab {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 14px; border-radius: 10px 10px 0 0;
+    font-size: 12px; max-width: 220px; min-width: 0;
+  }
+  .tab .t-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tab svg { width: 16px; height: 16px; flex: none; }
+  .tabstrip.light .tab.active { background: #FFFFFF; color: #202124; }
+  .tabstrip.light .tab.inactive { color: #4B5057; }
+  .tabstrip.dark .tab.active { background: #3C4043; color: #E8EAED; }
+  .tabstrip.dark .tab.inactive { color: #9AA0A6; }
+  .urlbar { padding: 8px 12px; font-size: 12px; display: flex; align-items: center; gap: 8px; border-radius: 0 0 var(--radius-sm) var(--radius-sm); }
+  .urlbar .pill { border-radius: 999px; padding: 5px 14px; flex: 1; font-family: ui-monospace, Menlo, monospace; font-size: 11px; }
+  .tabwrap.light .urlbar { background: #FFFFFF; }
+  .tabwrap.light .urlbar .pill { background: #F1F3F4; color: #202124; }
+  .tabwrap.dark .urlbar { background: #3C4043; }
+  .tabwrap.dark .urlbar .pill { background: #202124; color: #E8EAED; }
+  .tabwrap { display: grid; gap: 0; }
+  .tabgrid { display: grid; gap: 20px; }
+
+  /* ---- background contrast swatches ---- */
+  .swatches { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; }
+  .swatch {
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    display: grid; place-items: center; gap: 0;
+    padding: 28px 12px 22px;
+  }
+  .swatch svg { width: 32px; height: 32px; }
+  .swatch .s-label { font-size: 11px; margin-top: 14px; font-variant-numeric: tabular-nums; }
+  .sw-white  { background: #FFFFFF; }            .sw-white .s-label  { color: #4B5057; }
+  .sw-light  { background: #F1F3F4; }            .sw-light .s-label  { color: #4B5057; }
+  .sw-dark   { background: #202124; }            .sw-dark .s-label   { color: #9AA0A6; }
+  .sw-black  { background: #000000; }            .sw-black .s-label  { color: #8A8FB5; }
+  .sw-aurora { background: linear-gradient(135deg, rgba(99,102,241,0.30), rgba(236,72,153,0.22)); }
+  .sw-aurora .s-label { color: var(--fg-soft); }
+
+  .note { font-size: 12px; color: var(--fg-mute); line-height: 1.6; margin-top: 16px; border-top: 1px solid var(--border); padding-top: 14px; }
+  .note strong { color: var(--fg-soft); font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="hero">
+    <!-- Favicon master asset — same markup as demo/aurora-favicon.svg -->
+    <svg class="hero-icon" viewBox="0 0 32 32" role="img" aria-label="isme favicon">
+      <defs>
+        <linearGradient id="aurora" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stop-color="#22D3EE"/>
+          <stop offset="0.6" stop-color="#8B5CF6"/>
+          <stop offset="1" stop-color="#EC4899"/>
+        </linearGradient>
+      </defs>
+      <rect width="32" height="32" rx="8" fill="url(#aurora)"/>
+      <circle cx="16" cy="10" r="3.6" fill="#FFFFFF"/>
+      <rect x="12.4" y="16.4" width="7.2" height="9.6" rx="3.6" fill="#FFFFFF"/>
+    </svg>
+    <div>
+      <h1>isme favicon — aurora</h1>
+      <p>Monogram <strong>"i"</strong> whose dot and rounded stem double as an abstract person silhouette — identity, "is me". Gradient matches the aurora brand-mark: <code>#22D3EE</code> → <code>#8B5CF6</code> → <code>#EC4899</code> at 135°, corner radius 25% (8/32). Asset: <code>demo/aurora-favicon.svg</code>.</p>
+    </div>
+  </header>
+
+  <!-- ================= size ladder ================= -->
+  <section class="card">
+    <h2>Size ladder</h2>
+    <p class="sub">Two bold shapes only — the mark must survive 16&times;16. No strokes, no detail lines.</p>
+    <div class="sizes">
+      <div class="size-item px-16">
+        <svg viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="url(#aurora)"/><circle cx="16" cy="10" r="3.6" fill="#FFF"/><rect x="12.4" y="16.4" width="7.2" height="9.6" rx="3.6" fill="#FFF"/></svg>
+        <span class="label">16 px</span>
+      </div>
+      <div class="size-item px-32">
+        <svg viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="url(#aurora)"/><circle cx="16" cy="10" r="3.6" fill="#FFF"/><rect x="12.4" y="16.4" width="7.2" height="9.6" rx="3.6" fill="#FFF"/></svg>
+        <span class="label">32 px</span>
+      </div>
+      <div class="size-item px-64">
+        <svg viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="url(#aurora)"/><circle cx="16" cy="10" r="3.6" fill="#FFF"/><rect x="12.4" y="16.4" width="7.2" height="9.6" rx="3.6" fill="#FFF"/></svg>
+        <span class="label">64 px</span>
+      </div>
+      <div class="size-item px-128">
+        <svg viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="url(#aurora)"/><circle cx="16" cy="10" r="3.6" fill="#FFF"/><rect x="12.4" y="16.4" width="7.2" height="9.6" rx="3.6" fill="#FFF"/></svg>
+        <span class="label">128 px</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= browser tabs ================= -->
+  <section class="card">
+    <h2>In-context: browser tabs</h2>
+    <p class="sub">Light and dark tab strips, active and inactive tabs, plus a long-title overflow case.</p>
+    <div class="tabgrid">
+
+      <div class="tabwrap light">
+        <div class="tabstrip light">
+          <div class="tab active">
+            <svg viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="url(#aurora)"/><circle cx="16" cy="10" r="3.6" fill="#FFF"/><rect x="12.4" y="16.4" width="7.2" height="9.6" rx="3.6" fill="#FFF"/></svg>
+            <span class="t-label">isme — Sign in</span>
+          </div>
+          <div class="tab inactive">
+            <svg viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="url(#aurora)"/><circle cx="16" cy="10" r="3.6" fill="#FFF"/><rect x="12.4" y="16.4" width="7.2" height="9.6" rx="3.6" fill="#FFF"/></svg>
+            <span class="t-label">isme — Users · Roles &amp; Permissions · App Services administration console</span>
+          </div>
+        </div>
+        <div class="urlbar"><span class="pill">https://sso.isme.local/login</span></div>
+      </div>
+
+      <div class="tabwrap dark">
+        <div class="tabstrip dark">
+          <div class="tab active">
+            <svg viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="url(#aurora)"/><circle cx="16" cy="10" r="3.6" fill="#FFF"/><rect x="12.4" y="16.4" width="7.2" height="9.6" rx="3.6" fill="#FFF"/></svg>
+            <span class="t-label">isme — Sign in</span>
+          </div>
+          <div class="tab inactive">
+            <svg viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="url(#aurora)"/><circle cx="16" cy="10" r="3.6" fill="#FFF"/><rect x="12.4" y="16.4" width="7.2" height="9.6" rx="3.6" fill="#FFF"/></svg>
+            <span class="t-label">isme — Sessions</span>
+          </div>
+        </div>
+        <div class="urlbar"><span class="pill">https://sso.isme.local/users</span></div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ================= background contrast ================= -->
+  <section class="card">
+    <h2>Background contrast</h2>
+    <p class="sub">The opaque gradient tile carries its own contrast, so the mark holds on any tab/bookmark/dock background — no light/dark variant needed.</p>
+    <div class="swatches">
+      <div class="swatch sw-white">
+        <svg viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="url(#aurora)"/><circle cx="16" cy="10" r="3.6" fill="#FFF"/><rect x="12.4" y="16.4" width="7.2" height="9.6" rx="3.6" fill="#FFF"/></svg>
+        <span class="s-label">#FFFFFF</span>
+      </div>
+      <div class="swatch sw-light">
+        <svg viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="url(#aurora)"/><circle cx="16" cy="10" r="3.6" fill="#FFF"/><rect x="12.4" y="16.4" width="7.2" height="9.6" rx="3.6" fill="#FFF"/></svg>
+        <span class="s-label">#F1F3F4</span>
+      </div>
+      <div class="swatch sw-dark">
+        <svg viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="url(#aurora)"/><circle cx="16" cy="10" r="3.6" fill="#FFF"/><rect x="12.4" y="16.4" width="7.2" height="9.6" rx="3.6" fill="#FFF"/></svg>
+        <span class="s-label">#202124</span>
+      </div>
+      <div class="swatch sw-black">
+        <svg viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="url(#aurora)"/><circle cx="16" cy="10" r="3.6" fill="#FFF"/><rect x="12.4" y="16.4" width="7.2" height="9.6" rx="3.6" fill="#FFF"/></svg>
+        <span class="s-label">#000000</span>
+      </div>
+      <div class="swatch sw-aurora">
+        <svg viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="url(#aurora)"/><circle cx="16" cy="10" r="3.6" fill="#FFF"/><rect x="12.4" y="16.4" width="7.2" height="9.6" rx="3.6" fill="#FFF"/></svg>
+        <span class="s-label">aurora surface</span>
+      </div>
+    </div>
+    <p class="note">
+      <strong>Port notes:</strong> link as <code style="font-family:ui-monospace,Menlo,monospace">&lt;link rel="icon" type="image/svg+xml" href="/favicon.svg"&gt;</code>; white-on-violet glyph contrast ≈ 4.9:1 at the gradient midpoint. For PNG fallbacks (apple-touch-icon 180px), rasterize this same SVG — no redesign needed. The mark intentionally reuses the brand gradient but not the layers icon from the app bar: at 16px the layers strokes collapse, the i/person silhouette does not.
+    </p>
+  </section>
+
+</div>
+</body>
+</html>
