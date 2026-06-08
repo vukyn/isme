@@ -1,0 +1,1131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>isme — Invite-link user creation · Aurora UI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  /* ====== Aurora design tokens — same block as aurora-users-design.html ====== */
+  :root {
+    --bg-0: #07071A;
+    --bg-1: #0B0B23;
+    --bg-2: #12122E;
+    --fg: #F4F5FF;
+    --fg-soft: #C7CAE8;
+    --fg-mute: #8A8FB5;
+    --border: rgba(255,255,255,0.10);
+    --border-strong: rgba(255,255,255,0.18);
+    --glass: rgba(255,255,255,0.06);
+    --glass-strong: rgba(255,255,255,0.10);
+
+    --c-cyan: #22D3EE;
+    --c-blue: #6366F1;
+    --c-violet: #8B5CF6;
+    --c-magenta: #EC4899;
+    --c-amber: #F59E0B;
+    --c-mint: #34D399;
+
+    --accent: var(--c-violet);
+    --accent-glow: rgba(139,92,246,0.45);
+
+    --radius: 16px;
+    --radius-sm: 12px;
+    --easing: cubic-bezier(.2,.8,.2,1);
+    --shadow-glass: 0 1px 0 rgba(255,255,255,0.06) inset, 0 8px 32px rgba(0,0,0,0.45);
+    --shadow-pop: 0 20px 60px rgba(99,102,241,0.25), 0 4px 12px rgba(0,0,0,0.35);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter','DM Sans',system-ui,-apple-system,sans-serif;
+    color: var(--fg);
+    background: var(--bg-0);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
+    overflow-x: hidden;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+
+  /* Aurora background — global */
+  body::before {
+    content: ""; position: fixed; inset: 0; z-index: -2;
+    background:
+      radial-gradient(60% 50% at 12% 10%, rgba(99,102,241,0.45), transparent 60%),
+      radial-gradient(45% 40% at 88% 18%, rgba(34,211,238,0.35), transparent 60%),
+      radial-gradient(55% 45% at 75% 92%, rgba(236,72,153,0.32), transparent 60%),
+      radial-gradient(50% 40% at 18% 80%, rgba(139,92,246,0.32), transparent 60%),
+      linear-gradient(180deg, #07071A 0%, #0B0B23 60%, #04040E 100%);
+    background-size: 200% 200%;
+    animation: auroraFlow 14s ease-in-out infinite alternate;
+    filter: saturate(1.15);
+  }
+  body::after {
+    content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 3px 3px;
+    mix-blend-mode: overlay;
+    opacity: 0.45;
+  }
+  @keyframes auroraFlow {
+    0%   { background-position: 0% 0%, 100% 0%, 100% 100%, 0% 100%, 0 0; }
+    50%  { background-position: 30% 20%, 60% 30%, 70% 70%, 30% 60%, 0 0; }
+    100% { background-position: 100% 100%, 0% 100%, 0% 0%, 100% 0%, 0 0; }
+  }
+
+  /* ====== Showcase stack (same anatomy as auth-mockup.html) ====== */
+  .page-stack { display: flex; flex-direction: column; gap: 56px; padding: 48px 24px; max-width: 1440px; margin: 0 auto; }
+  .page-label {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--fg-mute); margin-bottom: 14px;
+    display: inline-flex; align-items: center; gap: 10px;
+  }
+  .page-label::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--c-cyan); box-shadow: 0 0 12px var(--c-cyan); }
+  .state-label {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--fg-mute); margin-bottom: 10px; display: block;
+  }
+
+  .frame {
+    position: relative;
+    border-radius: 28px;
+    overflow: hidden;
+    background: linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-glass);
+  }
+  .frame::before {
+    content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+    background:
+      radial-gradient(40% 60% at 0% 0%, rgba(99,102,241,0.40), transparent 60%),
+      radial-gradient(45% 55% at 100% 0%, rgba(34,211,238,0.30), transparent 60%),
+      radial-gradient(50% 60% at 100% 100%, rgba(236,72,153,0.30), transparent 60%),
+      radial-gradient(40% 50% at 0% 100%, rgba(139,92,246,0.30), transparent 60%);
+    background-size: 200% 200%;
+    animation: auroraFlow 12s ease-in-out infinite alternate;
+    filter: blur(20px) saturate(1.2);
+  }
+  .frame > * { position: relative; z-index: 1; }
+
+  /* ====== Topbar shell (aurora AppShell/Topbar — tab nav, no sidebar) ====== */
+  .app-bar {
+    height: 64px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 28px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(7,7,26,0.62);
+    backdrop-filter: blur(20px) saturate(1.2);
+  }
+  .bar-left { display: flex; align-items: center; gap: 24px; }
+  .bar-right { display: flex; align-items: center; gap: 10px; }
+  .brand-row { display: flex; align-items: center; gap: 12px; }
+  .brand-mark {
+    width: 34px; height: 34px; border-radius: 10px;
+    background: conic-gradient(from 180deg at 50% 50%, var(--c-cyan), var(--c-blue), var(--c-violet), var(--c-magenta), var(--c-cyan));
+    display: grid; place-items: center;
+    box-shadow: 0 8px 24px rgba(99,102,241,0.45);
+  }
+  .brand-mark > span {
+    width: 26px; height: 26px; border-radius: 7px;
+    background: var(--bg-0); display: grid; place-items: center;
+  }
+  .brand-name { font-weight: 700; font-size: 17px; letter-spacing: -0.01em; }
+  .nav { display: flex; gap: 4px; }
+  .nav a {
+    font-size: 14px; padding: 8px 14px; border-radius: 10px;
+    color: var(--fg-mute); text-decoration: none; font-weight: 500;
+    transition: all .15s var(--easing);
+    border: 1px solid transparent;
+  }
+  .nav a.active {
+    color: var(--fg);
+    background: var(--glass);
+    border-color: var(--border-strong);
+    box-shadow: 0 0 20px rgba(99,102,241,0.20);
+  }
+  .nav a:hover { color: var(--fg); }
+  .icon-btn {
+    width: 40px; height: 40px;
+    background: var(--glass); border: 1px solid var(--border-strong);
+    border-radius: 10px;
+    display: grid; place-items: center;
+    color: var(--fg-soft); cursor: pointer;
+    backdrop-filter: blur(12px);
+    transition: all .15s var(--easing);
+    position: relative;
+  }
+  .icon-btn:hover { color: var(--fg); border-color: rgba(255,255,255,0.28); }
+  .icon-btn .badge {
+    position: absolute; top: 6px; right: 6px;
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--c-magenta); box-shadow: 0 0 8px var(--c-magenta);
+  }
+  .user-chip {
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 4px 10px 4px 4px;
+    border: 1px solid var(--border-strong); border-radius: 999px;
+    background: var(--glass); backdrop-filter: blur(12px);
+    cursor: pointer; transition: all .15s var(--easing);
+  }
+  .user-chip:hover { background: var(--glass-strong); }
+  .avatar-lg {
+    width: 32px; height: 32px; border-radius: 999px;
+    background: conic-gradient(from 200deg, var(--c-cyan), var(--c-blue), var(--c-violet), var(--c-magenta), var(--c-cyan));
+    color: #fff; display: grid; place-items: center;
+    font-weight: 700; font-size: 13px;
+    box-shadow: 0 0 16px var(--accent-glow);
+  }
+  .user-chip .meta { font-size: 13px; line-height: 1.15; }
+  .user-chip .meta b { display: block; font-weight: 600; color: var(--fg); }
+  .user-chip .meta span { color: var(--fg-mute); font-size: 12px; }
+
+  .app-main { max-width: 1280px; margin: 0 auto; padding: 32px 28px 56px; display: grid; gap: 20px; }
+  .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .page-head h1 { margin: 0; font-size: 32px; font-weight: 700; letter-spacing: -0.025em; line-height: 1.1; }
+  .page-sub { margin: 6px 0 0; color: var(--fg-mute); font-size: 14px; }
+  .page-sub .num { color: var(--c-cyan); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .page-sub .num.warn { color: var(--c-amber); }
+  .head-actions { display: flex; gap: 10px; }
+
+  /* sub-tabs (left) + page actions (right) share one row */
+  .tab-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  /* sub-tabs on the /users page: Users | Invitations */
+  .sub-tabs {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px;
+    border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+    background: var(--glass); backdrop-filter: blur(12px);
+    width: fit-content;
+  }
+  .sub-tabs button {
+    display: inline-flex; align-items: center; gap: 8px;
+    height: 36px; padding: 0 16px;
+    border: 0; border-radius: 9px; cursor: pointer;
+    font: inherit; font-size: 13px; font-weight: 600; color: var(--fg-mute);
+    background: transparent;
+    transition: all .15s var(--easing);
+  }
+  .sub-tabs button:hover { color: var(--fg); }
+  .sub-tabs button.on {
+    color: var(--fg);
+    background: linear-gradient(135deg, rgba(99,102,241,0.30), rgba(139,92,246,0.25));
+    box-shadow: 0 0 16px rgba(139,92,246,0.25) inset;
+  }
+  .sub-tabs .count {
+    min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px;
+    display: grid; place-items: center; font-size: 11px;
+    background: rgba(245,158,11,0.22); color: var(--c-amber);
+  }
+
+  /* buttons */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+    height: 44px; padding: 0 18px;
+    border-radius: var(--radius-sm); border: 1px solid transparent;
+    font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+    transition: transform .15s var(--easing), box-shadow .2s var(--easing), background .2s var(--easing);
+  }
+  .btn:active { transform: translateY(1px) scale(0.995); }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--c-blue) 0%, var(--c-violet) 50%, var(--c-magenta) 100%);
+    color: #fff;
+    box-shadow: 0 10px 30px rgba(99,102,241,0.45), 0 0 0 1px rgba(255,255,255,0.10) inset;
+    background-size: 200% 200%;
+    /* no-repeat + pinned position: 200% size otherwise seams the magenta tile edge as a red sliver on the left */
+    background-repeat: no-repeat;
+    background-position: 0% 0%;
+  }
+  .btn-primary:hover { background-position: 100% 100%; box-shadow: 0 14px 40px rgba(139,92,246,0.55); }
+  .btn-primary:focus-visible { outline: 0; box-shadow: 0 0 0 4px rgba(139,92,246,0.35), 0 14px 40px rgba(139,92,246,0.55); }
+  .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+  .btn-ghost {
+    background: var(--glass); color: var(--fg);
+    border-color: var(--border-strong);
+    backdrop-filter: blur(12px);
+  }
+  .btn-ghost:hover { background: var(--glass-strong); border-color: rgba(255,255,255,0.28); }
+  .btn-block { width: 100%; height: 48px; font-size: 15px; }
+
+  /* ====== Glass panel + table (aurora-users anatomy) ====== */
+  .panel {
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    backdrop-filter: blur(20px) saturate(1.15);
+    box-shadow: var(--shadow-glass);
+    overflow: hidden;
+  }
+  .toolbar { display: flex; align-items: center; gap: 10px; padding: 14px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .input-wrap {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--glass);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    padding: 0 14px; height: 44px;
+    transition: border-color .2s var(--easing), box-shadow .2s var(--easing), background .2s var(--easing);
+    backdrop-filter: blur(12px);
+  }
+  .input-wrap:hover { border-color: rgba(255,255,255,0.28); }
+  .input-wrap:focus-within {
+    border-color: var(--c-violet);
+    box-shadow: 0 0 0 4px rgba(139,92,246,0.18), 0 0 24px rgba(139,92,246,0.25);
+    background: rgba(255,255,255,0.08);
+  }
+  .input-wrap svg { color: var(--fg-mute); flex: 0 0 auto; }
+  .input-wrap:focus-within svg { color: var(--c-cyan); }
+  .input-wrap input {
+    flex: 1; border: 0; outline: 0; background: transparent;
+    font: inherit; font-size: 14px; color: var(--fg); height: 100%;
+  }
+  .input-wrap input::placeholder { color: var(--fg-mute); }
+  /* locked / read-only field (accept page email — prefilled from the invite, not editable) */
+  .input-wrap.locked { background: rgba(255,255,255,0.03); border-style: dashed; cursor: not-allowed; }
+  .input-wrap.locked input { color: var(--fg-soft); cursor: not-allowed; }
+  .input-wrap.locked .lock { color: var(--c-amber); }
+  .search { flex: 1; min-width: 240px; }
+
+  .sel {
+    appearance: none; -webkit-appearance: none;
+    height: 44px; padding: 0 36px 0 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-strong);
+    background: var(--glass) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238A8FB5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>") right 12px center/14px no-repeat;
+    color: var(--fg); font: inherit; font-size: 13px; cursor: pointer;
+    backdrop-filter: blur(12px);
+  }
+  .sel:focus { outline: 0; border-color: var(--c-violet); box-shadow: 0 0 0 4px rgba(139,92,246,0.18); }
+  .sel option { background: var(--bg-2); color: var(--fg); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  thead th {
+    text-align: left; padding: 12px 14px;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--fg-mute);
+    border-bottom: 1px solid var(--border);
+  }
+  tbody td { padding: 13px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tr.row { transition: background .15s var(--easing); }
+  tr.row:hover { background: rgba(255,255,255,0.04); }
+  tr.row.muted > td { opacity: 0.6; }
+  tr.row.muted > td:last-child { opacity: 1; }
+
+  .i-cell { display: flex; align-items: center; gap: 12px; min-width: 0; max-width: 320px; }
+  .avatar {
+    width: 32px; height: 32px; border-radius: 999px; flex: 0 0 auto;
+    display: grid; place-items: center;
+    font-weight: 700; font-size: 12px; color: var(--fg-mute);
+    background: var(--glass);
+    border: 1.5px dashed var(--border-strong);
+  }
+  .avatar.accepted {
+    color: #fff; border: 0;
+    background: linear-gradient(135deg, var(--c-cyan), var(--c-mint));
+    box-shadow: 0 0 14px rgba(52,211,153,0.30);
+  }
+  .i-meta { min-width: 0; line-height: 1.25; }
+  .i-mail { font-size: 14px; font-weight: 600; color: var(--fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .i-by { font-size: 12px; color: var(--fg-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .pill {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-size: 12px; font-weight: 500;
+    padding: 4px 11px; border-radius: 999px;
+    background: var(--glass);
+    border: 1px solid var(--border-strong);
+    backdrop-filter: blur(12px);
+    color: var(--fg-soft);
+    white-space: nowrap;
+  }
+  .pill .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .pill.ok { color: var(--c-mint); border-color: rgba(52,211,153,0.35); background: rgba(52,211,153,0.10); }
+  .pill.ok .dot { background: var(--c-mint); box-shadow: 0 0 10px var(--c-mint); }
+  .pill.pend { color: var(--c-amber); border-color: rgba(245,158,11,0.35); background: rgba(245,158,11,0.10); }
+  .pill.pend .dot { background: var(--c-amber); box-shadow: 0 0 10px var(--c-amber); }
+  .pill.rev { color: var(--c-magenta); border-color: rgba(236,72,153,0.35); background: rgba(236,72,153,0.10); }
+  .pill.rev .dot { background: var(--c-magenta); box-shadow: 0 0 10px var(--c-magenta); }
+  .pill.off { color: var(--fg-mute); }
+  .pill.off .dot { background: var(--fg-mute); }
+  .pill.r-admin { color: var(--c-violet); border-color: rgba(139,92,246,0.40); background: rgba(139,92,246,0.12); }
+  .pill.r-member { color: var(--c-cyan); border-color: rgba(34,211,238,0.40); background: rgba(34,211,238,0.10); }
+  .pill.r-viewer { color: var(--c-mint); border-color: rgba(52,211,153,0.35); background: rgba(52,211,153,0.10); }
+  .pill.r-ops { color: var(--c-amber); border-color: rgba(245,158,11,0.35); background: rgba(245,158,11,0.10); }
+
+  .num { font-variant-numeric: tabular-nums; color: var(--fg-soft); font-size: 13px; }
+  .num.dim { color: var(--fg-mute); }
+  .num.warn { color: var(--c-amber); }
+
+  /* row actions — hidden until hover, like aurora-users */
+  .row-actions { display: flex; justify-content: flex-end; gap: 6px; opacity: 0; transition: opacity .15s var(--easing); }
+  tr.row:hover .row-actions, tr.row.show-actions .row-actions { opacity: 1; }
+  .qa {
+    width: 32px; height: 32px; border-radius: 9px;
+    display: grid; place-items: center; cursor: pointer;
+    background: rgba(7,7,26,0.55);
+    border: 1px solid var(--border-strong);
+    color: var(--fg-soft);
+    backdrop-filter: blur(12px);
+    transition: all .15s var(--easing);
+  }
+  .qa:hover { background: var(--glass-strong); color: var(--fg); border-color: rgba(255,255,255,0.30); }
+  .qa.danger { color: var(--c-magenta); }
+  .qa.danger:hover { background: rgba(236,72,153,0.15); border-color: rgba(236,72,153,0.40); }
+  .qa.cyan { color: var(--c-cyan); }
+
+  .pager {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px;
+    font-size: 12px; color: var(--fg-mute);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* empty state */
+  .empty {
+    display: grid; place-items: center; gap: 4px;
+    padding: 56px 24px; text-align: center;
+  }
+  .empty .empty-icon {
+    width: 52px; height: 52px; border-radius: 16px; margin-bottom: 10px;
+    display: grid; place-items: center;
+    background: linear-gradient(135deg, rgba(99,102,241,0.20), rgba(236,72,153,0.15));
+    border: 1px solid var(--border-strong);
+    color: var(--c-cyan);
+  }
+  .empty h3 { margin: 0; font-size: 16px; font-weight: 600; }
+  .empty p { margin: 0 0 14px; font-size: 13px; color: var(--fg-mute); max-width: 360px; }
+
+  /* ====== Modal (aurora-users / app-services anatomy) ====== */
+  .modal-row { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+  @media (max-width: 1024px) { .modal-row { grid-template-columns: 1fr; } }
+  .modal {
+    width: 100%; max-width: 520px;
+    border-radius: 20px;
+    border: 1px solid var(--border-strong);
+    background: linear-gradient(180deg, rgba(18,18,46,0.92), rgba(11,11,35,0.94));
+    box-shadow: var(--shadow-pop);
+    overflow: hidden;
+  }
+  .modal.cyan-frame { border-color: rgba(34,211,238,0.35); }
+  .modal-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .modal-title { display: flex; align-items: center; gap: 12px; font-size: 15px; font-weight: 600; }
+  .modal-icon {
+    width: 36px; height: 36px; border-radius: 11px;
+    display: grid; place-items: center;
+    background: linear-gradient(135deg, rgba(99,102,241,0.25), rgba(236,72,153,0.20));
+    border: 1px solid var(--border-strong);
+    color: var(--c-cyan);
+  }
+  .modal-icon.green { background: rgba(52,211,153,0.14); border-color: rgba(52,211,153,0.35); color: var(--c-mint); }
+  .modal-x {
+    width: 32px; height: 32px; border-radius: 9px; cursor: pointer;
+    display: grid; place-items: center;
+    background: transparent; border: 0; color: var(--fg-mute);
+    transition: all .15s var(--easing);
+  }
+  .modal-x:hover { background: var(--glass); color: var(--fg); }
+  .modal-body { padding: 20px; display: grid; gap: 16px; }
+  .field-label { display: block; font-size: 13px; font-weight: 500; color: var(--fg-soft); margin-bottom: 8px; }
+  .field-label .opt { color: var(--fg-mute); font-weight: 400; font-size: 12px; }
+  .modal .sel { width: 100%; height: 44px; font-size: 14px; }
+  .modal-note {
+    display: flex; align-items: flex-start; gap: 9px;
+    padding: 11px 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--glass);
+    font-size: 12px; color: var(--fg-mute);
+  }
+  .modal-note svg { flex: 0 0 auto; margin-top: 1px; }
+  .modal-note .hl { color: var(--c-amber); font-weight: 600; }
+  .modal-note.amber { border-color: rgba(245,158,11,0.30); background: rgba(245,158,11,0.07); color: var(--c-amber); }
+  .modal-foot {
+    display: flex; justify-content: flex-end; gap: 10px;
+    padding: 16px 20px;
+    border-top: 1px solid var(--border);
+  }
+  .check { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; color: var(--fg-soft); font-size: 14px; }
+  .check input {
+    appearance: none; -webkit-appearance: none;
+    width: 18px; height: 18px; border-radius: 5px;
+    border: 1.5px solid var(--border-strong);
+    background: var(--glass);
+    display: grid; place-items: center; cursor: pointer;
+    transition: all .15s var(--easing);
+    margin: 0; flex: 0 0 auto;
+  }
+  .check input:checked {
+    background: linear-gradient(135deg, var(--c-blue), var(--c-violet));
+    border-color: var(--c-violet);
+    box-shadow: 0 0 12px var(--accent-glow);
+  }
+  .check input:checked::after {
+    content: ""; width: 10px; height: 10px;
+    background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='3,8.5 7,12 13,4'/></svg>") center/contain no-repeat;
+  }
+
+  /* one-time invite link display — same pattern as app-service secret-box,
+     adapted for a long URL (smaller type, ellipsis, no letter-spacing) */
+  .secret-box { display: flex; align-items: center; gap: 10px; }
+  .link-value {
+    flex: 1; min-width: 0; height: 52px;
+    display: flex; align-items: center; padding: 0 16px;
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(34,211,238,0.40);
+    background: rgba(7,7,26,0.65);
+    color: var(--c-cyan);
+    font-size: 13px; font-weight: 500;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    user-select: all;
+    box-shadow: 0 0 24px rgba(34,211,238,0.18), 0 0 0 4px rgba(34,211,238,0.06);
+  }
+  .copy-btn {
+    width: 52px; height: 52px; flex: 0 0 auto;
+    border-radius: var(--radius-sm); cursor: pointer;
+    display: grid; place-items: center;
+    background: var(--glass); border: 1px solid var(--border-strong);
+    color: var(--fg-soft); backdrop-filter: blur(12px);
+    transition: all .15s var(--easing);
+  }
+  .copy-btn:hover { background: var(--glass-strong); color: var(--fg); border-color: rgba(255,255,255,0.30); }
+  .copy-btn.copied { color: var(--c-mint); border-color: rgba(52,211,153,0.40); }
+
+  /* ====== Accept-invite page (auth-mockup split anatomy) ====== */
+  .split { display: grid; grid-template-columns: 1.05fr 1fr; min-height: 680px; }
+  @media (max-width: 900px) { .split { grid-template-columns: 1fr; } .brand-panel { min-height: 300px; } }
+  .brand-panel {
+    position: relative; padding: 44px;
+    display: flex; flex-direction: column; justify-content: space-between;
+    border-right: 1px solid var(--border);
+  }
+  .orb { position: absolute; border-radius: 50%; filter: blur(40px); pointer-events: none; }
+  .orb-1 { width: 320px; height: 320px; right: -80px; top: -80px; background: radial-gradient(circle, rgba(99,102,241,0.6), transparent 70%); }
+  .orb-2 { width: 260px; height: 260px; left: -60px; bottom: 40px; background: radial-gradient(circle, rgba(236,72,153,0.55), transparent 70%); }
+  .orb-3 { width: 220px; height: 220px; right: 80px; bottom: -60px; background: radial-gradient(circle, rgba(34,211,238,0.45), transparent 70%); }
+  .brand-hero { position: relative; z-index: 2; max-width: 480px; }
+  .brand-h1 {
+    font-size: clamp(30px, 3.4vw, 44px);
+    line-height: 1.05; font-weight: 700; letter-spacing: -0.025em;
+    margin: 18px 0 14px;
+  }
+  .brand-h1 .grad {
+    background: linear-gradient(135deg, var(--c-cyan) 0%, var(--c-blue) 40%, var(--c-violet) 70%, var(--c-magenta) 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    background-size: 200% 100%;
+    animation: textShimmer 8s ease-in-out infinite alternate;
+  }
+  @keyframes textShimmer { 0% { background-position: 0% 50%; } 100% { background-position: 100% 50%; } }
+  .brand-sub { color: var(--fg-mute); font-size: 15px; max-width: 440px; }
+  .brand-foot { position: relative; z-index: 2; display: flex; justify-content: space-between; color: var(--fg-mute); font-size: 12px; }
+  .hero-pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 12px; font-weight: 500;
+    padding: 6px 12px; border-radius: 999px;
+    background: var(--glass);
+    border: 1px solid var(--border-strong);
+    backdrop-filter: blur(20px);
+    color: var(--fg-soft);
+  }
+  .hero-pill .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--c-amber); box-shadow: 0 0 10px var(--c-amber); }
+
+  .form-panel {
+    padding: 56px;
+    display: flex; flex-direction: column; justify-content: center;
+    background: linear-gradient(180deg, rgba(7,7,26,0.55), rgba(11,11,35,0.55));
+    backdrop-filter: blur(8px);
+  }
+  @media (max-width: 600px) { .form-panel { padding: 32px 20px; } }
+  .form-card { width: 100%; max-width: 440px; margin: 0 auto; }
+  .form-card h2 {
+    font-size: 30px; line-height: 1.15;
+    font-weight: 700; letter-spacing: -0.02em;
+    margin: 0 0 8px; color: var(--fg);
+  }
+  .form-card .lede { color: var(--fg-mute); margin: 0 0 28px; font-size: 15px; }
+  .form-card .lede b { color: var(--fg-soft); font-weight: 600; }
+  .field { display: block; margin-bottom: 16px; }
+  .form-card .input-wrap { height: 48px; }
+  .form-card .input-wrap input { font-size: 15px; }
+  .toggle-eye {
+    background: transparent; border: 0; color: var(--fg-mute); cursor: pointer;
+    padding: 6px; border-radius: 8px;
+  }
+  .toggle-eye:hover { color: var(--fg); background: rgba(255,255,255,0.06); }
+  .helper { font-size: 12px; color: var(--fg-mute); margin-top: 8px; }
+  .legal { font-size: 12px; color: var(--fg-mute); margin-top: 18px; text-align: center; }
+  .legal a { color: var(--fg-soft); }
+
+  /* error variant card */
+  .err-wrap { display: grid; place-items: center; padding: 72px 24px; }
+  .err-card {
+    width: 100%; max-width: 460px;
+    border-radius: 20px;
+    border: 1px solid rgba(236,72,153,0.30);
+    background: linear-gradient(180deg, rgba(18,18,46,0.92), rgba(11,11,35,0.94));
+    box-shadow: var(--shadow-pop);
+    padding: 36px 32px;
+    text-align: center;
+  }
+  .err-icon {
+    width: 56px; height: 56px; border-radius: 18px; margin: 0 auto 18px;
+    display: grid; place-items: center;
+    background: rgba(236,72,153,0.12);
+    border: 1px solid rgba(236,72,153,0.35);
+    color: var(--c-magenta);
+    box-shadow: 0 0 28px rgba(236,72,153,0.25);
+  }
+  .err-card h2 { margin: 0 0 8px; font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
+  .err-card p { margin: 0 0 24px; font-size: 14px; color: var(--fg-mute); }
+  .err-card p b { color: var(--fg-soft); }
+  .err-actions { display: grid; gap: 10px; }
+</style>
+</head>
+<body>
+
+<!--
+  INVITE-LINK USER CREATION flow for isme (SSO admin console) — AURORA theme.
+  Public signup is being REMOVED (ui pages/Signup.tsx + /signup route + backend
+  public-register endpoint are deleted); the ONLY way to create a user becomes an
+  admin-issued one-time invite link. This mock SUPERSEDES the email-based invite
+  modal at the bottom of aurora-users-design.html (that modal stays in demo/ as
+  unported design material — do not delete it).
+
+  Three screens, stacked like auth-mockup.html:
+    01 · Invite user dialog (form + one-time-link success state)
+    02 · Invitations list — sub-tab on the /users page
+    03 · Accept invite — public /accept-invite page (valid + error variants)
+
+  Backend mapping — NEW domain internal/domains/invitation/:
+    entity.Invitation:
+      id · email (unique among pending) · role_id · token_hash (SHA-256 of the
+      one-time token; plaintext link is returned EXACTLY ONCE at creation, same
+      contract as app_service.app_secret) · status (1 pending / 2 accepted /
+      3 revoked / 4 expired) · expires_at · accepted_at · accepted_user_id ·
+      created_at/by · updated_at/by · deleted_at/by
+    Endpoints:
+      POST /invitations            (AuthMiddleware, admin or user:invite)
+                                   → 200 { invite_url } — plaintext shown ONCE
+      GET  /invitations            (AuthMiddleware) — list w/ status filter
+      POST /invitations/:id/revoke (AuthMiddleware) — pending only
+      GET  /invitations/validate?token=…  (PUBLIC) → { email, role } or error code
+      POST /invitations/accept     (PUBLIC) { token, name, password }
+                                   → creates user (is_verified = true — the admin
+                                   vouched by inviting; status = active), marks
+                                   invitation accepted, redirects to /login
+    Expiry: 72h after creation; a sweeper (or lazy check at read) flips
+    pending → expired. Expired/revoked invites can be re-issued via "New invite"
+    (creates a NEW invitation row + new one-time link).
+-->
+
+<div class="page-stack">
+
+  <!-- ============================================================
+       01 · INVITE USER DIALOG — opened by the "Invite user" button
+       on /users (admin). Left = form state, right = success state.
+       In the app this is ONE dialog that swaps content after POST
+       /invitations succeeds (form → one-time link).
+       ============================================================ -->
+  <section>
+    <div class="page-label">01 · Invite user dialog — /users · admin only</div>
+    <div class="modal-row">
+
+      <!-- ---- State A: form ---- -->
+      <div>
+        <span class="state-label">State A · form</span>
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="invite-title">
+          <div class="modal-head">
+            <div class="modal-title" id="invite-title">
+              <div class="modal-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/></svg>
+              </div>
+              Invite user
+            </div>
+            <!-- on click: close dialog, no invitation created -->
+            <button class="modal-x" aria-label="Close">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+          </div>
+          <div class="modal-body">
+            <label class="field" style="margin:0;">
+              <span class="field-label">Email</span>
+              <span class="input-wrap">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
+                <input type="email" autocomplete="off" placeholder="name@example.com" />
+              </span>
+              <!-- validation: required, email format; 409 if a PENDING invite or an
+                   existing user already holds this email → inline error below field -->
+            </label>
+            <label class="field" style="margin:0;">
+              <span class="field-label">Role</span>
+              <select class="sel" aria-label="Role">
+                <option>admin</option>
+                <option selected>member</option>
+                <option>viewer</option>
+                <option>content-ops</option>
+              </select>
+              <!-- options come from the role list (role domain), same source as
+                   aurora-users filter; assigned to the user on accept -->
+            </label>
+            <div class="modal-note">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+              <span>No email is sent. You get a <span class="hl">one-time link</span> to share yourself · expires after 72h</span>
+            </div>
+          </div>
+          <div class="modal-foot">
+            <button class="btn btn-ghost">Cancel</button>
+            <!-- on click: POST /invitations → loading state (spinner, disabled);
+                 on 200 swap dialog content to State B with the returned invite_url -->
+            <button class="btn btn-primary">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/><path d="M8 12h8"/></svg>
+              Create invite
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ---- State B: success — one-time link (app-service secret-modal pattern:
+           NO ✕ and no backdrop-click dismiss; the only exit is the explicit Done
+           button, gated by the ack checkbox, so the link can't be lost by accident) ---- -->
+      <div>
+        <span class="state-label">State B · success — link shown only once</span>
+        <div class="modal cyan-frame" role="dialog" aria-modal="true" aria-labelledby="invite-done-title">
+          <div class="modal-head">
+            <div class="modal-title" id="invite-done-title">
+              <div class="modal-icon green">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+              </div>
+              Invite created
+              <span class="pill r-member">member</span>
+            </div>
+            <!-- intentionally NO close ✕ here -->
+          </div>
+          <div class="modal-body">
+            <div>
+              <span class="field-label">Invite link for <b style="color:var(--fg);">linh.tran@example.com</b> <span class="opt">· <span style="color:var(--c-amber);font-weight:600;">shown only once</span></span></span>
+              <div class="secret-box">
+                <div class="link-value" title="https://sso.isme.local/accept-invite?token=inv_8fK2pXw7Qz4mN9aJ3vTbL6cY">https://sso.isme.local/accept-invite?token=inv_8fK2pXw7Qz4mN9aJ3vTbL6cY</div>
+                <!-- on click: copy full URL to clipboard, swap icon to check + .copied for 2s, toast "Copied" -->
+                <button class="copy-btn" title="Copy invite link" aria-label="Copy invite link">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="modal-note amber">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.7 18.4-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21.4h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+              <span>This link is shown <b>only once</b> — the token is hashed at rest and cannot be displayed again. Share it with the invitee now. If lost, revoke and create a new invite.</span>
+            </div>
+            <div class="modal-note">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
+              <span>Expires <span class="hl">2026-06-11 14:02</span> (72h) · single use — consumed when the account is created</span>
+            </div>
+            <!-- ack checkbox gates the Done button (disabled until checked),
+                 same as the app-service one-time secret modal -->
+            <label class="check">
+              <input type="checkbox" />
+              I have copied the link
+            </label>
+          </div>
+          <div class="modal-foot">
+            <!-- enabled only after ack checked; on click: close dialog, refresh
+                 Invitations list (new pending row appears) -->
+            <button class="btn btn-primary" disabled>Done</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============================================================
+       02 · INVITATIONS LIST — sub-tab on the /users page (admin).
+       Same topbar shell as aurora-users-design.html; the page gains
+       a [Users | Invitations] sub-tab row under the page head.
+       on click "Users" tab: swap back to the users table (existing screen).
+       ============================================================ -->
+  <section>
+    <div class="page-label">02 · Invitations list — /users › Invitations tab</div>
+    <div class="frame">
+
+      <header class="app-bar">
+        <div class="bar-left">
+          <div class="brand-row">
+            <div class="brand-mark"><span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 7l8 5 8-5-8-5Z"/><path d="m4 17 8 5 8-5"/><path d="m4 12 8 5 8-5"/></svg></span></div>
+            <div class="brand-name">isme</div>
+          </div>
+          <nav class="nav" aria-label="Primary">
+            <a href="#">Overview</a>
+            <a href="#" class="active">Users</a>
+            <a href="#">Roles &amp; Permissions</a>
+            <a href="#">App Services</a>
+            <a href="#">Sessions</a>
+          </nav>
+        </div>
+        <div class="bar-right">
+          <button class="icon-btn" aria-label="Notifications">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+            <span class="badge"></span>
+          </button>
+          <div class="user-chip" tabindex="0">
+            <div class="avatar-lg">VK</div>
+            <div class="meta"><b>Vu Ky</b><span>kyndv@example.com</span></div>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--fg-mute);margin-left:4px;"><path d="m6 9 6 6 6-6"/></svg>
+          </div>
+        </div>
+      </header>
+
+      <main class="app-main">
+
+        <div class="page-head">
+          <div>
+            <h1>Users</h1>
+            <p class="page-sub"><span class="num">1,284</span> accounts · <span class="num warn">4</span> pending invitations</p>
+          </div>
+        </div>
+
+        <!-- sub-tabs (left) + page actions (right) on one row.
+             Count badge = pending invitations only. -->
+        <div class="tab-row">
+          <div class="sub-tabs" role="tablist" aria-label="Users page sections">
+            <button role="tab" aria-selected="false">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              Users
+            </button>
+            <button role="tab" aria-selected="true" class="on">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/><path d="M8 12h8"/></svg>
+              Invitations
+              <span class="count">4</span>
+            </button>
+          </div>
+          <div class="head-actions">
+            <button class="btn btn-ghost" disabled>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Export CSV
+            </button>
+            <!-- on click: open invite dialog (screen 01) -->
+            <button class="btn btn-primary">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/></svg>
+              Invite user
+            </button>
+          </div>
+        </div>
+
+        <section class="panel">
+
+          <!-- Toolbar: search + status filter.
+               on change status: refetch GET /invitations?status=… -->
+          <div class="toolbar">
+            <label class="input-wrap search">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+              <input type="text" placeholder="Search by email…" />
+            </label>
+            <select class="sel" aria-label="Status filter">
+              <option selected>all statuses</option>
+              <option>pending</option>
+              <option>accepted</option>
+              <option>revoked</option>
+              <option>expired</option>
+            </select>
+          </div>
+
+          <!-- ================= TABLE =================
+               Row anatomy: email+invited-by · role pill · status pill · expires ·
+               created · row actions (hover-revealed, like aurora-users).
+               Actions by status:
+                 pending  → Revoke (confirm prompt; POST /invitations/:id/revoke)
+                 accepted → none (link to the created user row is the email itself)
+                 revoked / expired → New invite (re-opens invite dialog prefilled
+                                     with the same email + role; creates a NEW row)
+               The one-time link can NEVER be re-displayed from this list — by
+               design there is no "copy link" action after creation.
+               Loading state: 5 skeleton rows (shimmer bars in each column).
+               Dashed avatar = no account yet (matches .av-pending in aurora-users);
+               gradient avatar = accepted (account exists). -->
+          <table>
+            <thead>
+              <tr>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Expires</th>
+                <th>Created</th>
+                <th style="width:120px;"></th>
+              </tr>
+            </thead>
+            <tbody>
+
+              <!-- ROW 1 · pending — actions shown (hover state simulated) -->
+              <tr class="row show-actions">
+                <td>
+                  <div class="i-cell">
+                    <div class="avatar">LT</div>
+                    <div class="i-meta">
+                      <div class="i-mail">linh.tran@example.com</div>
+                      <div class="i-by">invited by Vu Ky</div>
+                    </div>
+                  </div>
+                </td>
+                <td><span class="pill r-member">member</span></td>
+                <td><span class="pill pend"><span class="dot"></span>pending</span></td>
+                <td><span class="num warn">in 71h · 2026-06-11</span></td>
+                <td><span class="num dim">2026-06-08</span></td>
+                <td>
+                  <div class="row-actions">
+                    <!-- on click: confirm "Revoke invite for linh.tran@…?" →
+                         POST /invitations/:id/revoke → pill flips to magenta revoked,
+                         link stops working immediately -->
+                    <button class="qa danger" title="Revoke invite">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m5.7 5.7 12.6 12.6"/></svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- ROW 2 · pending · expires soon (under 24h → amber emphasis) -->
+              <tr class="row">
+                <td>
+                  <div class="i-cell">
+                    <div class="avatar">DP</div>
+                    <div class="i-meta">
+                      <div class="i-mail">duc.pham@example.com</div>
+                      <div class="i-by">invited by Vu Ky</div>
+                    </div>
+                  </div>
+                </td>
+                <td><span class="pill r-ops">content-ops</span></td>
+                <td><span class="pill pend"><span class="dot"></span>pending</span></td>
+                <td><span class="num warn">in 9h · 2026-06-08</span></td>
+                <td><span class="num dim">2026-06-05</span></td>
+                <td>
+                  <div class="row-actions">
+                    <button class="qa danger" title="Revoke invite">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m5.7 5.7 12.6 12.6"/></svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- ROW 3 · accepted — account created; no actions -->
+              <tr class="row">
+                <td>
+                  <div class="i-cell">
+                    <div class="avatar accepted">QB</div>
+                    <div class="i-meta">
+                      <div class="i-mail">quoc.bao@example.com</div>
+                      <div class="i-by">invited by Vu Ky · accepted 2026-06-04</div>
+                    </div>
+                  </div>
+                </td>
+                <td><span class="pill r-viewer">viewer</span></td>
+                <td><span class="pill ok"><span class="dot"></span>accepted</span></td>
+                <td><span class="num dim">—</span></td>
+                <td><span class="num dim">2026-06-02</span></td>
+                <td></td>
+              </tr>
+
+              <!-- ROW 4 · revoked — muted row; "New invite" re-issue action -->
+              <tr class="row muted">
+                <td>
+                  <div class="i-cell">
+                    <div class="avatar">HN</div>
+                    <div class="i-meta">
+                      <div class="i-mail">hoa.nguyen@example.com</div>
+                      <div class="i-by">invited by Vu Ky · revoked 2026-05-30</div>
+                    </div>
+                  </div>
+                </td>
+                <td><span class="pill r-member">member</span></td>
+                <td><span class="pill rev"><span class="dot"></span>revoked</span></td>
+                <td><span class="num dim">—</span></td>
+                <td><span class="num dim">2026-05-28</span></td>
+                <td>
+                  <div class="row-actions">
+                    <!-- on click: open invite dialog (screen 01) prefilled with this
+                         email + role; success creates a NEW invitation row -->
+                    <button class="qa cyan" title="New invite">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15.4-6.4L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.4 6.4L3 16"/><path d="M3 21v-5h5"/></svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- ROW 5 · expired — muted row; "New invite" re-issue action -->
+              <tr class="row muted">
+                <td>
+                  <div class="i-cell">
+                    <div class="avatar">MT</div>
+                    <div class="i-meta">
+                      <div class="i-mail">minh.tu@example.com</div>
+                      <div class="i-by">invited by Quoc Bao</div>
+                    </div>
+                  </div>
+                </td>
+                <td><span class="pill r-admin">admin</span></td>
+                <td><span class="pill off"><span class="dot"></span>expired</span></td>
+                <td><span class="num dim">2026-05-21</span></td>
+                <td><span class="num dim">2026-05-18</span></td>
+                <td>
+                  <div class="row-actions">
+                    <button class="qa cyan" title="New invite">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15.4-6.4L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.4 6.4L3 16"/><path d="M3 21v-5h5"/></svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+
+            </tbody>
+          </table>
+
+          <div class="pager">
+            <div>Page 1 / 1 · 5 invitations</div>
+          </div>
+        </section>
+
+        <!-- Empty-state variant — shown when GET /invitations returns no rows
+             (e.g. fresh install or "pending" filter with nothing pending) -->
+        <section class="panel">
+          <div class="empty">
+            <div class="empty-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/><path d="M8 12h8"/></svg>
+            </div>
+            <h3>No invitations yet</h3>
+            <p>Invite links are the only way to create accounts — public signup is disabled. Create one to get a teammate on board.</p>
+            <!-- on click: open invite dialog (screen 01) -->
+            <button class="btn btn-primary" style="height:40px;padding:0 16px;font-size:13px;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/></svg>
+              Invite user
+            </button>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       03 · ACCEPT INVITE — public page at /accept-invite?token=…
+       Same split anatomy as the auth-mockup login screen (AuthLayout:
+       brand panel left, form right). On load the SPA calls
+       GET /invitations/validate?token=… →
+         200 → render this form with the invite's email prefilled+locked
+         4xx → render the error card (next frame)
+       ============================================================ -->
+  <section>
+    <div class="page-label">03 · Accept invite — public /accept-invite · valid token</div>
+    <div class="frame">
+      <div class="split">
+
+        <aside class="brand-panel">
+          <div class="orb orb-1"></div><div class="orb orb-2"></div><div class="orb orb-3"></div>
+          <div class="brand-row">
+            <div class="brand-mark"><span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 7l8 5 8-5-8-5Z"/><path d="m4 17 8 5 8-5"/><path d="m4 12 8 5 8-5"/></svg></span></div>
+            <div class="brand-name">isme</div>
+          </div>
+          <div class="brand-hero">
+            <span class="hero-pill"><span class="dot"></span>Invitation · expires in 71h</span>
+            <h1 class="brand-h1">You're invited to <span class="grad">isme</span></h1>
+            <p class="brand-sub">Vu Ky invited you to join the workspace as <b style="color:var(--fg-soft);">member</b>. Set a password to finish creating your account — it only takes a minute.</p>
+          </div>
+          <div class="brand-foot">
+            <span>© 2026 isme</span>
+            <span>Single sign-on for the platform</span>
+          </div>
+        </aside>
+
+        <div class="form-panel">
+          <div class="form-card">
+            <h2>Create your account</h2>
+            <p class="lede">Invited as <b>member</b> · this link works once and can't be reused.</p>
+
+            <!-- Email: prefilled from the validated invite; LOCKED — the invite is
+                 bound to this address, user cannot change it -->
+            <label class="field">
+              <span class="field-label">Email</span>
+              <span class="input-wrap locked">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
+                <input type="email" value="linh.tran@example.com" disabled aria-label="Email (locked by invitation)" />
+                <svg class="lock" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              </span>
+              <span class="helper">Locked to this invitation</span>
+            </label>
+
+            <label class="field">
+              <span class="field-label">Name</span>
+              <span class="input-wrap">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <input type="text" autocomplete="name" placeholder="Your full name" />
+              </span>
+            </label>
+
+            <label class="field">
+              <span class="field-label">Password</span>
+              <span class="input-wrap">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                <input type="password" autocomplete="new-password" placeholder="At least 8 characters" />
+                <!-- on click: toggle visibility (ui/password-field.tsx) -->
+                <button type="button" class="toggle-eye" aria-label="Show password">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </span>
+              <!-- strength meter renders here on typing (ui/password-strength.tsx) -->
+              <span class="helper">Use 8+ characters with a mix of letters and numbers</span>
+            </label>
+
+            <!-- on click: POST /invitations/accept { token, name, password } →
+                 loading state; on 200 toast "Account created" + redirect to /login
+                 (account is verified + active — no admin verify step needed);
+                 on 410 (consumed/expired between load and submit) swap to error card -->
+            <button class="btn btn-primary btn-block" style="margin-top:6px;">
+              Create account
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
+            </button>
+
+            <p class="legal">Already have an account? <a href="#login">Sign in</a></p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       03b · ACCEPT INVITE — error variant. Rendered when
+       GET /invitations/validate returns 4xx: token unknown / malformed,
+       expired (past expires_at), revoked, or already used (accepted).
+       One generic message — do NOT leak which case it is (avoids
+       probing for valid emails/tokens).
+       ============================================================ -->
+  <section>
+    <div class="page-label">03b · Accept invite — invalid / expired link</div>
+    <div class="frame">
+      <div class="err-wrap">
+        <div class="err-card">
+          <div class="err-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/><path d="M8 12h8"/><path d="m3 3 18 18"/></svg>
+          </div>
+          <h2>This invite link is no longer valid</h2>
+          <p>It may have <b>expired</b>, been <b>revoked</b>, or <b>already been used</b>. Invite links work once and expire after 72 hours.</p>
+          <div class="err-actions">
+            <!-- static guidance — there is no self-service path by design:
+                 only an admin can issue a new invite -->
+            <div class="modal-note" style="text-align:left;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+              <span>Ask your administrator to send you a <span class="hl">new invite link</span>.</span>
+            </div>
+            <!-- on click: navigate to /login -->
+            <a href="#login" style="text-decoration:none;"><button class="btn btn-ghost btn-block">Go to sign in</button></a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+</body>
+</html>

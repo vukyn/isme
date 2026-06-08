@@ -8,4 +8,9 @@ export const AURORA_CTA_BG = "linear-gradient(135deg, #6366F1 0%, #8B5CF6 50%, #
 export const AURORA_CTA_STYLE = {
 	background: AURORA_CTA_BG,
 	backgroundSize: "200% 200%",
+	// background shorthand resets repeat to `repeat`; with 200% size the
+	// neighbouring tile's magenta (100% stop) seams onto the left edge as a
+	// thin red sliver. Pin position + disable repeat to kill the seam.
+	backgroundRepeat: "no-repeat",
+	backgroundPosition: "0% 0%",
 } as const;

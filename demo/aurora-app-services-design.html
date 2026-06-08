@@ -178,6 +178,9 @@
   .btn:active { transform: translateY(1px) scale(0.995); }
   .btn-primary {
     background: linear-gradient(135deg, var(--c-blue) 0%, var(--c-violet) 50%, var(--c-magenta) 100%);
+    /* no-repeat + pinned position: 200% size otherwise seams the magenta tile edge as a red sliver on the left */
+    background-repeat: no-repeat;
+    background-position: 0% 0%;
     color: #fff;
     box-shadow: 0 10px 30px rgba(99,102,241,0.45), 0 0 0 1px rgba(255,255,255,0.10) inset;
     background-size: 200% 200%;
