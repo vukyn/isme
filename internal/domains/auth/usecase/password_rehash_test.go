@@ -150,6 +150,14 @@ func (f *fakeRoleRepository) CreatePermissions(ctx context.Context, appID string
 	return nil, nil
 }
 
+func (f *fakeRoleRepository) GetPermissionByID(ctx context.Context, permissionID int64) (roleEntity.Permission, error) {
+	return roleEntity.Permission{}, nil
+}
+
+func (f *fakeRoleRepository) DeletePermission(ctx context.Context, permissionID int64) error {
+	return nil
+}
+
 func (f *fakeRoleRepository) GetPermissionsByRoleID(ctx context.Context, roleID string) ([]roleEntity.Permission, error) {
 	return nil, nil
 }

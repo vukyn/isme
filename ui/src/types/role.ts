@@ -23,6 +23,9 @@ export interface PermissionItem {
 	app_id: string;
 	resource: string;
 	action: string;
+	/** Per-resource icon key (allowlist in consts/permissionIcons). Shared by all
+	 *  rows of the same (app_id, resource); empty = neutral default. */
+	icon: string;
 }
 
 /** Maps to models.RoleDetailResponse (GET /api/v1/roles/:id). */
@@ -67,6 +70,22 @@ export interface UpdateRoleRequest {
 /** Maps to models.SetPermissionsRequest (PUT /api/v1/roles/:id/permissions). */
 export interface SetRolePermissionsRequest {
 	permission_ids: number[];
+}
+
+/** One resource:action pair to create — maps to models.PermissionPair. */
+export interface PermissionPair {
+	resource: string;
+	action: string;
+	/** Optional per-resource icon key. When the resource already exists in the
+	 *  app, the backend reuses that resource's stored icon and ignores this. */
+	icon?: string;
+}
+
+/** Maps to models.CreatePermissionsRequest (POST /api/v1/permissions). Creates
+ *  resource:action permissions in an app's catalog (rejected for the isme app). */
+export interface CreatePermissionsRequest {
+	app_id: string;
+	permissions: PermissionPair[];
 }
 
 /** Maps to models.AddMembersRequest (POST /api/v1/roles/:id/members). */

@@ -8,11 +8,11 @@ import {
 	LuChevronLeft,
 	LuChevronRight,
 	LuEye,
-	LuGlobe,
+	LuFileText,
 	LuInfo,
 	LuKeyRound,
+	LuLibrary,
 	LuLock,
-	LuMonitorSmartphone,
 	LuPencil,
 	LuPlus,
 	LuSearch,
@@ -25,6 +25,8 @@ import {
 } from "react-icons/lu";
 import {
 	addRoleMembers,
+	createPermissions,
+	deletePermission,
 	deleteRole,
 	getRole,
 	listAppServices,
@@ -39,18 +41,24 @@ import {
 import { AppTile } from "@/components/AppRoleChip";
 import { CreateRoleDialog } from "@/components/CreateRoleDialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { APP_SERVICE_STATUS } from "@/consts";
+import {
+	APP_SERVICE_STATUS,
+	PERMISSION_ICON_KEYS,
+	renderDefaultPermissionIcon,
+	renderPermissionIcon,
+	resolveResourceIconKey,
+} from "@/consts";
 import { toaster } from "@/components/ui/toaster";
 import { AURORA_CTA_STYLE } from "@/consts/styles";
 import { useUser } from "@/hooks/useUser";
 import { usePermissions } from "@/hooks/usePermissions";
 import { AppShell } from "@/layouts/AppShell";
-import type { AppService, PermissionItem, RoleDetailResponse, RoleListItem, RoleMemberItem, UserListItem } from "@/types";
+import type { AppService, PermissionItem, PermissionPair, RoleDetailResponse, RoleListItem, RoleMemberItem, UserListItem } from "@/types";
 import { formatDateOnly } from "@/utils";
 
 const MEMBERS_PAGE_SIZE = 8;
 
-type RoleTab = "permissions" | "members" | "apps";
+type RoleTab = "permissions" | "catalog" | "members";
 
 interface RoleAccent {
 	color: string;
@@ -94,13 +102,8 @@ const RESOURCE_ACCENTS = [
 	{ color: "aurora.amber", bg: "rgba(245,158,11,0.12)" },
 ];
 
-const RESOURCE_ICONS: Record<string, ReactNode> = {
-	user: <LuUsers size={14} />,
-	user_session: <LuMonitorSmartphone size={14} />,
-	session: <LuMonitorSmartphone size={14} />,
-	app_service: <LuAppWindow size={14} />,
-	role: <LuKeyRound size={14} />,
-};
+/** Sanitize a resource/action segment: lowercase, strip anything not [a-z0-9_]. */
+const sanitizeSegment = (value: string) => value.toLowerCase().replace(/[^a-z0-9_]/g, "");
 
 /** Turn a snake_case resource into a Title Case label. */
 const resourceLabel = (resource: string) =>
@@ -116,17 +119,23 @@ const resourceLabel = (resource: string) =>
  */
 const buildMatrix = (catalog: PermissionItem[]): MatrixResource[] => {
 	const byResource = new Map<string, Set<string>>();
+	// the persisted icon key per resource — all rows of a resource share it, so
+	// the first row seen (catalog is id-ordered) is authoritative.
+	const iconByResource = new Map<string, string>();
 	for (const permission of catalog) {
 		if (!byResource.has(permission.resource)) byResource.set(permission.resource, new Set());
 		byResource.get(permission.resource)!.add(permission.action);
+		if (!iconByResource.has(permission.resource)) iconByResource.set(permission.resource, permission.icon);
 	}
 	return [...byResource.entries()]
 		.sort(([a], [b]) => a.localeCompare(b))
-		.map(([resource, actions], index) => ({
+		.map(([resource, actions], index) => {
+			const iconKey = resolveResourceIconKey(resource, iconByResource.get(resource));
+			return {
 			resource,
 			label: resourceLabel(resource),
 			accent: RESOURCE_ACCENTS[index % RESOURCE_ACCENTS.length],
-			icon: RESOURCE_ICONS[resource] ?? <LuKeyRound size={14} />,
+			icon: renderPermissionIcon(iconKey, 14),
 			crud: {
 				read: actions.has("read"),
 				create: actions.has("create"),
@@ -134,7 +143,8 @@ const buildMatrix = (catalog: PermissionItem[]): MatrixResource[] => {
 				delete: actions.has("delete"),
 			},
 			special: [...actions].filter((action) => !CRUD_SET.has(action)).sort(),
-		}));
+			};
+		});
 };
 
 const AVATAR_GRADIENTS = [
@@ -287,6 +297,65 @@ const MemberAvatar = ({ id, name }: { id: string; name: string }) => (
 	</Center>
 );
 
+/**
+ * "First run" empty state for an app whose permission catalog is empty (mock
+ * .empty.first). Shown in both the matrix and catalog tabs; the CTA is hidden
+ * for read-only apps (isme always has its seeded perms, so it never reaches here).
+ */
+const EmptyCatalogState = ({
+	icon,
+	title,
+	description,
+	canAdd,
+	onAdd,
+}: {
+	icon: ReactNode;
+	title: string;
+	description: ReactNode;
+	canAdd: boolean;
+	onAdd: () => void;
+}) => (
+	<Center flexDirection="column" gap="3.5" px="6" py="14" textAlign="center">
+		<Center
+			w="14"
+			h="14"
+			borderRadius="16px"
+			bg="linear-gradient(135deg, rgba(99,102,241,0.22), rgba(139,92,246,0.16))"
+			borderWidth="1px"
+			borderColor="aurora.violet"
+			color="aurora.violet"
+			boxShadow="0 0 26px rgba(139,92,246,0.22)"
+		>
+			{icon}
+		</Center>
+		<Box>
+			<Heading fontSize="16px" fontWeight="semibold" color="fg">
+				{title}
+			</Heading>
+			<Text fontSize="13px" color="fg.muted" mt="1.5" maxW="380px">
+				{description}
+			</Text>
+		</Box>
+		{canAdd && (
+			<Button
+				mt="1"
+				h="11"
+				px="4.5"
+				borderRadius="glassSm"
+				fontSize="sm"
+				fontWeight="semibold"
+				color="white"
+				css={AURORA_CTA_STYLE}
+				boxShadow="ctaGlow"
+				_hover={{ boxShadow: "ctaGlowHi", backgroundPosition: "100% 100%" }}
+				onClick={onAdd}
+			>
+				<LuPlus size={16} /> Add your first permission
+			</Button>
+		)}
+	</Center>
+);
+
 export const Roles = () => {
 	const { user: currentUser } = useUser();
 	const { can } = usePermissions();
@@ -334,6 +403,22 @@ export const Roles = () => {
 	const [deleteOpen, setDeleteOpen] = useState(false);
 	const [deleting, setDeleting] = useState(false);
 
+	// Add-permission dialog (create one or more resource:action pairs in the
+	// selected app's catalog). `permissionQueue` holds extra pairs staged via
+	// "Add another"; the live inputs are submitted alongside the queue.
+	const [addPermissionOpen, setAddPermissionOpen] = useState(false);
+	const [newResource, setNewResource] = useState("");
+	const [newAction, setNewAction] = useState("");
+	const [permissionQueue, setPermissionQueue] = useState<PermissionPair[]>([]);
+	const [creatingPermission, setCreatingPermission] = useState(false);
+	// Icon chosen for a BRAND-NEW resource; when the typed resource matches an
+	// existing one the icon is locked to that resource's stored icon instead.
+	const [newResourceIcon, setNewResourceIcon] = useState("");
+
+	// Remove-permission confirm dialog (delete a resource:action from the catalog).
+	const [permissionToDelete, setPermissionToDelete] = useState<PermissionItem | null>(null);
+	const [deletingPermission, setDeletingPermission] = useState(false);
+
 	const selectedApp = useMemo(() => apps.find((app) => app.id === selectedAppId) ?? null, [apps, selectedAppId]);
 	// isme is itself an app whose roles/permissions are system-managed (read-only).
 	const isIsmeApp = selectedApp?.app_code === "isme";
@@ -359,10 +444,16 @@ export const Roles = () => {
 		listAppServices({ page: 1, page_size: 100, status: APP_SERVICE_STATUS.ACTIVE })
 			.then((response) => {
 				if (!active) return;
-				setApps(response.items);
+				// isme (system app) pinned first; the rest sorted by newest created first
+				const sorted = [...response.items].sort((a, b) => {
+					if (a.app_code === "isme") return -1;
+					if (b.app_code === "isme") return 1;
+					return (b.created_at ?? "").localeCompare(a.created_at ?? "");
+				});
+				setApps(sorted);
 				// default to isme (the system app) when present, else the first app
-				const isme = response.items.find((app) => app.app_code === "isme");
-				setSelectedAppId(isme?.id ?? response.items[0]?.id ?? null);
+				const isme = sorted.find((app) => app.app_code === "isme");
+				setSelectedAppId(isme?.id ?? sorted[0]?.id ?? null);
 			})
 			.catch((error: unknown) => {
 				if (active) toaster.create({ title: errorMessage(error, "Failed to load apps"), type: "error", meta: { closable: true } });
@@ -450,9 +541,9 @@ export const Roles = () => {
 		[]
 	);
 
-	// Members + App scope tabs need the assignment list.
+	// Members tab needs the assignment list.
 	useEffect(() => {
-		if (!selectedRoleId || (tab !== "members" && tab !== "apps")) return;
+		if (!selectedRoleId || tab !== "members") return;
 		loadMembers(selectedRoleId, membersPage);
 	}, [selectedRoleId, tab, membersPage, loadMembers]);
 
@@ -491,6 +582,9 @@ export const Roles = () => {
 	const matrixEditable = !!detail && !isReadOnly && canUpdate;
 	// Dynamic matrix from the selected app's permission catalog.
 	const matrixResources = useMemo(() => buildMatrix(catalog), [catalog]);
+	// Selected app has an empty permission catalog → drive the "Add your first
+	// permission" empty states (matrix + catalog tabs).
+	const catalogEmpty = matrixResources.length === 0;
 
 	const dirtyCount = useMemo(() => {
 		let count = 0;
@@ -500,17 +594,6 @@ export const Roles = () => {
 	}, [draftPermissionIds, originalPermissionIds]);
 
 	const membersTotalPages = Math.max(1, Math.ceil(membersTotal / MEMBERS_PAGE_SIZE));
-
-	// Scope distribution of the loaded assignments (App scope tab is read-only).
-	const scopeDistribution = useMemo(() => {
-		let globalCount = 0;
-		const perApp = new Map<string, number>();
-		for (const member of members) {
-			if (!member.app_service_id) globalCount += 1;
-			else perApp.set(member.app_service_id, (perApp.get(member.app_service_id) ?? 0) + 1);
-		}
-		return { globalCount, perApp };
-	}, [members]);
 
 	const togglePermission = (permissionId: number) => {
 		setDraftPermissionIds((previous) => {
@@ -536,6 +619,118 @@ export const Roles = () => {
 			toaster.create({ title: errorMessage(error, "Failed to save permissions"), type: "error", meta: { closable: true } });
 		} finally {
 			setSavingPermissions(false);
+		}
+	};
+
+	// Sanitized live inputs (lowercase, [a-z0-9_] only — same rule the backend enforces).
+	const cleanResource = useMemo(() => sanitizeSegment(newResource), [newResource]);
+	const cleanAction = useMemo(() => sanitizeSegment(newAction), [newAction]);
+
+	// Resolved icon key per EXISTING resource (from the loaded catalog) — used to
+	// detect when the typed resource already exists and to lock its icon.
+	const existingResourceIconKeys = useMemo(() => {
+		const byResource = new Map<string, string>();
+		for (const permission of catalog) {
+			if (!byResource.has(permission.resource)) {
+				byResource.set(permission.resource, resolveResourceIconKey(permission.resource, permission.icon));
+			}
+		}
+		return byResource;
+	}, [catalog]);
+	// Does the typed resource match an existing one? If so its icon is locked.
+	const matchedExistingResource = cleanResource ? existingResourceIconKeys.has(cleanResource) : false;
+	const lockedResourceIconKey = matchedExistingResource ? (existingResourceIconKeys.get(cleanResource) ?? "") : "";
+	// The icon that will actually be sent: locked for an existing resource, the
+	// user's pick for a new one.
+	const effectiveIconKey = matchedExistingResource ? lockedResourceIconKey : newResourceIcon;
+	const livePermission = cleanResource && cleanAction ? `${cleanResource}:${cleanAction}` : "";
+	// A live pair counts only when valid AND not already queued.
+	const liveValid = !!livePermission && !permissionQueue.some((pair) => `${pair.resource}:${pair.action}` === livePermission);
+	// Total pairs that would be created on submit (queue + the live pair, if any).
+	const pendingPermissionCount = permissionQueue.length + (liveValid ? 1 : 0);
+
+	const resetPermissionDialog = () => {
+		setNewResource("");
+		setNewAction("");
+		setNewResourceIcon("");
+		setPermissionQueue([]);
+	};
+
+	// "+ Add another" — stage the current inputs (with the resolved icon) and
+	// clear them for the next pair.
+	const handleQueuePermission = () => {
+		if (!liveValid) return;
+		setPermissionQueue((previous) => [...previous, { resource: cleanResource, action: cleanAction, icon: effectiveIconKey }]);
+		setNewResource("");
+		setNewAction("");
+		setNewResourceIcon("");
+	};
+
+	const handleUnqueuePermission = (index: number) => {
+		setPermissionQueue((previous) => previous.filter((_, position) => position !== index));
+	};
+
+	const handleCreatePermission = async () => {
+		if (!selectedApp) return;
+		// Submit every queued pair plus the live inputs (if a valid, unqueued pair).
+		const payload: PermissionPair[] = [...permissionQueue];
+		if (liveValid) payload.push({ resource: cleanResource, action: cleanAction, icon: effectiveIconKey });
+		if (payload.length === 0) return;
+		setCreatingPermission(true);
+		try {
+			await createPermissions(selectedApp.id, payload);
+			// re-pull the catalog so the new permissions appear in the matrix and can
+			// be toggled onto roles via the existing save flow
+			const refreshed = await listPermissions({ app_code: selectedApp.app_code });
+			setCatalog(refreshed);
+			setAddPermissionOpen(false);
+			resetPermissionDialog();
+			toaster.create({
+				title:
+					payload.length === 1
+						? `Permission ${payload[0].resource}:${payload[0].action} created`
+						: `${payload.length} permissions added to ${selectedApp.app_code}`,
+				type: "success",
+				meta: { closable: true },
+			});
+		} catch (error: unknown) {
+			toaster.create({ title: errorMessage(error, "Failed to create permission"), type: "error", meta: { closable: true } });
+		} finally {
+			setCreatingPermission(false);
+		}
+	};
+
+	const handleDeletePermission = async () => {
+		if (!selectedApp || !permissionToDelete) return;
+		const permission = permissionToDelete;
+		setDeletingPermission(true);
+		try {
+			await deletePermission(permission.id);
+			// Re-pull the catalog so the permission disappears from both the catalog
+			// list and the matrix; drop it from the working draft so a stale grant
+			// can't be re-saved onto the role.
+			const refreshed = await listPermissions({ app_code: selectedApp.app_code });
+			setCatalog(refreshed);
+			setOriginalPermissionIds((previous) => {
+				const next = new Set(previous);
+				next.delete(permission.id);
+				return next;
+			});
+			setDraftPermissionIds((previous) => {
+				const next = new Set(previous);
+				next.delete(permission.id);
+				return next;
+			});
+			setPermissionToDelete(null);
+			toaster.create({
+				title: `Permission ${permission.resource}:${permission.action} removed`,
+				type: "success",
+				meta: { closable: true },
+			});
+		} catch (error: unknown) {
+			toaster.create({ title: errorMessage(error, "Failed to remove permission"), type: "error", meta: { closable: true } });
+		} finally {
+			setDeletingPermission(false);
 		}
 	};
 
@@ -786,11 +981,11 @@ export const Roles = () => {
 							<Text as="span" color="fg" fontWeight="semibold">
 								System-managed app.
 							</Text>{" "}
-							isme's own roles (admin / member / viewer) and its permissions are seeded and{" "}
+							isme's own roles and its permissions are seeded and{" "}
 							<Text as="span" color="aurora.amber" fontWeight="semibold">
 								read-only
 							</Text>{" "}
-							here (is_system = true). You can still assign these roles to users — only the role &amp; permission definitions are
+							here. You can still assign these roles to users — only the role &amp; permission definitions are
 							locked. Platform admin = the admin role on this app.
 						</Text>
 					</HStack>
@@ -906,18 +1101,57 @@ export const Roles = () => {
 								{/* Tabs */}
 								<HStack gap="1" px="3.5" borderBottomWidth="1px" borderColor="border">
 									{tabButton("permissions", "Permissions", <LuKeyRound size={14} />)}
+										{tabButton("catalog", "Permission catalog", <LuLibrary size={14} />)}
 									{tabButton(
 										"members",
 										"Members",
 										<LuUsers size={14} />,
 										(selectedRole?.members_count ?? 0).toLocaleString()
 									)}
-									{tabButton("apps", "App scope", <LuAppWindow size={14} />)}
 								</HStack>
 
 								{/* Tab 1 · permission matrix */}
 								{tab === "permissions" && (
 									<>
+										{/* Catalog toolbar — add a resource:action to the app's catalog.
+										    Hidden for the isme system app (read-only catalog) and when
+										    the catalog is empty (the empty-state CTA covers it). */}
+										{!isIsmeApp && canCreate && !catalogEmpty && (
+											<Flex
+												align="center"
+												justify="space-between"
+												gap="3"
+												px="4.5"
+												py="2.5"
+												borderBottomWidth="1px"
+												borderColor="border"
+												wrap="wrap"
+											>
+												<Text fontSize="12px" color="fg.muted">
+													Permissions belong to{" "}
+													<Text as="span" color="aurora.cyan" fontWeight="semibold">
+														{selectedApp?.app_code}
+													</Text>
+													's catalog · add new resource:action pairs, then grant them to a role.
+												</Text>
+												<Button
+													h="9"
+													px="3.5"
+													flex="none"
+													borderRadius="glassSm"
+													fontSize="13px"
+													fontWeight="semibold"
+													color="white"
+													css={AURORA_CTA_STYLE}
+													boxShadow="ctaGlow"
+													_hover={{ boxShadow: "ctaGlowHi", backgroundPosition: "100% 100%" }}
+													_focusVisible={{ boxShadow: "focusRing" }}
+													onClick={() => setAddPermissionOpen(true)}
+												>
+													<LuPlus size={14} /> Add permission
+												</Button>
+											</Flex>
+										)}
 										{isReadOnly && (
 											<HStack gap="2" px="4.5" py="2.5" borderBottomWidth="1px" borderColor="rgba(245,158,11,0.25)" bg="rgba(245,158,11,0.06)" fontSize="12px" color="aurora.amber">
 												<LuLock size={13} />
@@ -926,7 +1160,29 @@ export const Roles = () => {
 													: "System role — permissions are seeded and read-only"}
 											</HStack>
 										)}
-										{/* read-only matrix gets a faint amber wash (mock .matrix-readonly) */}
+										{/* Empty catalog → "first permission" CTA instead of an empty grid (mock renderMatrix empty state) */}
+										{catalogEmpty ? (
+											<EmptyCatalogState
+												icon={<LuKeyRound size={26} />}
+												title="No permissions yet"
+												description={
+													<>
+														This app starts with an empty permission catalog. Create your first{" "}
+														<Text as="span" color="aurora.cyan">
+															resource:action
+														</Text>{" "}
+														permission — then toggle it onto the{" "}
+														<Text as="span" color="fg.subtle" fontWeight="semibold">
+															{selectedRole?.code}
+														</Text>{" "}
+														role here.
+													</>
+												}
+												canAdd={!isReadOnly && canCreate}
+												onAdd={() => setAddPermissionOpen(true)}
+											/>
+										) : (
+										/* read-only matrix gets a faint amber wash (mock .matrix-readonly) */
 										<Box bg={isReadOnly ? "rgba(245,158,11,0.03)" : "transparent"}>
 											<Table.Root size="sm" css={{ "& td, & th": { borderColor: "rgba(255,255,255,0.10)" } }}>
 												<Table.Header>
@@ -945,13 +1201,6 @@ export const Roles = () => {
 													</Table.Row>
 												</Table.Header>
 												<Table.Body>
-													{matrixResources.length === 0 && (
-														<Table.Row bg="transparent">
-															<Table.Cell colSpan={6} px="4.5" py="8" textAlign="center" fontSize="sm" color="fg.muted">
-																This app has no permissions in its catalog.
-															</Table.Cell>
-														</Table.Row>
-													)}
 													{matrixResources.map((resource) => (
 														<Table.Row key={resource.resource} bg="transparent" transition="background .15s ease-out" _hover={{ bg: "rgba(255,255,255,0.03)" }}>
 															<Table.Cell px="4.5" py="13px">
@@ -1023,6 +1272,7 @@ export const Roles = () => {
 												</Table.Body>
 											</Table.Root>
 										</Box>
+										)}
 
 										{/* Read-only lock notice (mock .lock-notice) — replaces the unsaved bar. */}
 										{isReadOnly && (
@@ -1082,7 +1332,243 @@ export const Roles = () => {
 									</>
 								)}
 
-								{/* Tab 2 · members */}
+								{/* Tab 2 · permission catalog — flat resource:action list for the app */}
+								{tab === "catalog" && (
+									<>
+										{/* Catalog header bar — perm count + add-permission affordance.
+										    isme renders a locked amber button (read-only catalog). */}
+										<Flex
+											align="center"
+											justify="space-between"
+											gap="3"
+											px="4.5"
+											py="3"
+											borderBottomWidth="1px"
+											borderColor="border"
+											wrap="wrap"
+										>
+											<Text fontSize="12px" color="fg.muted">
+												{isIsmeApp ? (
+													<>
+														<Text as="span" color="fg.subtle" fontWeight="semibold">
+															{catalog.length} permission{catalog.length === 1 ? "" : "s"}
+														</Text>{" "}
+														· seeded &amp; system-managed (read-only)
+													</>
+												) : (
+													<>
+														<Text as="span" color="fg.subtle" fontWeight="semibold">
+															{catalog.length} permission{catalog.length === 1 ? "" : "s"}
+														</Text>{" "}
+														· add{" "}
+														<Text as="span" color="aurora.cyan">
+															resource:action
+														</Text>{" "}
+														pairs, then toggle them onto roles
+													</>
+												)}
+											</Text>
+											{isIsmeApp ? (
+												<Button
+													{...GHOST_SM_BUTTON_PROPS}
+													color="aurora.amber"
+													borderColor="rgba(245,158,11,0.35)"
+													bg="rgba(245,158,11,0.08)"
+													disabled
+													title="isme permissions are system-managed — read-only"
+												>
+													<LuPlus size={13} /> Add permission <LuLock size={12} />
+												</Button>
+											) : (
+												canCreate && (
+													<Button
+														h="9"
+														px="3.5"
+														flex="none"
+														borderRadius="glassSm"
+														fontSize="13px"
+														fontWeight="semibold"
+														color="white"
+														css={AURORA_CTA_STYLE}
+														boxShadow="ctaGlow"
+														_hover={{ boxShadow: "ctaGlowHi", backgroundPosition: "100% 100%" }}
+														_focusVisible={{ boxShadow: "focusRing" }}
+														onClick={() => setAddPermissionOpen(true)}
+													>
+														<LuPlus size={14} /> Add permission
+													</Button>
+												)
+											)}
+										</Flex>
+
+										{catalogEmpty ? (
+											<EmptyCatalogState
+												icon={<LuLibrary size={26} />}
+												title="Empty permission catalog"
+												description={
+													<>
+														New apps don&apos;t auto-seed permissions. Create{" "}
+														<Text as="span" color="aurora.cyan">
+															resource:action
+														</Text>{" "}
+														entries (e.g.{" "}
+														<Text as="span" color="aurora.cyan">
+															track:read
+														</Text>
+														) and they become available to toggle onto roles.
+													</>
+												}
+												canAdd={!isIsmeApp && canCreate}
+												onAdd={() => setAddPermissionOpen(true)}
+											/>
+										) : (
+											<>
+												<Table.Root size="sm" css={{ "& td, & th": { borderColor: "rgba(255,255,255,0.10)" } }}>
+													<Table.Header>
+														<Table.Row bg="transparent">
+															<Table.ColumnHeader px="4.5" py="3" bg="transparent" {...LABEL_PROPS}>
+																Resource
+															</Table.ColumnHeader>
+															<Table.ColumnHeader px="2" py="3" bg="transparent" {...LABEL_PROPS}>
+																Action
+															</Table.ColumnHeader>
+															<Table.ColumnHeader px="4.5" py="3" bg="transparent" {...LABEL_PROPS}>
+																Permission
+															</Table.ColumnHeader>
+															{!isIsmeApp && canDelete && (
+																<Table.ColumnHeader w="56px" px="4.5" py="3" bg="transparent" textAlign="right" {...LABEL_PROPS} />
+															)}
+														</Table.Row>
+													</Table.Header>
+													<Table.Body>
+														{matrixResources.map((resource) => {
+															const actions = [
+																...CRUD_ACTIONS.filter((action) => resource.crud[action]),
+																...resource.special,
+															];
+															return actions.map((action, index) => (
+																<Table.Row
+																	key={`${resource.resource}:${action}`}
+																	bg="transparent"
+																	transition="background .15s ease-out"
+																	_hover={{ bg: "rgba(255,255,255,0.03)" }}
+																>
+																	<Table.Cell px="4.5" py="13px">
+																		{index === 0 ? (
+																			<HStack gap="3">
+																				<Center
+																					w="8"
+																					h="8"
+																					flex="none"
+																					borderRadius="10px"
+																					bg={resource.accent.bg}
+																					borderWidth="1px"
+																					borderColor="border.strong"
+																					color={resource.accent.color}
+																				>
+																					{resource.icon}
+																				</Center>
+																				<Box lineHeight="1.25">
+																					<Text fontSize="sm" fontWeight="medium" color="fg">
+																						{resource.label}
+																					</Text>
+																					<Text fontSize="11px" color="fg.muted">
+																						{resource.resource}
+																					</Text>
+																				</Box>
+																			</HStack>
+																		) : null}
+																	</Table.Cell>
+																	<Table.Cell px="2" py="13px">
+																		<Text fontSize="13px" color="fg.subtle">
+																			{action}
+																		</Text>
+																	</Table.Cell>
+																	<Table.Cell px="4.5" py="13px">
+																		<Text as="code" fontSize="13px" color="aurora.cyan" fontFamily="inherit">
+																			{resource.resource}:{action}
+																		</Text>
+																	</Table.Cell>
+																	{!isIsmeApp && canDelete && (
+																		<Table.Cell px="4.5" py="13px" textAlign="right">
+																			{(() => {
+																				const permission = permissionByCode.get(`${resource.resource}:${action}`);
+																				if (!permission) return null;
+																				return (
+																					<Center
+																						as="button"
+																						display="inline-flex"
+																						w="8"
+																						h="8"
+																						borderRadius="9px"
+																						bg="rgba(7,7,26,0.55)"
+																						borderWidth="1px"
+																						borderColor="border.strong"
+																						color="aurora.magenta"
+																						cursor="pointer"
+																						title="Remove permission"
+																						aria-label={`Remove permission ${resource.resource}:${action}`}
+																						css={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
+																						_hover={{ bg: "rgba(236,72,153,0.15)", borderColor: "rgba(236,72,153,0.40)" }}
+																						onClick={() => setPermissionToDelete(permission)}
+																					>
+																						<LuTrash2 size={13} />
+																					</Center>
+																				);
+																			})()}
+																		</Table.Cell>
+																	)}
+																</Table.Row>
+															));
+														})}
+													</Table.Body>
+												</Table.Root>
+												{/* Catalog foot — lock notice (isme) vs neutral hint (editable).
+												    Editable apps get a per-row trash button (DELETE /permissions/:id);
+												    isme's catalog is read-only so no delete affordance is shown. */}
+												<HStack
+													gap="2"
+													px="4.5"
+													py="3"
+													borderTopWidth="1px"
+													borderColor={isIsmeApp ? "rgba(245,158,11,0.25)" : "border"}
+													bg={isIsmeApp ? "rgba(245,158,11,0.06)" : "rgba(7,7,26,0.35)"}
+													fontSize="12px"
+													color={isIsmeApp ? "aurora.amber" : "fg.muted"}
+													align="flex-start"
+												>
+													<Box mt="0.5" flex="none">
+														{isIsmeApp ? <LuLock size={13} /> : <LuInfo size={13} />}
+													</Box>
+													<Text>
+														{isIsmeApp ? (
+															<>
+																<Text as="span" fontWeight="semibold">
+																	System-managed
+																</Text>{" "}
+																— isme&apos;s permissions are seeded and cannot be added or removed. Permission strings are{" "}
+																<Text as="span" color="fg.subtle">
+																	resource:action
+																</Text>
+																, never app-prefixed.
+															</>
+														) : (
+															<>
+																Permission strings are{" "}
+																<Text as="span" color="fg.subtle">
+																	resource:action
+																</Text>{" "}
+																— not app-prefixed. Use &quot;Add permission&quot; above to create more, then toggle them onto roles.
+															</>
+														)}
+													</Text>
+												</HStack>
+											</>
+										)}
+									</>
+								)}
+
+								{/* Tab 3 · members */}
 								{tab === "members" && (
 									<>
 										{canAssign && canReadUsers && (
@@ -1278,132 +1764,6 @@ export const Roles = () => {
 									</>
 								)}
 
-								{/* Tab 3 · app scope — read-only.
-								    The mock drafted per-role app toggles, but the backend stores
-								    scope per ASSIGNMENT (user_roles.app_service_id, set when adding
-								    a member) — there is no role-level scope to toggle. This tab
-								    shows the scope distribution of current assignments instead. */}
-								{tab === "apps" && (
-									<>
-										<HStack gap="3.5" px="4.5" py="3.5" borderBottomWidth="1px" borderColor="border">
-											<Center w="9" h="9" flex="none" borderRadius="11px" bg="bg.glass" borderWidth="1px" borderColor="border.strong" color="fg.muted">
-												<LuGlobe size={16} />
-											</Center>
-											<Box lineHeight="1.3" flex="1">
-												<Text fontSize="sm" fontWeight="semibold" color="fg">
-													Scope is set per assignment
-												</Text>
-												<Text fontSize="12px" color="fg.muted">
-													each member is added globally or scoped to one app service
-												</Text>
-											</Box>
-										</HStack>
-										{membersLoading ? (
-											<Center py="10">
-												<Spinner size="md" color="accent" />
-											</Center>
-										) : (
-											<Box>
-												<HStack gap="3.5" px="4.5" py="3.5" borderBottomWidth="1px" borderColor="border">
-													<Center
-														w="9"
-														h="9"
-														flex="none"
-														borderRadius="11px"
-														bg="rgba(139,92,246,0.15)"
-														borderWidth="1px"
-														borderColor="border.strong"
-														color="aurora.violet"
-													>
-														<LuGlobe size={16} />
-													</Center>
-													<Box lineHeight="1.3" flex="1" minW="0">
-														<Text fontSize="sm" fontWeight="semibold" color="fg">
-															Global (all apps)
-														</Text>
-														<Text fontSize="12px" color="fg.muted" truncate>
-															<Text as="span" color="fg.subtle">
-																app_service_id = NULL
-															</Text>{" "}
-															· assignment applies everywhere
-														</Text>
-													</Box>
-													<Box w="220px" flex="none" display="grid" gap="1.5">
-														<Flex justify="space-between" fontSize="12px" color="fg.subtle" css={{ fontVariantNumeric: "tabular-nums" }}>
-															<Text>assignments</Text>
-															<Text as="b" color="fg" fontWeight="semibold">
-																{scopeDistribution.globalCount} / {members.length} loaded
-															</Text>
-														</Flex>
-														<Box h="6px" borderRadius="3px" bg="bg.glassHi" overflow="hidden">
-															<Box
-																h="full"
-																borderRadius="3px"
-																w={`${members.length > 0 ? (scopeDistribution.globalCount / members.length) * 100 : 0}%`}
-																bg="linear-gradient(90deg, #22D3EE, #8B5CF6)"
-																boxShadow="0 0 10px rgba(139,92,246,0.5)"
-															/>
-														</Box>
-													</Box>
-												</HStack>
-												{[...scopeDistribution.perApp.entries()].map(([appServiceId, count]) => (
-													<HStack key={appServiceId} gap="3.5" px="4.5" py="3.5" borderBottomWidth="1px" borderColor="border">
-														<Center
-															w="9"
-															h="9"
-															flex="none"
-															borderRadius="11px"
-															bg="rgba(34,211,238,0.12)"
-															borderWidth="1px"
-															borderColor="border.strong"
-															color="aurora.cyan"
-														>
-															<LuAppWindow size={16} />
-														</Center>
-														<Box lineHeight="1.3" flex="1" minW="0">
-															<Text fontSize="sm" fontWeight="semibold" color="fg" truncate>
-																{appServiceId}
-															</Text>
-															<Text fontSize="12px" color="fg.muted">
-																app_service_id
-															</Text>
-														</Box>
-														<Box w="220px" flex="none" display="grid" gap="1.5">
-															<Flex justify="space-between" fontSize="12px" color="fg.subtle" css={{ fontVariantNumeric: "tabular-nums" }}>
-																<Text>assignments</Text>
-																<Text as="b" color="fg" fontWeight="semibold">
-																	{count} / {members.length} loaded
-																</Text>
-															</Flex>
-															<Box h="6px" borderRadius="3px" bg="bg.glassHi" overflow="hidden">
-																<Box
-																	h="full"
-																	borderRadius="3px"
-																	w={`${members.length > 0 ? (count / members.length) * 100 : 0}%`}
-																	bg="linear-gradient(90deg, #22D3EE, #8B5CF6)"
-																	boxShadow="0 0 10px rgba(139,92,246,0.5)"
-																/>
-															</Box>
-														</Box>
-													</HStack>
-												))}
-											</Box>
-										)}
-										{/* TODO(backend): new assignments default to global — an
-										    app_service list endpoint is needed before a scope picker
-										    (and app names instead of raw ids) can be offered here. */}
-										<HStack px="4.5" py="13px" gap="2" borderTopWidth="1px" borderColor="border" fontSize="12px" color="fg.muted">
-											<LuInfo size={13} style={{ flex: "0 0 auto" }} />
-											<Text>
-												Read-only — scope stored per assignment on{" "}
-												<Text as="span" color="fg.subtle">
-													user_roles.app_service_id
-												</Text>{" "}
-												· NULL = global
-											</Text>
-										</HStack>
-									</>
-								)}
 							</>
 						)}
 					</Box>
@@ -1546,6 +1906,423 @@ export const Roles = () => {
 								onClick={handleDelete}
 							>
 								<LuTrash2 size={14} /> Delete role
+							</Button>
+						</HStack>
+					</Dialog.Content>
+				</Dialog.Positioner>
+			</Dialog.Root>
+
+			{/* Add-permission dialog — creates a resource:action in the app's catalog */}
+			<Dialog.Root
+				open={addPermissionOpen}
+				onOpenChange={(details) => {
+					setAddPermissionOpen(details.open);
+					if (!details.open) resetPermissionDialog();
+				}}
+				placement="center"
+			>
+				<Dialog.Backdrop bg="rgba(4,4,14,0.70)" css={{ backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)" }} />
+				<Dialog.Positioner>
+					<Dialog.Content
+						w="520px"
+						maxW="92vw"
+						borderRadius="20px"
+						borderWidth="1px"
+						borderColor="border.strong"
+						bg="linear-gradient(180deg, rgba(18,18,46,0.92), rgba(11,11,35,0.94))"
+						color="fg"
+						boxShadow="glassPop"
+						overflow="hidden"
+					>
+						<Dialog.Header px="5" py="4" display="flex" alignItems="center" gap="2.5" borderBottomWidth="1px" borderColor="border">
+							<Center w="7" h="7" flex="none" borderRadius="9px" bg="rgba(139,92,246,0.15)" borderWidth="1px" borderColor="border.strong" color="aurora.violet">
+								<LuKeyRound size={15} />
+							</Center>
+							<Dialog.Title fontSize="15px" fontWeight="semibold">
+								Add permission to{" "}
+								<Text as="span" color="aurora.violet">
+									{selectedApp?.app_code}
+								</Text>
+							</Dialog.Title>
+						</Dialog.Header>
+						<Dialog.Body p="5" display="flex" flexDirection="column" gap="4">
+							{/* App field — bound to the selected app, read-only (app-owned RBAC). */}
+							<Field.Root>
+								<Field.Label fontSize="13px" fontWeight="medium" color="fg.subtle">
+									App{" "}
+									<Text as="span" color="fg.muted" fontWeight="normal">
+										· bound to the selected app, not editable
+									</Text>
+								</Field.Label>
+								<Box position="relative" width="full" opacity={0.7}>
+									<Box position="absolute" left="3.5" top="50%" transform="translateY(-50%)" color="fg.muted" pointerEvents="none">
+										<LuAppWindow size={16} />
+									</Box>
+									<Input {...INPUT_PROPS} w="full" pl="10" readOnly value={selectedApp ? `${selectedApp.app_name} · ${selectedApp.app_code}` : ""} />
+								</Box>
+							</Field.Root>
+
+							{/* Resource + Action — composed into resource:action. */}
+							<Grid templateColumns="1fr 1fr" gap="3.5">
+								<Field.Root>
+									<Field.Label fontSize="13px" fontWeight="medium" color="fg.subtle">
+										Resource
+									</Field.Label>
+									<Box position="relative" width="full">
+										<Box position="absolute" left="3.5" top="50%" transform="translateY(-50%)" color="fg.muted" pointerEvents="none">
+											<LuFileText size={16} />
+										</Box>
+										<Input
+											{...INPUT_PROPS}
+											w="full"
+											pl="10"
+											placeholder="report"
+											autoComplete="off"
+											value={newResource}
+											onChange={(event) => setNewResource(sanitizeSegment(event.target.value))}
+										/>
+									</Box>
+								</Field.Root>
+								<Field.Root>
+									<Field.Label fontSize="13px" fontWeight="medium" color="fg.subtle">
+										Action
+									</Field.Label>
+									<Box position="relative" width="full">
+										<Box position="absolute" left="3.5" top="50%" transform="translateY(-50%)" color="fg.muted" pointerEvents="none">
+											<LuKeyRound size={16} />
+										</Box>
+										<Input
+											{...INPUT_PROPS}
+											w="full"
+											pl="10"
+											placeholder="export"
+											autoComplete="off"
+											value={newAction}
+											onChange={(event) => setNewAction(sanitizeSegment(event.target.value))}
+										/>
+									</Box>
+								</Field.Root>
+							</Grid>
+
+							{/* Resource icon — picker for a new resource, locked to the
+							    existing resource's icon when the name matches one. */}
+							<Field.Root>
+								<Field.Label fontSize="13px" fontWeight="medium" color="fg.subtle">
+									Icon{" "}
+									<Text as="span" color="fg.muted" fontWeight="normal">
+										· shown next to this resource everywhere
+									</Text>
+								</Field.Label>
+								{matchedExistingResource ? (
+									<HStack
+										gap="2.5"
+										px="3.5"
+										py="2.5"
+										borderRadius="glassSm"
+										borderWidth="1px"
+										borderColor="border"
+										bg="bg.glass"
+										color="fg.muted"
+									>
+										<Center flex="none" w="30px" h="30px" borderRadius="8px" bg="bg.glassHi" color="aurora.cyan">
+											{renderPermissionIcon(lockedResourceIconKey, 16)}
+										</Center>
+										<Box>
+											<Text fontSize="13px" fontWeight="medium" color="fg">
+												Locked
+											</Text>
+											<Text fontSize="12px" color="fg.muted">
+												icon set by existing resource
+											</Text>
+										</Box>
+										<Box ml="auto" flex="none" color="fg.muted">
+											<LuLock size={14} />
+										</Box>
+									</HStack>
+								) : (
+									<Grid w="full" templateColumns="repeat(auto-fill, 38px)" justifyContent="start" gap="2">
+										{/* Neutral default option (empty key). */}
+										<Center
+											as="button"
+											aria-label="No icon (default)"
+											aria-pressed={newResourceIcon === ""}
+											title="Default"
+											w="38px"
+											h="38px"
+											borderRadius="9px"
+											borderWidth="1px"
+											cursor="pointer"
+											borderColor={newResourceIcon === "" ? "aurora.cyan" : "border"}
+											bg={newResourceIcon === "" ? "rgba(34,211,238,0.12)" : "bg.glass"}
+											color={newResourceIcon === "" ? "aurora.cyan" : "fg.muted"}
+											_hover={{ borderColor: "border.strong", color: "fg" }}
+											onClick={() => setNewResourceIcon("")}
+										>
+											{renderDefaultPermissionIcon(16)}
+										</Center>
+										{PERMISSION_ICON_KEYS.map((key) => {
+											const selected = newResourceIcon === key;
+											return (
+												<Center
+													key={key}
+													as="button"
+													aria-label={key}
+													aria-pressed={selected}
+													title={key}
+													w="38px"
+													h="38px"
+													borderRadius="9px"
+													borderWidth="1px"
+													cursor="pointer"
+													borderColor={selected ? "aurora.cyan" : "border"}
+													bg={selected ? "rgba(34,211,238,0.12)" : "bg.glass"}
+													color={selected ? "aurora.cyan" : "fg.muted"}
+													_hover={{ borderColor: "border.strong", color: "fg" }}
+													onClick={() => setNewResourceIcon(key)}
+												>
+													{renderPermissionIcon(key, 16)}
+												</Center>
+											);
+										})}
+									</Grid>
+								)}
+							</Field.Root>
+
+							{/* Live resource:action preview pill (dashed container). */}
+							<HStack
+								gap="2.5"
+								wrap="wrap"
+								px="3.5"
+								py="13px"
+								borderRadius="glassSm"
+								borderWidth="1px"
+								borderStyle="dashed"
+								borderColor="border.strong"
+								bg="rgba(7,7,26,0.35)"
+							>
+								<Text {...LABEL_PROPS} letterSpacing="0.12em">
+									Preview
+								</Text>
+								{livePermission ? (
+									<Box
+										{...PILL_BASE}
+										px="3"
+										py="5px"
+										fontSize="14px"
+										fontWeight="semibold"
+										color="aurora.cyan"
+										borderColor="rgba(34,211,238,0.35)"
+										bg="rgba(34,211,238,0.10)"
+										css={{ fontVariantNumeric: "tabular-nums" }}
+									>
+										<Box as="span" display="inline-flex" alignItems="center" gap="2">
+											{renderPermissionIcon(effectiveIconKey, 14)}
+											<Box as="span">
+												{cleanResource}
+												<Text as="span" color="fg.muted" fontWeight="bold">
+													:
+												</Text>
+												{cleanAction}
+											</Box>
+										</Box>
+									</Box>
+								) : (
+									<Box {...PILL_BASE} px="3" py="5px" fontSize="14px">
+										resource:action
+									</Box>
+								)}
+							</HStack>
+
+							{/* Validation hint — namespace is implicit, no app prefix. */}
+							<Text fontSize="12px" color="fg.muted">
+								Lowercase letters, digits and underscore only · no spaces or{" "}
+								<Text as="code" color="fg.subtle" fontFamily="inherit">
+									:
+								</Text>{" "}
+								(it&apos;s the separator). The app namespace is implicit — don&apos;t prefix with the app name.
+							</Text>
+
+							{/* "+ Add another" — stage multiple pairs before submitting. */}
+							<Box>
+								<Button {...GHOST_SM_BUTTON_PROPS} disabled={!liveValid} onClick={handleQueuePermission}>
+									<LuPlus size={13} /> Add another
+								</Button>
+								{permissionQueue.length > 0 && (
+									<Box display="grid" gap="2" mt="2.5">
+										{permissionQueue.map((entry, index) => {
+											const entryCode = `${entry.resource}:${entry.action}`;
+											return (
+											<HStack
+												key={entryCode}
+												gap="2.5"
+												px="3"
+												py="2"
+												borderRadius="10px"
+												borderWidth="1px"
+												borderColor="border"
+												bg="bg.glass"
+											>
+												<Center flex="none" w="22px" h="22px" borderRadius="6px" bg="bg.glassHi" color="aurora.cyan">
+													{renderPermissionIcon(entry.icon, 13)}
+												</Center>
+												<Text as="code" flex="1" fontSize="13px" fontWeight="semibold" color="aurora.cyan" fontFamily="inherit">
+													{entryCode}
+												</Text>
+												<Center
+													as="button"
+													w="26px"
+													h="26px"
+													borderRadius="7px"
+													color="fg.muted"
+													cursor="pointer"
+													title="Remove"
+													aria-label={`Remove ${entryCode}`}
+													_hover={{ bg: "rgba(236,72,153,0.12)", color: "aurora.magenta" }}
+													onClick={() => handleUnqueuePermission(index)}
+												>
+													<LuX size={13} />
+												</Center>
+											</HStack>
+											);
+										})}
+									</Box>
+								)}
+							</Box>
+
+							{/* Footer explainer (mock .modal-note). */}
+							<HStack
+								gap="2.5"
+								px="3.5"
+								py="11px"
+								borderRadius="glassSm"
+								borderWidth="1px"
+								borderColor="border"
+								bg="bg.glass"
+								fontSize="12px"
+								color="fg.muted"
+								align="flex-start"
+							>
+								<Box mt="0.5" flex="none">
+									<LuInfo size={14} />
+								</Box>
+								<Text>
+									<Text as="span" color="aurora.amber" fontWeight="semibold">
+										resource:action
+									</Text>{" "}
+									— once created, this permission becomes toggle-able onto any role in this app via the matrix. It grants nothing
+									until a role is checked.
+								</Text>
+							</HStack>
+						</Dialog.Body>
+						<HStack justify="flex-end" gap="2.5" px="5" py="4" borderTopWidth="1px" borderColor="border">
+							<Button
+								variant="outline"
+								h="11"
+								px="4.5"
+								borderRadius="glassSm"
+								borderColor="border.strong"
+								bg="bg.glass"
+								fontSize="sm"
+								fontWeight="semibold"
+								color="fg"
+								_hover={{ bg: "bg.glassHi", borderColor: "rgba(255,255,255,0.28)" }}
+								onClick={() => setAddPermissionOpen(false)}
+							>
+								Cancel
+							</Button>
+							<Button
+								h="11"
+								px="4.5"
+								borderRadius="glassSm"
+								fontSize="sm"
+								fontWeight="semibold"
+								color="white"
+								css={AURORA_CTA_STYLE}
+								boxShadow="ctaGlow"
+								_hover={{ boxShadow: "ctaGlowHi", backgroundPosition: "100% 100%" }}
+								disabled={pendingPermissionCount === 0}
+								loading={creatingPermission}
+								onClick={handleCreatePermission}
+							>
+								<LuPlus size={14} />{" "}
+								{pendingPermissionCount > 1 ? `Add ${pendingPermissionCount} permissions` : "Add permission"}
+							</Button>
+						</HStack>
+					</Dialog.Content>
+				</Dialog.Positioner>
+			</Dialog.Root>
+
+			{/* Remove-permission confirm dialog — deletes a resource:action from the
+			    app's catalog (and clears any role grants referencing it). */}
+			<Dialog.Root
+				open={!!permissionToDelete}
+				onOpenChange={(details) => {
+					if (!details.open) setPermissionToDelete(null);
+				}}
+				placement="center"
+			>
+				<Dialog.Backdrop bg="rgba(4,4,14,0.70)" css={{ backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)" }} />
+				<Dialog.Positioner>
+					<Dialog.Content
+						w="480px"
+						maxW="92vw"
+						borderRadius="20px"
+						borderWidth="1px"
+						borderColor="border.strong"
+						bg="linear-gradient(180deg, rgba(18,18,46,0.92), rgba(11,11,35,0.94))"
+						color="fg"
+						boxShadow="glassPop"
+						overflow="hidden"
+					>
+						<Dialog.Header px="5" py="4" display="flex" alignItems="center" borderBottomWidth="1px" borderColor="border">
+							<Dialog.Title fontSize="15px" fontWeight="semibold">
+								Remove permission
+							</Dialog.Title>
+						</Dialog.Header>
+						<Dialog.Body p="5" display="flex" flexDirection="column" gap="3">
+							<Text fontSize="sm" color="fg.subtle">
+								This deletes{" "}
+								<Text as="code" color="aurora.cyan" fontFamily="inherit">
+									{permissionToDelete?.resource}:{permissionToDelete?.action}
+								</Text>{" "}
+								from{" "}
+								<Text as="span" color="aurora.cyan" fontWeight="semibold">
+									{selectedApp?.app_code}
+								</Text>
+								's catalog and removes it from every role that currently grants it.
+							</Text>
+						</Dialog.Body>
+						<HStack justify="flex-end" gap="2.5" px="5" py="4" borderTopWidth="1px" borderColor="border">
+							<Button
+								variant="outline"
+								h="11"
+								px="4.5"
+								borderRadius="glassSm"
+								borderColor="border.strong"
+								bg="bg.glass"
+								fontSize="sm"
+								fontWeight="semibold"
+								color="fg"
+								_hover={{ bg: "bg.glassHi", borderColor: "rgba(255,255,255,0.28)" }}
+								onClick={() => setPermissionToDelete(null)}
+							>
+								Cancel
+							</Button>
+							<Button
+								h="11"
+								px="4.5"
+								variant="outline"
+								borderRadius="glassSm"
+								borderColor="rgba(236,72,153,0.35)"
+								bg="rgba(236,72,153,0.08)"
+								fontSize="sm"
+								fontWeight="semibold"
+								color="aurora.magenta"
+								_hover={{ bg: "rgba(236,72,153,0.16)" }}
+								loading={deletingPermission}
+								onClick={handleDeletePermission}
+							>
+								<LuTrash2 size={14} /> Remove permission
 							</Button>
 						</HStack>
 					</Dialog.Content>

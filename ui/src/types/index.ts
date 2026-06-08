@@ -52,6 +52,8 @@ export type {
 	CreateRoleResponse,
 	UpdateRoleRequest,
 	SetRolePermissionsRequest,
+	PermissionPair,
+	CreatePermissionsRequest,
 	AddRoleMembersRequest,
 	RoleMemberItem,
 	ListRoleMembersRequest,

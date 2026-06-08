@@ -4,10 +4,17 @@ import (
 	"errors"
 	"regexp"
 
+	roleConstants "github.com/vukyn/isme/internal/domains/role/constants"
+
 	pkgBase "github.com/vukyn/kuery/http/base"
 )
 
 var roleCodePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
+
+// permissionTokenPattern validates a permission resource or action segment.
+// Lowercase letters, digits and underscores only — the ":" separator is
+// reserved for joining resource and action into a claim code.
+var permissionTokenPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_]*$`)
 
 type CreateRequest struct {
 	AppID           string `json:"app_id"`
@@ -55,6 +62,51 @@ func (r ListPermissionsRequest) Validate() error {
 
 type CreateResponse struct {
 	ID string `json:"id"`
+}
+
+// PermissionPair is one resource:action permission to create for an app. Icon
+// is an optional per-resource icon key (allowlist in roleConstants); empty =
+// neutral default. When the resource already exists in the app, the repository
+// reuses that resource's existing icon and ignores this value.
+type PermissionPair struct {
+	Resource string `json:"resource"`
+	Action   string `json:"action"`
+	Icon     string `json:"icon"`
+}
+
+// CreatePermissionsRequest creates one or many resource:action permissions for
+// an app's catalog. Creation is idempotent — existing pairs are returned with
+// their ids.
+type CreatePermissionsRequest struct {
+	AppID       string           `json:"app_id"`
+	Permissions []PermissionPair `json:"permissions"`
+}
+
+func (r CreatePermissionsRequest) Validate() error {
+	if r.AppID == "" {
+		return errors.New("app_id is required")
+	}
+	if len(r.Permissions) == 0 {
+		return errors.New("permissions is required")
+	}
+	for _, permission := range r.Permissions {
+		if permission.Resource == "" {
+			return errors.New("resource is required")
+		}
+		if permission.Action == "" {
+			return errors.New("action is required")
+		}
+		if !permissionTokenPattern.MatchString(permission.Resource) {
+			return errors.New("resource must be lowercase (a-z, 0-9, underscore) with no ':'")
+		}
+		if !permissionTokenPattern.MatchString(permission.Action) {
+			return errors.New("action must be lowercase (a-z, 0-9, underscore) with no ':'")
+		}
+		if !roleConstants.IsValidPermissionIcon(permission.Icon) {
+			return errors.New("icon is not a known icon key")
+		}
+	}
+	return nil
 }
 
 type UpdateRequest struct {
@@ -127,6 +179,9 @@ type PermissionItem struct {
 	AppID    string `json:"app_id"`
 	Resource string `json:"resource"`
 	Action   string `json:"action"`
+	// Icon is the per-resource icon key shared by all rows of the same
+	// (app_id, resource); empty = neutral default in the UI.
+	Icon string `json:"icon"`
 }
 
 type RoleDetailResponse struct {

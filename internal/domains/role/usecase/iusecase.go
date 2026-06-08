@@ -21,6 +21,10 @@ type IUseCase interface {
 	SetPermissions(ctx context.Context, id string, req models.SetPermissionsRequest) error
 	// List the permission catalog, filtered by owning app
 	ListPermissions(ctx context.Context, req models.ListPermissionsRequest) ([]models.PermissionItem, error)
+	// Create resource:action permissions for an app (rejected for the isme system app)
+	CreatePermissions(ctx context.Context, req models.CreatePermissionsRequest) ([]models.PermissionItem, error)
+	// Delete a catalog permission and clear its grants (rejected for the isme system app)
+	DeletePermission(ctx context.Context, permissionID int64) error
 	// ProvisionDefaultRoles seeds the default per-app role set (an admin role
 	// holding the app's full CRUD permission catalog) for a newly created app
 	ProvisionDefaultRoles(ctx context.Context, appID string) error

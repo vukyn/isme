@@ -1,10 +1,13 @@
 package handlers
 
 import (
+	"strconv"
+
 	idi "github.com/vukyn/isme/internal/di"
 	"github.com/vukyn/isme/internal/domains/role/models"
 
 	pkgCtx "github.com/vukyn/kuery/ctx"
+	pkgErr "github.com/vukyn/kuery/http/errors"
 	pkgHttp "github.com/vukyn/kuery/http/fiber"
 
 	"github.com/gofiber/fiber/v2"
@@ -213,4 +216,47 @@ func ListPermissions(c *fiber.Ctx) error {
 	}
 
 	return pkgHttp.OK(c, permissions)
+}
+
+func CreatePermissions(c *fiber.Ctx) error {
+	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
+	defer ctn.Delete()
+
+	uc, err := idi.GetRoleUsecase(ctn)
+	if err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	createPermissionsRequest := models.CreatePermissionsRequest{}
+	if err := c.BodyParser(&createPermissionsRequest); err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	permissions, err := uc.CreatePermissions(pkgCtx.NewContextFromFiberCtx(c), createPermissionsRequest)
+	if err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	return pkgHttp.OK(c, permissions)
+}
+
+func DeletePermission(c *fiber.Ctx) error {
+	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
+	defer ctn.Delete()
+
+	uc, err := idi.GetRoleUsecase(ctn)
+	if err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	permissionID, err := strconv.ParseInt(c.Params("permissionID"), 10, 64)
+	if err != nil {
+		return pkgHttp.Err(c, pkgErr.InvalidRequest("invalid permission id"))
+	}
+
+	if err := uc.DeletePermission(pkgCtx.NewContextFromFiberCtx(c), permissionID); err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	return pkgHttp.OK(c, nil)
 }

@@ -198,10 +198,32 @@ func (r *repository) ListPermissions(ctx context.Context, req models.ListPermiss
 }
 
 // CreatePermissions idempotently inserts the given resource:action permissions for
-// an app and returns their permission IDs keyed by "resource:action".
+// an app and returns their permission IDs keyed by "resource:action". The icon is
+// stored per resource: if the (app_id, resource) already has rows, those rows'
+// existing icon is reused for new rows of that resource (never overwritten) so a
+// resource keeps one consistent icon; only a brand-new resource takes the
+// requested icon.
 func (r *repository) CreatePermissions(ctx context.Context, appID string, perms []models.PermissionItem) (map[string]int64, error) {
 	if appID == "" {
 		return nil, pkgErr.InvalidRequest("app_id is required")
+	}
+
+	// resolve each resource's effective icon once: an existing resource keeps its
+	// stored icon; a new resource takes the icon supplied on its first pair.
+	iconByResource := map[string]string{}
+	for _, perm := range perms {
+		if _, resolved := iconByResource[perm.Resource]; resolved {
+			continue
+		}
+		existingIcon, err := r.getResourceIcon(ctx, appID, perm.Resource)
+		if err != nil {
+			return nil, err
+		}
+		if existingIcon != "" {
+			iconByResource[perm.Resource] = existingIcon
+		} else {
+			iconByResource[perm.Resource] = perm.Icon
+		}
 	}
 
 	permissionIDs := map[string]int64{}
@@ -211,6 +233,7 @@ func (r *repository) CreatePermissions(ctx context.Context, appID string, perms 
 				AppID:    appID,
 				Resource: perm.Resource,
 				Action:   perm.Action,
+				Icon:     iconByResource[perm.Resource],
 			}).
 			Ignore().
 			Exec(ctx); err != nil {
@@ -231,6 +254,77 @@ func (r *repository) CreatePermissions(ctx context.Context, appID string, perms 
 		permissionIDs[perm.Resource+":"+perm.Action] = permissionID
 	}
 	return permissionIDs, nil
+}
+
+// getResourceIcon returns the icon stored on the lowest-id (first) row of the
+// given (app_id, resource), or "" when the resource has no rows yet.
+func (r *repository) getResourceIcon(ctx context.Context, appID string, resource string) (string, error) {
+	var icon string
+	err := r.db.NewSelect().
+		Model((*entity.Permission)(nil)).
+		Column("icon").
+		Where("app_id = ?", appID).
+		Where("resource = ?", resource).
+		Order("id ASC").
+		Limit(1).
+		Scan(ctx, &icon)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", nil
+		}
+		return "", pkgErr.DatabaseError(err.Error())
+	}
+	return icon, nil
+}
+
+func (r *repository) GetPermissionByID(ctx context.Context, permissionID int64) (entity.Permission, error) {
+	if permissionID == 0 {
+		return entity.Permission{}, pkgErr.InvalidRequest("permission_id is required")
+	}
+
+	permission := entity.Permission{}
+	err := r.db.NewSelect().
+		Model(&permission).
+		Where("id = ?", permissionID).
+		Scan(ctx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return entity.Permission{}, nil
+		}
+		return entity.Permission{}, pkgErr.DatabaseError(err.Error())
+	}
+	return permission, nil
+}
+
+// DeletePermission removes a permission from the catalog. Any role_permissions
+// rows granting it are cleared first so no role keeps a dangling grant, then the
+// permissions row is deleted — both in one transaction.
+func (r *repository) DeletePermission(ctx context.Context, permissionID int64) error {
+	if permissionID == 0 {
+		return pkgErr.InvalidRequest("permission_id is required")
+	}
+
+	err := r.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
+		// clear grants referencing this permission
+		_, err := tx.NewDelete().
+			Model((*entity.RolePermission)(nil)).
+			Where("permission_id = ?", permissionID).
+			Exec(ctx)
+		if err != nil {
+			return err
+		}
+
+		// delete the catalog entry
+		_, err = tx.NewDelete().
+			Model((*entity.Permission)(nil)).
+			Where("id = ?", permissionID).
+			Exec(ctx)
+		return err
+	})
+	if err != nil {
+		return pkgErr.DatabaseError(err.Error())
+	}
+	return nil
 }
 
 func (r *repository) GetPermissionsByRoleID(ctx context.Context, roleID string) ([]entity.Permission, error) {

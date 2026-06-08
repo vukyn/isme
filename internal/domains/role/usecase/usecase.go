@@ -123,6 +123,7 @@ func (u *usecase) GetDetail(ctx context.Context, id string) (models.RoleDetailRe
 			AppID:    permission.AppID,
 			Resource: permission.Resource,
 			Action:   permission.Action,
+			Icon:     permission.Icon,
 		})
 	}
 
@@ -221,6 +222,17 @@ func (u *usecase) ListPermissions(ctx context.Context, req models.ListPermission
 		return nil, err
 	}
 
+	// per-resource consistency: every row of a resource reports the same icon —
+	// the one on the resource's lowest-id (first) row. Rows are returned ordered
+	// by id ASC, so the first row seen per (app_id, resource) is authoritative.
+	iconByResource := map[string]string{}
+	for _, permission := range permissions {
+		key := permission.AppID + "\x00" + permission.Resource
+		if _, seen := iconByResource[key]; !seen {
+			iconByResource[key] = permission.Icon
+		}
+	}
+
 	items := make([]models.PermissionItem, 0, len(permissions))
 	for _, permission := range permissions {
 		items = append(items, models.PermissionItem{
@@ -228,14 +240,115 @@ func (u *usecase) ListPermissions(ctx context.Context, req models.ListPermission
 			AppID:    permission.AppID,
 			Resource: permission.Resource,
 			Action:   permission.Action,
+			Icon:     iconByResource[permission.AppID+"\x00"+permission.Resource],
 		})
 	}
 	return items, nil
 }
 
-// ProvisionDefaultRoles seeds an "admin" role holding the app's full CRUD
-// permission catalog (decision 4). Idempotent: re-running for an app that
-// already has the admin role is a no-op.
+// CreatePermissions adds resource:action permissions to an app's catalog and
+// returns the resulting permission items (with ids) so callers can refresh.
+// Creating permissions for the isme system app is rejected — its catalog is
+// seeded and read-only.
+func (u *usecase) CreatePermissions(ctx context.Context, req models.CreatePermissionsRequest) ([]models.PermissionItem, error) {
+	// validation
+	if err := req.Validate(); err != nil {
+		return nil, pkgErr.InvalidRequest(err.Error())
+	}
+
+	// the isme system app owns its permission catalog and is read-only
+	if req.AppID == roleConstants.APP_ID_ISME {
+		return nil, pkgErr.Forbidden("isme system app permissions are read-only")
+	}
+
+	// the owning app must exist
+	app, err := u.appServiceRepo.GetByID(ctx, req.AppID)
+	if err != nil {
+		return nil, err
+	}
+	if app.ID == "" {
+		return nil, pkgErr.InvalidRequest("app service not found")
+	}
+	// guard against the system app by code too (defense in depth)
+	if app.AppCode == roleConstants.APP_CODE_ISME {
+		return nil, pkgErr.Forbidden("isme system app permissions are read-only")
+	}
+
+	perms := make([]models.PermissionItem, 0, len(req.Permissions))
+	for _, permission := range req.Permissions {
+		perms = append(perms, models.PermissionItem{Resource: permission.Resource, Action: permission.Action, Icon: permission.Icon})
+	}
+
+	permissionIDsByCode, err := u.roleRepo.CreatePermissions(ctx, req.AppID, perms)
+	if err != nil {
+		return nil, err
+	}
+
+	// resolve each resource's authoritative icon (the repo may have reused an
+	// existing resource's icon instead of the requested one) by re-reading the
+	// app catalog once and indexing the lowest-id row's icon per resource.
+	catalog, err := u.ListPermissions(ctx, models.ListPermissionsRequest{AppID: req.AppID})
+	if err != nil {
+		return nil, err
+	}
+	iconByResource := map[string]string{}
+	for _, item := range catalog {
+		if _, seen := iconByResource[item.Resource]; !seen {
+			iconByResource[item.Resource] = item.Icon
+		}
+	}
+
+	items := make([]models.PermissionItem, 0, len(perms))
+	for _, permission := range perms {
+		items = append(items, models.PermissionItem{
+			ID:       permissionIDsByCode[permission.Resource+":"+permission.Action],
+			AppID:    req.AppID,
+			Resource: permission.Resource,
+			Action:   permission.Action,
+			Icon:     iconByResource[permission.Resource],
+		})
+	}
+	return items, nil
+}
+
+// DeletePermission removes a resource:action permission from an app's catalog
+// and clears any role grants referencing it. Deleting a permission owned by the
+// isme system app is rejected — its catalog is seeded and read-only.
+func (u *usecase) DeletePermission(ctx context.Context, permissionID int64) error {
+	if permissionID == 0 {
+		return pkgErr.InvalidRequest("permission_id is required")
+	}
+
+	// the permission must exist
+	permission, err := u.roleRepo.GetPermissionByID(ctx, permissionID)
+	if err != nil {
+		return err
+	}
+	if permission.ID == 0 {
+		return pkgErr.NotFound("permission not found")
+	}
+
+	// the isme system app owns its permission catalog and is read-only
+	if permission.AppID == roleConstants.APP_ID_ISME {
+		return pkgErr.Forbidden("isme system app permissions are read-only")
+	}
+
+	// resolve the owning app and guard by code too (defense in depth)
+	app, err := u.appServiceRepo.GetByID(ctx, permission.AppID)
+	if err != nil {
+		return err
+	}
+	if app.AppCode == roleConstants.APP_CODE_ISME {
+		return pkgErr.Forbidden("isme system app permissions are read-only")
+	}
+
+	return u.roleRepo.DeletePermission(ctx, permissionID)
+}
+
+// ProvisionDefaultRoles seeds an empty "admin" role for a newly created app.
+// The role starts with zero permissions — resource:action permissions are
+// created and assigned manually afterward (see CreatePermissions). Idempotent:
+// re-running for an app that already has the admin role is a no-op.
 func (u *usecase) ProvisionDefaultRoles(ctx context.Context, appID string) error {
 	if appID == "" {
 		return pkgErr.InvalidRequest("app_id is required")
@@ -250,37 +363,14 @@ func (u *usecase) ProvisionDefaultRoles(ctx context.Context, appID string) error
 		return nil
 	}
 
-	// full CRUD seed for the app's own resources
-	defaultResources := []string{"object", "bucket", "storage", "playlist", "station", "track"}
-	defaultActions := []string{"read", "create", "update", "delete"}
-	perms := make([]models.PermissionItem, 0, len(defaultResources)*len(defaultActions))
-	for _, resource := range defaultResources {
-		for _, action := range defaultActions {
-			perms = append(perms, models.PermissionItem{Resource: resource, Action: action})
-		}
-	}
-
-	permissionIDsByCode, err := u.roleRepo.CreatePermissions(ctx, appID, perms)
-	if err != nil {
-		return err
-	}
-
-	// create the admin role and grant it the full catalog
-	roleID, err := u.roleRepo.Create(ctx, models.CreateRequest{
+	// create the empty admin role; no permissions are seeded
+	_, err = u.roleRepo.Create(ctx, models.CreateRequest{
 		AppID:       appID,
 		Code:        roleConstants.ROLE_CODE_ADMIN,
 		Name:        "Admin",
 		Description: "Full access to every resource",
 	})
-	if err != nil {
-		return err
-	}
-
-	permissionIDs := make([]int64, 0, len(permissionIDsByCode))
-	for _, permissionID := range permissionIDsByCode {
-		permissionIDs = append(permissionIDs, permissionID)
-	}
-	return u.roleRepo.ReplaceRolePermissions(ctx, roleID, permissionIDs)
+	return err
 }
 
 func (u *usecase) ListMembers(ctx context.Context, id string, req models.ListMembersRequest) (models.ListMembersResponse, error) {

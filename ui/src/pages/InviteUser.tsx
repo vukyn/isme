@@ -317,7 +317,7 @@ export const InviteUser = () => {
 									<Text as="span" color="fg.subtle">
 										isme
 									</Text>{" "}
-									app makes this user a platform administrator on acceptance — the replacement for the removed is_admin flag.
+									app makes this user a platform administrator on acceptance.
 								</Text>
 							</HStack>
 						</Box>

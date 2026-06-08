@@ -3,6 +3,12 @@
  * the backend always re-checks permissions server-side).
  */
 
+/** Per-app permission grant inside resource_access, keyed by app_code. */
+export interface AppAccess {
+	/** Permission codes as "resource:action" (e.g. "role:assign"). */
+	perms?: string[];
+}
+
 /** Claims embedded in the isme access token (kuery/claims keys). */
 export interface AccessTokenClaims {
 	/** Token ID (jti). */
@@ -12,12 +18,10 @@ export interface AccessTokenClaims {
 	email?: string;
 	/** Unix expiry (seconds). */
 	exp?: number;
-	/** Admin flag — admins bypass all permission checks. */
-	adm?: boolean;
-	/** Permission codes as "resource:action" (e.g. "role:assign"). */
-	perms?: string[];
-	/** Role codes. */
-	roles?: string[];
+	/** App codes this token is valid for (aud). */
+	aud?: string[] | string;
+	/** Per-app permission grants, keyed by app_code (e.g. resource_access.isme.perms). */
+	resource_access?: Record<string, AppAccess>;
 }
 
 /**
