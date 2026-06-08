@@ -507,4 +507,468 @@ var Migrations = []models.Migration{
 			return err
 		},
 	},
+	{
+		// isme is itself an app_service that owns the original RBAC catalog.
+		// The self-app row is a logical owner only — isme never SSO's into
+		// itself, so the app_secret is left as a placeholder (decision 1).
+		Name: "014_seed_isme_app_service",
+		Up: func(db *bun.DB) error {
+			_, err := db.Exec(`
+				INSERT OR IGNORE INTO app_services
+					(id, app_code, app_name, app_secret, redirect_url, ctx_info, status)
+				VALUES
+					('app_isme', 'isme', 'ISME', '', '', 'authen', 1)
+			`)
+			return err
+		},
+		Down: func(db *bun.DB) error {
+			_, err := db.Exec(`DELETE FROM app_services WHERE id = 'app_isme'`)
+			return err
+		},
+	},
+	{
+		// App-owned RBAC: permissions and roles become owned by an app_service.
+		// Existing rows default to the isme self-app. The old global UNIQUE
+		// constraints are relaxed to be app-scoped via a table rebuild that
+		// PRESERVES id values (role_permissions references permission ids, and
+		// role ids like 'rol_admin' are referenced by value elsewhere).
+		Name: "015_add_app_id_to_rbac",
+		Up: func(db *bun.DB) error {
+			// add the owning-app column (existing rows -> isme self-app)
+			if _, err := db.Exec(`ALTER TABLE permissions ADD COLUMN app_id TEXT NOT NULL DEFAULT 'app_isme'`); err != nil {
+				return err
+			}
+			if _, err := db.Exec(`ALTER TABLE roles ADD COLUMN app_id TEXT NOT NULL DEFAULT 'app_isme'`); err != nil {
+				return err
+			}
+
+			// rebuild permissions: UNIQUE(resource,action) -> UNIQUE(app_id,resource,action)
+			if _, err := db.Exec(`
+				CREATE TABLE permissions_new (
+					id INTEGER PRIMARY KEY AUTOINCREMENT,
+					app_id TEXT NOT NULL DEFAULT 'app_isme',
+					resource TEXT NOT NULL,
+					action TEXT NOT NULL,
+					UNIQUE (app_id, resource, action)
+				)
+			`); err != nil {
+				return err
+			}
+			if _, err := db.Exec(`
+				INSERT INTO permissions_new (id, app_id, resource, action)
+				SELECT id, app_id, resource, action FROM permissions
+			`); err != nil {
+				return err
+			}
+			if _, err := db.Exec(`DROP TABLE permissions`); err != nil {
+				return err
+			}
+			if _, err := db.Exec(`ALTER TABLE permissions_new RENAME TO permissions`); err != nil {
+				return err
+			}
+
+			// rebuild roles: drop column-level UNIQUE on code -> UNIQUE(app_id,code)
+			if _, err := db.Exec(`
+				CREATE TABLE roles_new (
+					id TEXT PRIMARY KEY NOT NULL,
+					app_id TEXT NOT NULL DEFAULT 'app_isme',
+					code TEXT NOT NULL,
+					name TEXT NOT NULL,
+					description TEXT DEFAULT '',
+					is_system INTEGER NOT NULL DEFAULT 0,
+					created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+					created_by TEXT DEFAULT '',
+					updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+					updated_by TEXT DEFAULT '',
+					deleted_at DATETIME,
+					deleted_by TEXT DEFAULT '',
+					UNIQUE (app_id, code)
+				)
+			`); err != nil {
+				return err
+			}
+			if _, err := db.Exec(`
+				INSERT INTO roles_new
+					(id, app_id, code, name, description, is_system,
+					 created_at, created_by, updated_at, updated_by, deleted_at, deleted_by)
+				SELECT
+					id, app_id, code, name, description, is_system,
+					created_at, created_by, updated_at, updated_by, deleted_at, deleted_by
+				FROM roles
+			`); err != nil {
+				return err
+			}
+			if _, err := db.Exec(`DROP TABLE roles`); err != nil {
+				return err
+			}
+			if _, err := db.Exec(`ALTER TABLE roles_new RENAME TO roles`); err != nil {
+				return err
+			}
+
+			// indexes
+			if _, err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS permissions_app_resource_action_uidx ON permissions (app_id, resource, action)`); err != nil {
+				return err
+			}
+			if _, err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS roles_app_code_uidx ON roles (app_id, code)`); err != nil {
+				return err
+			}
+			if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS permissions_app_id_idx ON permissions (app_id)`); err != nil {
+				return err
+			}
+			if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS roles_app_id_idx ON roles (app_id)`); err != nil {
+				return err
+			}
+			return nil
+		},
+		Down: func(db *bun.DB) error {
+			// drop new indexes
+			for _, idx := range []string{
+				"permissions_app_resource_action_uidx",
+				"roles_app_code_uidx",
+				"permissions_app_id_idx",
+				"roles_app_id_idx",
+			} {
+				if _, err := db.Exec(`DROP INDEX IF EXISTS ` + idx); err != nil {
+					return err
+				}
+			}
+
+			// rebuild permissions back to the global UNIQUE(resource,action), dropping app_id
+			if _, err := db.Exec(`
+				CREATE TABLE permissions_old (
+					id INTEGER PRIMARY KEY AUTOINCREMENT,
+					resource TEXT NOT NULL,
+					action TEXT NOT NULL,
+					UNIQUE (resource, action)
+				)
+			`); err != nil {
+				return err
+			}
+			if _, err := db.Exec(`
+				INSERT INTO permissions_old (id, resource, action)
+				SELECT id, resource, action FROM permissions
+			`); err != nil {
+				return err
+			}
+			if _, err := db.Exec(`DROP TABLE permissions`); err != nil {
+				return err
+			}
+			if _, err := db.Exec(`ALTER TABLE permissions_old RENAME TO permissions`); err != nil {
+				return err
+			}
+
+			// rebuild roles back to the column-level UNIQUE on code, dropping app_id
+			if _, err := db.Exec(`
+				CREATE TABLE roles_old (
+					id TEXT PRIMARY KEY NOT NULL,
+					code TEXT UNIQUE NOT NULL,
+					name TEXT NOT NULL,
+					description TEXT DEFAULT '',
+					is_system INTEGER NOT NULL DEFAULT 0,
+					created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+					created_by TEXT DEFAULT '',
+					updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+					updated_by TEXT DEFAULT '',
+					deleted_at DATETIME,
+					deleted_by TEXT DEFAULT ''
+				)
+			`); err != nil {
+				return err
+			}
+			if _, err := db.Exec(`
+				INSERT INTO roles_old
+					(id, code, name, description, is_system,
+					 created_at, created_by, updated_at, updated_by, deleted_at, deleted_by)
+				SELECT
+					id, code, name, description, is_system,
+					created_at, created_by, updated_at, updated_by, deleted_at, deleted_by
+				FROM roles
+			`); err != nil {
+				return err
+			}
+			if _, err := db.Exec(`DROP TABLE roles`); err != nil {
+				return err
+			}
+			if _, err := db.Exec(`ALTER TABLE roles_old RENAME TO roles`); err != nil {
+				return err
+			}
+
+			// restore the original roles_code_idx (created by 006)
+			if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS roles_code_idx ON roles (code)`); err != nil {
+				return err
+			}
+			return nil
+		},
+	},
+	{
+		// Rebind existing global (NULL-scope) role assignments to the isme self-app
+		// so token-mint perm filtering keys off a concrete app_id.
+		Name: "016_rebind_user_roles_to_isme_app",
+		Up: func(db *bun.DB) error {
+			_, err := db.Exec(`UPDATE user_roles SET app_service_id = 'app_isme' WHERE app_service_id IS NULL`)
+			return err
+		},
+		Down: func(db *bun.DB) error {
+			_, err := db.Exec(`UPDATE user_roles SET app_service_id = NULL WHERE app_service_id = 'app_isme'`)
+			return err
+		},
+	},
+	{
+		// Migrate is_admin away: every active is_admin user gets the isme admin
+		// role (app-scoped to app_isme), then the column is dropped. Platform
+		// superadmin = admin on the isme app from here on.
+		Name: "017_migrate_is_admin_then_drop",
+		Up: func(db *bun.DB) error {
+			rows, err := db.Query(`SELECT id FROM users WHERE is_admin = 1 AND deleted_at IS NULL`)
+			if err != nil {
+				return err
+			}
+			adminUserIDs := []string{}
+			for rows.Next() {
+				var id string
+				if err := rows.Scan(&id); err != nil {
+					rows.Close()
+					return err
+				}
+				adminUserIDs = append(adminUserIDs, id)
+			}
+			if err := rows.Err(); err != nil {
+				rows.Close()
+				return err
+			}
+			rows.Close()
+
+			for _, userID := range adminUserIDs {
+				_, err := db.Exec(`
+					INSERT OR IGNORE INTO user_roles (id, user_id, role_id, app_service_id)
+					VALUES (?, ?, 'rol_admin', 'app_isme')
+				`, cryp.ULID(), userID)
+				if err != nil {
+					return err
+				}
+			}
+
+			_, err = db.Exec(`ALTER TABLE users DROP COLUMN is_admin`)
+			return err
+		},
+		Down: func(db *bun.DB) error {
+			// re-add the column and re-derive admin flag from isme admin-role membership.
+			// Lossy: users who became admin purely via the role (no original column)
+			// are indistinguishable from migrated admins — both are flagged.
+			if _, err := db.Exec(`ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0`); err != nil {
+				return err
+			}
+			_, err := db.Exec(`
+				UPDATE users SET is_admin = 1
+				WHERE id IN (
+					SELECT ur.user_id FROM user_roles ur
+					WHERE ur.role_id = 'rol_admin' AND ur.app_service_id = 'app_isme'
+				)
+			`)
+			return err
+		},
+	},
+	{
+		// Multi-app invitations: an invitation may now carry several app-scoped
+		// role assignments (e.g. medioa2->Editor + rainy->Viewer) instead of a
+		// single role. Each assignment is one row in user_invitation_roles.
+		//
+		// The legacy user_invitations.role_id column is KEPT but relaxed to be
+		// nullable (decision: keep-nullable over migrate+drop). Rationale: the
+		// table carries a partial UNIQUE index on (email) WHERE status=1, so a
+		// full rebuild is the only way to change a column constraint; keeping the
+		// column avoids touching that index and stays trivially reversible while
+		// preserving any historical single-role data. New invitations leave it
+		// NULL and rely solely on the child rows. Existing rows are backfilled
+		// into a child row (preserving the invitation id as the FK), so accept
+		// works uniformly off the child table.
+		Name: "018_create_user_invitation_roles_table",
+		Up: func(db *bun.DB) error {
+			if _, err := db.Exec(`
+				CREATE TABLE IF NOT EXISTS user_invitation_roles (
+					id TEXT PRIMARY KEY NOT NULL,
+					invitation_id TEXT NOT NULL,
+					role_id TEXT NOT NULL,
+					app_service_id TEXT NOT NULL,
+					created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+					created_by TEXT DEFAULT '',
+					updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+					updated_by TEXT DEFAULT '',
+					deleted_at DATETIME,
+					deleted_by TEXT DEFAULT '',
+					FOREIGN KEY (invitation_id) REFERENCES user_invitations (id)
+				)
+			`); err != nil {
+				return err
+			}
+			if _, err := db.Exec(`
+				CREATE INDEX IF NOT EXISTS user_invitation_roles_invitation_id_idx
+				ON user_invitation_roles (invitation_id)
+			`); err != nil {
+				return err
+			}
+
+			// relax user_invitations.role_id to be nullable via a table rebuild
+			// (preserving ids + the partial pending-email unique index)
+			if _, err := db.Exec(`
+				CREATE TABLE user_invitations_new (
+					id TEXT PRIMARY KEY NOT NULL,
+					email TEXT NOT NULL,
+					role_id TEXT,
+					token_hash TEXT NOT NULL,
+					status INTEGER NOT NULL DEFAULT 1,
+					expires_at DATETIME NOT NULL,
+					accepted_at DATETIME,
+					created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+					created_by TEXT DEFAULT '',
+					updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+					updated_by TEXT DEFAULT '',
+					deleted_at DATETIME,
+					deleted_by TEXT DEFAULT ''
+				)
+			`); err != nil {
+				return err
+			}
+			if _, err := db.Exec(`
+				INSERT INTO user_invitations_new
+					(id, email, role_id, token_hash, status, expires_at, accepted_at,
+					 created_at, created_by, updated_at, updated_by, deleted_at, deleted_by)
+				SELECT
+					id, email, role_id, token_hash, status, expires_at, accepted_at,
+					created_at, created_by, updated_at, updated_by, deleted_at, deleted_by
+				FROM user_invitations
+			`); err != nil {
+				return err
+			}
+			if _, err := db.Exec(`DROP TABLE user_invitations`); err != nil {
+				return err
+			}
+			if _, err := db.Exec(`ALTER TABLE user_invitations_new RENAME TO user_invitations`); err != nil {
+				return err
+			}
+
+			// restore the indexes from 013 on the rebuilt table
+			if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS user_invitations_token_hash_idx ON user_invitations (token_hash)`); err != nil {
+				return err
+			}
+			if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS user_invitations_email_idx ON user_invitations (email)`); err != nil {
+				return err
+			}
+			if _, err := db.Exec(`
+				CREATE UNIQUE INDEX IF NOT EXISTS user_invitations_pending_email_uidx
+				ON user_invitations (email) WHERE status = 1 AND deleted_at IS NULL
+			`); err != nil {
+				return err
+			}
+
+			// backfill: migrate each existing single role_id into a child row.
+			// The owning role's app_id is the assignment scope (matches accept).
+			rows, err := db.Query(`
+				SELECT uin.id, uin.role_id, rol.app_id
+				FROM user_invitations uin
+				JOIN roles rol ON rol.id = uin.role_id
+				WHERE uin.role_id IS NOT NULL AND uin.role_id != '' AND uin.deleted_at IS NULL
+			`)
+			if err != nil {
+				return err
+			}
+			type seed struct {
+				invitationID string
+				roleID       string
+				appServiceID string
+			}
+			seeds := []seed{}
+			for rows.Next() {
+				var s seed
+				if err := rows.Scan(&s.invitationID, &s.roleID, &s.appServiceID); err != nil {
+					rows.Close()
+					return err
+				}
+				seeds = append(seeds, s)
+			}
+			if err := rows.Err(); err != nil {
+				rows.Close()
+				return err
+			}
+			rows.Close()
+
+			for _, s := range seeds {
+				if _, err := db.Exec(`
+					INSERT INTO user_invitation_roles (id, invitation_id, role_id, app_service_id)
+					VALUES (?, ?, ?, ?)
+				`, cryp.ULID(), s.invitationID, s.roleID, s.appServiceID); err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+		Down: func(db *bun.DB) error {
+			// collapse child rows back into the legacy single role_id: pick the
+			// earliest assignment per invitation (lossy for multi-app invites —
+			// only the first role survives), then restore the NOT NULL column.
+			if _, err := db.Exec(`
+				CREATE TABLE user_invitations_old (
+					id TEXT PRIMARY KEY NOT NULL,
+					email TEXT NOT NULL,
+					role_id TEXT NOT NULL,
+					token_hash TEXT NOT NULL,
+					status INTEGER NOT NULL DEFAULT 1,
+					expires_at DATETIME NOT NULL,
+					accepted_at DATETIME,
+					created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+					created_by TEXT DEFAULT '',
+					updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+					updated_by TEXT DEFAULT '',
+					deleted_at DATETIME,
+					deleted_by TEXT DEFAULT ''
+				)
+			`); err != nil {
+				return err
+			}
+			if _, err := db.Exec(`
+				INSERT INTO user_invitations_old
+					(id, email, role_id, token_hash, status, expires_at, accepted_at,
+					 created_at, created_by, updated_at, updated_by, deleted_at, deleted_by)
+				SELECT
+					uin.id,
+					uin.email,
+					COALESCE(uin.role_id, (
+						SELECT uir.role_id FROM user_invitation_roles uir
+						WHERE uir.invitation_id = uin.id AND uir.deleted_at IS NULL
+						ORDER BY uir.created_at ASC LIMIT 1
+					), ''),
+					uin.token_hash, uin.status, uin.expires_at, uin.accepted_at,
+					uin.created_at, uin.created_by, uin.updated_at, uin.updated_by, uin.deleted_at, uin.deleted_by
+				FROM user_invitations uin
+			`); err != nil {
+				return err
+			}
+			if _, err := db.Exec(`DROP TABLE user_invitations`); err != nil {
+				return err
+			}
+			if _, err := db.Exec(`ALTER TABLE user_invitations_old RENAME TO user_invitations`); err != nil {
+				return err
+			}
+
+			// restore the indexes from 013
+			if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS user_invitations_token_hash_idx ON user_invitations (token_hash)`); err != nil {
+				return err
+			}
+			if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS user_invitations_email_idx ON user_invitations (email)`); err != nil {
+				return err
+			}
+			if _, err := db.Exec(`
+				CREATE UNIQUE INDEX IF NOT EXISTS user_invitations_pending_email_uidx
+				ON user_invitations (email) WHERE status = 1 AND deleted_at IS NULL
+			`); err != nil {
+				return err
+			}
+
+			if _, err := db.Exec(`DROP INDEX IF EXISTS user_invitation_roles_invitation_id_idx`); err != nil {
+				return err
+			}
+			_, err := db.Exec(`DROP TABLE IF EXISTS user_invitation_roles`)
+			return err
+		},
+	},
 }

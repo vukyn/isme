@@ -66,6 +66,27 @@ func (r *repository) GetByID(ctx context.Context, id string) (entity.AppService,
 	return appService, nil
 }
 
+func (r *repository) GetByIDs(ctx context.Context, ids []string) (map[string]entity.AppService, error) {
+	appsByID := map[string]entity.AppService{}
+	if len(ids) == 0 {
+		return appsByID, nil
+	}
+
+	appServices := []entity.AppService{}
+	err := r.db.NewSelect().
+		Model(&appServices).
+		Where("id IN (?)", bun.In(ids)).
+		Scan(ctx)
+	if err != nil {
+		return nil, pkgErr.DatabaseError(err.Error())
+	}
+
+	for _, appService := range appServices {
+		appsByID[appService.ID] = appService
+	}
+	return appsByID, nil
+}
+
 func (r *repository) GetByCode(ctx context.Context, code string) (entity.AppService, error) {
 	if code == "" {
 		return entity.AppService{}, pkgErr.InvalidRequest("code is required")

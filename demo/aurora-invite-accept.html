@@ -1,0 +1,689 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>isme — Accept invitation · Aurora UI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  /* ====== Aurora design tokens — copied verbatim from aurora-invite-design.html ====== */
+  :root {
+    --bg-0: #07071A;
+    --bg-1: #0B0B23;
+    --bg-2: #12122E;
+    --fg: #F4F5FF;
+    --fg-soft: #C7CAE8;
+    --fg-mute: #8A8FB5;
+    --border: rgba(255,255,255,0.10);
+    --border-strong: rgba(255,255,255,0.18);
+    --glass: rgba(255,255,255,0.06);
+    --glass-strong: rgba(255,255,255,0.10);
+
+    --c-cyan: #22D3EE;
+    --c-blue: #6366F1;
+    --c-violet: #8B5CF6;
+    --c-magenta: #EC4899;
+    --c-amber: #F59E0B;
+    --c-mint: #34D399;
+    --c-red: #F87171;
+
+    --accent: var(--c-violet);
+    --accent-glow: rgba(139,92,246,0.45);
+
+    --radius: 16px;
+    --radius-sm: 12px;
+    --easing: cubic-bezier(.2,.8,.2,1);
+    --shadow-glass: 0 1px 0 rgba(255,255,255,0.06) inset, 0 8px 32px rgba(0,0,0,0.45);
+    --shadow-pop: 0 20px 60px rgba(99,102,241,0.25), 0 4px 12px rgba(0,0,0,0.35);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter','DM Sans',system-ui,-apple-system,sans-serif;
+    color: var(--fg);
+    background: var(--bg-0);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
+    overflow-x: hidden;
+    min-height: 100dvh;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+
+  /* Aurora background — global (same block as aurora-invite-design.html) */
+  body::before {
+    content: ""; position: fixed; inset: 0; z-index: -2;
+    background:
+      radial-gradient(60% 50% at 12% 10%, rgba(99,102,241,0.45), transparent 60%),
+      radial-gradient(45% 40% at 88% 18%, rgba(34,211,238,0.35), transparent 60%),
+      radial-gradient(55% 45% at 75% 92%, rgba(236,72,153,0.32), transparent 60%),
+      radial-gradient(50% 40% at 18% 80%, rgba(139,92,246,0.32), transparent 60%),
+      linear-gradient(180deg, #07071A 0%, #0B0B23 60%, #04040E 100%);
+    background-size: 200% 200%;
+    animation: auroraFlow 14s ease-in-out infinite alternate;
+    filter: saturate(1.15);
+  }
+  body::after {
+    content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 3px 3px;
+    mix-blend-mode: overlay;
+    opacity: 0.45;
+  }
+  @keyframes auroraFlow {
+    0%   { background-position: 0% 0%, 100% 0%, 100% 100%, 0% 100%, 0 0; }
+    50%  { background-position: 30% 20%, 60% 30%, 70% 70%, 30% 60%, 0 0; }
+    100% { background-position: 100% 100%, 0% 100%, 0% 0%, 100% 0%, 0 0; }
+  }
+
+  /* ====== Page scaffold — single full-bleed frame (NOT the multi-screen page-stack) ====== */
+  .page { max-width: 1160px; margin: 0 auto; padding: 28px 24px 96px; }
+
+  /* minimal logged-out top brand bar (no admin topbar/sidebar nav) */
+  .top { display: flex; align-items: center; justify-content: space-between; padding: 4px 4px 24px; }
+  .brand-row { display: flex; align-items: center; gap: 12px; }
+  .brand-mark {
+    width: 36px; height: 36px; border-radius: 11px;
+    background: conic-gradient(from 180deg at 50% 50%, var(--c-cyan), var(--c-blue), var(--c-violet), var(--c-magenta), var(--c-cyan));
+    display: grid; place-items: center;
+    box-shadow: 0 8px 24px rgba(99,102,241,0.45);
+  }
+  .brand-mark > span { width: 28px; height: 28px; border-radius: 8px; background: var(--bg-0); display: grid; place-items: center; }
+  .brand-name { font-weight: 700; font-size: 18px; letter-spacing: -0.01em; }
+  .top-link { font-size: 14px; color: var(--fg-mute); }
+  .top-link a { color: var(--fg); font-weight: 600; text-decoration: none; border-bottom: 1px solid var(--c-violet); padding-bottom: 1px; }
+  .top-link a:hover { color: var(--c-cyan); border-color: var(--c-cyan); }
+
+  /* ====== Frame + split (the WIDE layout from aurora-invite-design.html) ====== */
+  .frame {
+    position: relative;
+    border-radius: 28px;
+    overflow: hidden;
+    background: linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-glass);
+  }
+  .frame::before {
+    content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+    background:
+      radial-gradient(40% 60% at 0% 0%, rgba(99,102,241,0.40), transparent 60%),
+      radial-gradient(45% 55% at 100% 0%, rgba(34,211,238,0.30), transparent 60%),
+      radial-gradient(50% 60% at 100% 100%, rgba(236,72,153,0.30), transparent 60%),
+      radial-gradient(40% 50% at 0% 100%, rgba(139,92,246,0.30), transparent 60%);
+    background-size: 200% 200%;
+    animation: auroraFlow 12s ease-in-out infinite alternate;
+    filter: blur(20px) saturate(1.2);
+  }
+  .frame > * { position: relative; z-index: 1; }
+
+  /* split: brand/welcome panel (left) + content panel (right). Same anatomy as the
+     accept screen in aurora-invite-design.html — left col slightly wider. */
+  .split { display: grid; grid-template-columns: 1fr 1.25fr; min-height: 720px; }
+  @media (max-width: 980px) { .split { grid-template-columns: 1fr; } }
+
+  /* ---- LEFT: brand / welcome / inviter / access-at-a-glance ---- */
+  .brand-panel {
+    position: relative; padding: 44px;
+    display: flex; flex-direction: column; gap: 28px;
+    border-right: 1px solid var(--border);
+  }
+  @media (max-width: 980px) { .brand-panel { border-right: 0; border-bottom: 1px solid var(--border); } }
+  .orb { position: absolute; border-radius: 50%; filter: blur(40px); pointer-events: none; }
+  .orb-1 { width: 320px; height: 320px; right: -90px; top: -90px; background: radial-gradient(circle, rgba(99,102,241,0.55), transparent 70%); }
+  .orb-2 { width: 260px; height: 260px; left: -70px; bottom: 30px; background: radial-gradient(circle, rgba(236,72,153,0.50), transparent 70%); }
+  .orb-3 { width: 220px; height: 220px; right: 60px; bottom: -70px; background: radial-gradient(circle, rgba(34,211,238,0.42), transparent 70%); }
+
+  .brand-hero { position: relative; z-index: 2; }
+  .hero-pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 12px; font-weight: 500;
+    padding: 6px 12px; border-radius: 999px;
+    background: var(--glass);
+    border: 1px solid var(--border-strong);
+    backdrop-filter: blur(20px);
+    color: var(--fg-soft);
+  }
+  .hero-pill .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--c-mint); box-shadow: 0 0 10px var(--c-mint); }
+  .brand-h1 {
+    font-size: clamp(28px, 3.2vw, 40px);
+    line-height: 1.06; font-weight: 700; letter-spacing: -0.025em;
+    margin: 18px 0 14px;
+  }
+  .brand-h1 .grad {
+    background: linear-gradient(135deg, var(--c-cyan) 0%, var(--c-blue) 40%, var(--c-violet) 70%, var(--c-magenta) 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    background-size: 200% 100%;
+    animation: textShimmer 8s ease-in-out infinite alternate;
+  }
+  @keyframes textShimmer { 0% { background-position: 0% 50%; } 100% { background-position: 100% 50%; } }
+  .brand-sub { color: var(--fg-mute); font-size: 15px; max-width: 420px; }
+
+  /* inviter context chip (brought over from aurora-invite-accept info) */
+  .inviter {
+    position: relative; z-index: 2;
+    display: inline-flex; align-items: center; gap: 11px;
+    padding: 7px 16px 7px 7px; border-radius: 999px;
+    border: 1px solid var(--border-strong); background: var(--glass);
+    backdrop-filter: blur(12px); width: fit-content;
+  }
+  .inviter .av {
+    width: 30px; height: 30px; border-radius: 999px;
+    background: conic-gradient(from 200deg, var(--c-cyan), var(--c-blue), var(--c-violet), var(--c-magenta), var(--c-cyan));
+    color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 11px;
+    box-shadow: 0 0 14px var(--accent-glow);
+  }
+  .inviter .txt { font-size: 13px; color: var(--fg-soft); }
+  .inviter .txt b { color: var(--fg); font-weight: 600; }
+
+  /* small "at-a-glance" strip in the brand panel: apps + expiry */
+  .glance { position: relative; z-index: 2; display: grid; gap: 12px; margin-top: auto; }
+  .glance .g-row { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--fg-soft); }
+  .glance .g-row svg { color: var(--c-cyan); flex: 0 0 auto; }
+  .glance .g-row.warn svg, .glance .g-row.warn { color: var(--c-amber); }
+  .brand-foot { position: relative; z-index: 2; display: flex; justify-content: space-between; color: var(--fg-mute); font-size: 12px; padding-top: 10px; border-top: 1px solid var(--border); }
+
+  /* ---- RIGHT: scrollable content panel (access cards + setup form) ---- */
+  .form-panel {
+    padding: 44px;
+    background: linear-gradient(180deg, rgba(7,7,26,0.55), rgba(11,11,35,0.55));
+    backdrop-filter: blur(8px);
+    display: flex; flex-direction: column; gap: 22px;
+  }
+  @media (max-width: 600px) { .form-panel { padding: 28px 20px; } .brand-panel { padding: 32px 24px; } }
+
+  .sec-head { display: flex; align-items: center; gap: 12px; }
+  .sec-icon {
+    width: 36px; height: 36px; border-radius: 11px; flex: 0 0 auto;
+    display: grid; place-items: center;
+    background: linear-gradient(135deg, rgba(99,102,241,0.22), rgba(236,72,153,0.16));
+    border: 1px solid var(--border-strong); color: var(--c-cyan);
+  }
+  .sec-head .sh-title { font-size: 16px; font-weight: 600; line-height: 1.2; }
+  .sec-head .sh-sub { font-size: 12px; color: var(--fg-mute); margin-top: 2px; }
+
+  /* ====== ACCESS CARDS — per-app role + perm list, with "+N more" ====== */
+  .access-meta { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: -4px 0 2px; }
+  .access-meta .lab { font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--fg-mute); }
+  .access-meta .hint { font-size: 12px; color: var(--fg-mute); }
+  .acards { display: grid; gap: 10px; }
+
+  .acard { border: 1px solid var(--border-strong); border-radius: var(--radius); background: rgba(7,7,26,0.35); overflow: hidden; transition: border-color .2s var(--easing); }
+  .acard.open { border-color: rgba(139,92,246,0.45); }
+  .acard-head { display: grid; grid-template-columns: 38px 1fr auto 20px; align-items: center; gap: 12px; padding: 14px 16px; cursor: pointer; user-select: none; }
+  .acard-head:hover { background: rgba(255,255,255,0.03); }
+  .app-tile { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; flex: 0 0 auto; }
+  .app-tile.isme { background: conic-gradient(from 180deg, var(--c-cyan), var(--c-blue), var(--c-violet), var(--c-magenta), var(--c-cyan)); color: #fff; }
+  .app-tile.medioa { background: rgba(139,92,246,0.18); border: 1px solid rgba(139,92,246,0.40); color: var(--c-violet); }
+  .app-tile.rainy { background: rgba(34,211,238,0.14); border: 1px solid rgba(34,211,238,0.40); color: var(--c-cyan); }
+  .acard-head .app-name { font-size: 15px; font-weight: 600; color: var(--fg); }
+  .acard-head .app-desc { font-size: 12px; color: var(--fg-mute); }
+  /* role pill reuses the .pill.r-* token language from aurora-invite-design.html */
+  .role-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 5px 11px; border-radius: 999px; border: 1px solid var(--border-strong); background: var(--glass); white-space: nowrap; }
+  .role-pill.r-admin { color: var(--c-violet); border-color: rgba(139,92,246,0.40); background: rgba(139,92,246,0.12); }
+  .role-pill.r-editor { color: var(--c-cyan); border-color: rgba(34,211,238,0.40); background: rgba(34,211,238,0.10); }
+  .role-pill.r-member { color: var(--c-cyan); border-color: rgba(34,211,238,0.40); background: rgba(34,211,238,0.10); }
+  .role-pill.r-viewer { color: var(--c-mint); border-color: rgba(52,211,153,0.35); background: rgba(52,211,153,0.10); }
+  .role-pill .ct { color: var(--fg-mute); font-weight: 500; }
+  .chev { color: var(--fg-mute); transition: transform .2s var(--easing); }
+  .acard.open .chev { transform: rotate(180deg); color: var(--c-cyan); }
+
+  .acard-body { display: none; padding: 0 16px 16px; border-top: 1px solid var(--border); }
+  .acard.open .acard-body { display: block; }
+  .acard-body .pb-lab { font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg-mute); margin: 14px 0 10px; }
+  .perm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  @media (max-width: 520px) { .perm-grid { grid-template-columns: 1fr; } }
+  .perm { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--fg-soft); padding: 7px 10px; border-radius: 9px; background: var(--glass); border: 1px solid var(--border); }
+  .perm svg { color: var(--c-mint); flex: 0 0 auto; }
+  .perm .res { color: var(--fg); font-weight: 500; }
+  .perm .act { color: var(--fg-mute); }
+  /* decision 1: long perm lists collapse to "+N more". .perm.extra is hidden until expanded. */
+  .perm.extra { display: none; }
+  .acard.perms-open .perm.extra { display: flex; }
+  .more-btn {
+    grid-column: 1 / -1;
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+    font: inherit; font-size: 12px; font-weight: 600; color: var(--c-cyan);
+    padding: 8px 10px; border-radius: 9px; cursor: pointer;
+    background: rgba(34,211,238,0.07); border: 1px dashed rgba(34,211,238,0.35);
+    transition: all .15s var(--easing);
+  }
+  .more-btn:hover { background: rgba(34,211,238,0.12); border-color: rgba(34,211,238,0.5); }
+  .more-btn svg { transition: transform .2s var(--easing); }
+  .acard.perms-open .more-btn svg { transform: rotate(180deg); }
+  /* swap the label text when expanded */
+  .more-btn .lbl-more { display: inline; }
+  .more-btn .lbl-less { display: none; }
+  .acard.perms-open .more-btn .lbl-more { display: none; }
+  .acard.perms-open .more-btn .lbl-less { display: inline; }
+
+  /* ====== ACCOUNT SETUP FORM ====== */
+  .field-label { display: block; font-size: 13px; font-weight: 500; color: var(--fg-soft); margin-bottom: 8px; }
+  .field-label .req { color: var(--c-magenta); }
+  .helper { font-size: 12px; color: var(--fg-mute); margin-top: 8px; }
+  .field { margin-bottom: 14px; }
+  .input-wrap { display: flex; align-items: center; gap: 10px; background: var(--glass); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 0 14px; height: 48px; transition: border-color .2s var(--easing), box-shadow .2s var(--easing), background .2s var(--easing); backdrop-filter: blur(12px); }
+  .input-wrap:hover { border-color: rgba(255,255,255,0.28); }
+  .input-wrap:focus-within { border-color: var(--c-violet); box-shadow: 0 0 0 4px rgba(139,92,246,0.18), 0 0 24px rgba(139,92,246,0.25); background: rgba(255,255,255,0.08); }
+  .input-wrap svg { color: var(--fg-mute); flex: 0 0 auto; }
+  .input-wrap:focus-within svg { color: var(--c-cyan); }
+  .input-wrap input { flex: 1; border: 0; outline: 0; background: transparent; font: inherit; font-size: 15px; color: var(--fg); height: 100%; }
+  .input-wrap input::placeholder { color: var(--fg-mute); }
+  /* locked / read-only email — prefilled from the invite, not editable (matches .input-wrap.locked
+     in aurora-invite-design.html: dashed border + amber lock) */
+  .input-wrap.locked { background: rgba(255,255,255,0.03); border-style: dashed; cursor: not-allowed; }
+  .input-wrap.locked input { color: var(--fg-soft); cursor: not-allowed; }
+  .input-wrap.locked .lock { color: var(--c-amber); margin-left: auto; }
+  .toggle-eye { background: transparent; border: 0; color: var(--fg-mute); cursor: pointer; padding: 6px; border-radius: 8px; }
+  .toggle-eye:hover { color: var(--fg); background: rgba(255,255,255,0.06); }
+  .strength { display: flex; gap: 6px; margin-top: 10px; }
+  .strength span { flex: 1; height: 4px; border-radius: 2px; background: var(--glass-strong); }
+  .strength span.on { background: linear-gradient(90deg, var(--c-cyan), var(--c-violet)); box-shadow: 0 0 8px rgba(139,92,246,0.5); }
+
+  /* buttons (aurora-invite-design.html btn anatomy) */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+    height: 44px; padding: 0 18px;
+    border-radius: var(--radius-sm); border: 1px solid transparent;
+    font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+    transition: transform .15s var(--easing), box-shadow .2s var(--easing), background .2s var(--easing);
+  }
+  .btn:active { transform: translateY(1px) scale(0.995); }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--c-blue) 0%, var(--c-violet) 50%, var(--c-magenta) 100%);
+    color: #fff;
+    box-shadow: 0 10px 30px rgba(99,102,241,0.45), 0 0 0 1px rgba(255,255,255,0.10) inset;
+    background-size: 200% 200%;
+    background-repeat: no-repeat;
+    background-position: 0% 0%;
+  }
+  .btn-primary:hover:not(:disabled) { background-position: 100% 100%; box-shadow: 0 14px 40px rgba(139,92,246,0.55); }
+  .btn-primary:focus-visible { outline: 0; box-shadow: 0 0 0 4px rgba(139,92,246,0.35), 0 14px 40px rgba(139,92,246,0.55); }
+  .btn-ghost { background: var(--glass); color: var(--fg); border-color: var(--border-strong); backdrop-filter: blur(12px); }
+  .btn-ghost:hover:not(:disabled) { background: var(--glass-strong); border-color: rgba(255,255,255,0.28); }
+  .btn-block { width: 100%; height: 50px; font-size: 15px; }
+
+  .check { display: inline-flex; align-items: flex-start; gap: 10px; font-size: 13px; cursor: pointer; user-select: none; color: var(--fg-soft); text-align: left; }
+  .check input {
+    appearance: none; -webkit-appearance: none;
+    width: 18px; height: 18px; border-radius: 5px;
+    border: 1.5px solid var(--border-strong); background: var(--glass);
+    display: grid; place-items: center; cursor: pointer;
+    transition: all .15s var(--easing); flex: 0 0 auto; margin: 1px 0 0;
+  }
+  .check input:checked { background: linear-gradient(135deg, var(--c-blue), var(--c-violet)); border-color: var(--c-violet); box-shadow: 0 0 12px var(--accent-glow); }
+  .check input:checked::after { content: ""; width: 10px; height: 10px; background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='3,8.5 7,12 13,4'/></svg>") center/contain no-repeat; }
+  .legal { font-size: 12px; color: var(--fg-mute); margin-top: 4px; line-height: 1.6; }
+  .legal a { color: var(--fg-soft); }
+
+  /* ====== State variants (expired / accepted) — centered status card inside the frame ====== */
+  .state-wrap { display: grid; place-items: center; padding: 80px 24px; }
+  .state-card {
+    width: 100%; max-width: 460px; text-align: center;
+    border-radius: 20px; padding: 40px 34px;
+    border: 1px solid var(--border-strong);
+    background: linear-gradient(180deg, rgba(18,18,46,0.92), rgba(11,11,35,0.94));
+    box-shadow: var(--shadow-pop);
+  }
+  .state-card.warn { border-color: rgba(248,113,113,0.30); }
+  .state-card.done { border-color: rgba(52,211,153,0.32); }
+  .state-icon { width: 64px; height: 64px; border-radius: 18px; display: grid; place-items: center; margin: 0 auto 18px; }
+  .state-icon.warn { background: rgba(248,113,113,0.12); border: 1px solid rgba(248,113,113,0.40); color: var(--c-red); box-shadow: 0 0 28px rgba(248,113,113,0.22); }
+  .state-icon.done { background: rgba(52,211,153,0.12); border: 1px solid rgba(52,211,153,0.40); color: var(--c-mint); box-shadow: 0 0 28px rgba(52,211,153,0.22); }
+  .state-card h2 { margin: 0 0 8px; font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
+  .state-card p { margin: 0 auto 22px; color: var(--fg-soft); font-size: 14px; max-width: 380px; }
+  .state-card p b { color: var(--fg); }
+
+  /* state switcher (demo only — strip on port) */
+  .demo-switch { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); z-index: 100; display: flex; gap: 6px; padding: 6px; border-radius: 999px; background: rgba(7,7,26,0.85); border: 1px solid var(--border-strong); backdrop-filter: blur(20px); box-shadow: var(--shadow-pop); }
+  .demo-switch span { font-size: 11px; color: var(--fg-mute); align-self: center; padding: 0 8px; letter-spacing: 0.08em; text-transform: uppercase; }
+  .demo-switch button { font: inherit; font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 999px; border: 1px solid transparent; background: transparent; color: var(--fg-soft); cursor: pointer; }
+  .demo-switch button.active { background: var(--glass-strong); border-color: var(--border-strong); color: var(--fg); }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<!--
+  ===========================================================================
+  ACCEPT INVITE — public /accept-invite?token=…  · AURORA theme
+  ===========================================================================
+  MERGED MOCK. Reconciles two earlier mocks:
+    • aurora-invite-design.html  → the established WIDE / horizontal aurora layout
+      (.frame + .split: brand panel left, content panel right). This file adopts
+      that composition so the accept page matches the rest of the aurora UI.
+    • aurora-invite-accept.html (prior version) → its rich INFORMATION: per-app
+      access cards (app tile + role pill + perm list), welcome + inviter header,
+      account setup (read-only email, name, password + confirm + strength + terms),
+      and the valid / expired / accepted states.
+
+  USER DECISIONS APPLIED:
+    1. Perm lists collapse to "+N more" — each access card shows the first few
+       resource:action perms, then a "+N more" toggle expands the rest (esp. the
+       admin / editor full-CRUD lists). on click "+N more": .acard gets .perms-open.
+    2. The invite-creation flow stays a full page (aurora-user-invite.html /
+       aurora-invite-design.html) — NOT touched here.
+    3. Expired state has NO "request a new invite" action. It's a clear
+       "invite expired / contact your administrator" message only. Accepted still
+       routes to Sign in.
+
+  This is a PUBLIC / logged-out page: minimal top brand bar, no admin topbar tabs
+  or sidebar. On load the SPA calls GET /invitations/validate?token=… and renders
+  exactly ONE state:
+    • valid    → the split (access summary + account setup form)
+    • expired  → centered status card (no self-service action)
+    • accepted → centered status card → route to /login
+  (The bottom .demo-switch and the JS that drives it are DEMO-ONLY — remove on port.)
+-->
+
+<div class="page">
+
+  <header class="top">
+    <div class="brand-row">
+      <div class="brand-mark"><span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 7l8 5 8-5-8-5Z"/><path d="m4 17 8 5 8-5"/><path d="m4 12 8 5 8-5"/></svg></span></div>
+      <div class="brand-name">isme</div>
+    </div>
+    <div class="top-link">Already have an account? <a href="#login">Sign in</a></div>
+  </header>
+
+  <!-- ================= STATE: VALID (default) — WIDE SPLIT ================= -->
+  <section id="state-valid">
+    <div class="frame">
+      <div class="split">
+
+        <!-- ---- LEFT: welcome + inviter + access-at-a-glance ---- -->
+        <aside class="brand-panel">
+          <div class="orb orb-1"></div><div class="orb orb-2"></div><div class="orb orb-3"></div>
+
+          <div class="brand-hero">
+            <span class="hero-pill"><span class="dot"></span>You've been invited · expires in 71h</span>
+            <h1 class="brand-h1">Welcome to <span class="grad">isme</span></h1>
+            <p class="brand-sub">Review the apps and roles you'll receive, then set a password to finish creating your account. This link works once and can't be reused.</p>
+          </div>
+
+          <!-- who invited them + org context -->
+          <div class="inviter">
+            <div class="av">VK</div>
+            <div class="txt"><b>Vu Ky</b> invited you to <b>Hasaki</b> on isme</div>
+          </div>
+
+          <!-- compact access-at-a-glance — full detail lives in the cards on the right -->
+          <div class="glance">
+            <div class="g-row">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V6l-8-4-8 4v6c0 6 8 10 8 10Z"/></svg>
+              <span>Access to <b style="color:var(--fg);">3 apps</b> — isme, medioa2, rainy</span>
+            </div>
+            <div class="g-row warn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+              <span>Invitation expires in <b>2 days</b> (72h window)</span>
+            </div>
+          </div>
+
+          <div class="brand-foot">
+            <span>© 2026 isme</span>
+            <span>Single sign-on for the platform</span>
+          </div>
+        </aside>
+
+        <!-- ---- RIGHT: access cards + account setup (scrolls within the split) ---- -->
+        <div class="form-panel">
+
+          <!-- ===== ACCESS SUMMARY ===== -->
+          <div>
+            <div class="sec-head" style="margin-bottom:16px;">
+              <div class="sec-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V6l-8-4-8 4v6c0 6 8 10 8 10Z"/></svg></div>
+              <div>
+                <div class="sh-title">Your access</div>
+                <div class="sh-sub">roles &amp; permissions you'll receive the moment you accept</div>
+              </div>
+            </div>
+
+            <div class="access-meta">
+              <span class="lab">3 apps</span>
+              <span class="hint">Tap a card to see exact permissions</span>
+            </div>
+
+            <div class="acards" style="margin-top:10px;">
+
+              <!-- ===== isme → member · 2 perms (short list, no "+N more") ===== -->
+              <article class="acard" data-app="isme">
+                <div class="acard-head" onclick="toggleCard(this)">
+                  <div class="app-tile isme"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 7l8 5 8-5-8-5Z"/><path d="m4 17 8 5 8-5"/><path d="m4 12 8 5 8-5"/></svg></div>
+                  <div>
+                    <div class="app-name">isme</div>
+                    <div class="app-desc">Single sign-on &amp; account</div>
+                  </div>
+                  <span class="role-pill r-member">member <span class="ct">· 2 perms</span></span>
+                  <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                </div>
+                <div class="acard-body">
+                  <div class="pb-lab">Member can</div>
+                  <div class="perm-grid">
+                    <div class="perm"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-9"/></svg><span><span class="res">user</span><span class="act">:read</span></span></div>
+                    <div class="perm"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-9"/></svg><span><span class="res">session</span><span class="act">:read</span></span></div>
+                  </div>
+                </div>
+              </article>
+
+              <!-- ===== medioa2 → editor · 9 perms (open by default; first 4 shown + "+5 more") ===== -->
+              <article class="acard open" data-app="medioa">
+                <div class="acard-head" onclick="toggleCard(this)">
+                  <div class="app-tile medioa"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg></div>
+                  <div>
+                    <div class="app-name">medioa2</div>
+                    <div class="app-desc">Cloud storage &amp; media</div>
+                  </div>
+                  <span class="role-pill r-editor">editor <span class="ct">· 9 perms</span></span>
+                  <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                </div>
+                <div class="acard-body">
+                  <div class="pb-lab">Editor can</div>
+                  <!-- decision 1: first 4 perms shown; the rest are .perm.extra (hidden until "+N more") -->
+                  <div class="perm-grid">
+                    <div class="perm"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-9"/></svg><span><span class="res">object</span><span class="act">:read</span></span></div>
+                    <div class="perm"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-9"/></svg><span><span class="res">object</span><span class="act">:create</span></span></div>
+                    <div class="perm"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-9"/></svg><span><span class="res">object</span><span class="act">:update</span></span></div>
+                    <div class="perm"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-9"/></svg><span><span class="res">object</span><span class="act">:delete</span></span></div>
+                    <div class="perm extra"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-9"/></svg><span><span class="res">bucket</span><span class="act">:read</span></span></div>
+                    <div class="perm extra"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-9"/></svg><span><span class="res">bucket</span><span class="act">:create</span></span></div>
+                    <div class="perm extra"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-9"/></svg><span><span class="res">bucket</span><span class="act">:update</span></span></div>
+                    <div class="perm extra"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-9"/></svg><span><span class="res">storage</span><span class="act">:read</span></span></div>
+                    <div class="perm extra"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-9"/></svg><span><span class="res">storage</span><span class="act">:update</span></span></div>
+                    <!-- on click: add .perms-open to the parent .acard → reveals .perm.extra, swaps label -->
+                    <button type="button" class="more-btn" onclick="togglePerms(event, this)">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                      <span class="lbl-more">+5 more permissions</span>
+                      <span class="lbl-less">Show fewer</span>
+                    </button>
+                  </div>
+                </div>
+              </article>
+
+              <!-- ===== rainy → viewer · 3 perms (short list, no "+N more") ===== -->
+              <article class="acard" data-app="rainy">
+                <div class="acard-head" onclick="toggleCard(this)">
+                  <div class="app-tile rainy"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div>
+                  <div>
+                    <div class="app-name">rainy</div>
+                    <div class="app-desc">Playlists &amp; streaming</div>
+                  </div>
+                  <span class="role-pill r-viewer">viewer <span class="ct">· 3 perms</span></span>
+                  <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                </div>
+                <div class="acard-body">
+                  <div class="pb-lab">Viewer can</div>
+                  <div class="perm-grid">
+                    <div class="perm"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-9"/></svg><span><span class="res">playlist</span><span class="act">:read</span></span></div>
+                    <div class="perm"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-9"/></svg><span><span class="res">station</span><span class="act">:read</span></span></div>
+                    <div class="perm"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-9"/></svg><span><span class="res">track</span><span class="act">:read</span></span></div>
+                  </div>
+                </div>
+              </article>
+
+            </div>
+          </div>
+
+          <!-- ===== ACCOUNT SETUP ===== -->
+          <div>
+            <div class="sec-head" style="margin-bottom:16px;">
+              <div class="sec-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+              <div>
+                <div class="sh-title">Set up your account</div>
+                <div class="sh-sub">your email is locked to the invite — choose a password to finish</div>
+              </div>
+            </div>
+
+            <form onsubmit="event.preventDefault();">
+
+              <!-- Email: prefilled from the validated invite; LOCKED -->
+              <div class="field">
+                <label class="field-label">Email</label>
+                <span class="input-wrap locked">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
+                  <input type="email" value="thao.nguyen@hasaki.vn" disabled aria-label="Email (locked by invitation)" autocomplete="email" />
+                  <svg class="lock" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+                </span>
+                <div class="helper">Locked to this invitation.</div>
+              </div>
+
+              <div class="field">
+                <label class="field-label">Your name</label>
+                <span class="input-wrap">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  <input type="text" value="Thảo Nguyễn" placeholder="Full name" autocomplete="name" />
+                </span>
+                <div class="helper">Prefilled from the invite — edit if you'd like.</div>
+              </div>
+
+              <div class="field">
+                <label class="field-label">Password <span class="req">*</span></label>
+                <span class="input-wrap">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+                  <input id="pw" type="password" placeholder="At least 8 characters" autocomplete="new-password" oninput="validateAccept()" />
+                  <!-- on click: toggle visibility (ui/components/ui/password-field.tsx) -->
+                  <button type="button" class="toggle-eye" aria-label="Show password" onclick="togglePw('pw')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></button>
+                </span>
+                <!-- strength meter — driven live on port (ui/components/ui/password-strength.tsx) -->
+                <div class="strength" aria-hidden="true"><span class="on"></span><span class="on"></span><span></span><span></span></div>
+                <div class="helper">Use 8+ characters with letters and numbers.</div>
+              </div>
+
+              <div class="field">
+                <label class="field-label">Confirm password <span class="req">*</span></label>
+                <span class="input-wrap">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+                  <input id="pw2" type="password" placeholder="Re-enter password" autocomplete="new-password" oninput="validateAccept()" />
+                  <button type="button" class="toggle-eye" aria-label="Show password" onclick="togglePw('pw2')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></button>
+                </span>
+                <div id="pw-mismatch" class="helper hidden" style="color:#f87171;">Passwords don't match.</div>
+              </div>
+
+              <label class="check" style="margin:8px 0 18px;">
+                <input id="terms" type="checkbox" oninput="validateAccept()" />
+                <span>I agree to the <a href="#" class="legal" style="display:inline;margin:0;">Terms</a> and <a href="#" class="legal" style="display:inline;margin:0;">Privacy Policy</a>, and to receiving the access listed above.</span>
+              </label>
+
+              <!-- on submit: POST /invitations/accept { token, name, password } →
+                   loading state; on 200 create account with the pre-assigned roles
+                   (verified + active) → toast + redirect to /login.
+                   on 410 (consumed/expired between load and submit) → swap to expired state. -->
+              <!-- gated: disabled until terms checked + password 8+ + passwords match (decision: tick terms first) -->
+              <button id="acceptBtn" class="btn btn-primary btn-block" type="submit" disabled>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-9"/></svg>
+                Accept invite &amp; create account
+              </button>
+
+              <p class="legal" style="text-align:center;">By accepting you join <b style="color:var(--fg-soft);">Hasaki</b> on isme. Need help? <a href="#">Contact your administrator</a>.</p>
+            </form>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= STATE: EXPIRED (decision 3 — NO request-new action) ================= -->
+  <section id="state-expired" class="hidden">
+    <div class="frame">
+      <div class="state-wrap">
+        <div class="state-card warn">
+          <div class="state-icon warn"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+          <h2>This invitation has expired</h2>
+          <p>Invites are valid for 72 hours and this one from <b>Vu Ky</b> has passed its window, so it can no longer be used to create an account.</p>
+          <!-- decision 3: NO self-service "request a new invite" — only an admin can issue one.
+               Clear contact-your-administrator guidance, no action button. -->
+          <p class="legal" style="margin:0;">Need access? <a href="#">Contact your administrator</a> to send you a new invite link.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= STATE: ALREADY ACCEPTED (routes to Sign in) ================= -->
+  <section id="state-accepted" class="hidden">
+    <div class="frame">
+      <div class="state-wrap">
+        <div class="state-card done">
+          <div class="state-icon done"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-9"/></svg></div>
+          <h2>This invitation was already accepted</h2>
+          <p>An account for <b>thao.nguyen@hasaki.vn</b> already exists. Sign in to access your apps — the roles from this invite are already applied.</p>
+          <!-- on click: navigate to /login -->
+          <a href="#login" style="text-decoration:none;"><button class="btn btn-primary btn-block" type="button" style="max-width:280px;margin:0 auto;">
+            Go to sign in
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+          </button></a>
+          <p class="legal" style="margin-top:16px;">Forgot your password? <a href="#">Reset it here</a>.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- DEMO-ONLY state switcher — REMOVE on port (the real screen renders one state from token status) -->
+<div class="demo-switch" role="group" aria-label="Demo state switcher">
+  <span>State</span>
+  <button class="active" onclick="showState('valid', this)">Valid</button>
+  <button onclick="showState('expired', this)">Expired</button>
+  <button onclick="showState('accepted', this)">Accepted</button>
+</div>
+
+<script>
+  // password show/hide — maps to PasswordField on port
+  function togglePw(id){ var p = document.getElementById(id); p.type = p.type === 'password' ? 'text' : 'password'; }
+
+  // gate the CTA: terms ticked + password >=8 + passwords match (on port: same rule in form state)
+  function validateAccept(){
+    var pw = document.getElementById('pw').value;
+    var pw2 = document.getElementById('pw2').value;
+    var terms = document.getElementById('terms').checked;
+    var match = pw.length > 0 && pw === pw2;
+    document.getElementById('pw-mismatch').classList.toggle('hidden', pw2.length === 0 || match);
+    document.getElementById('acceptBtn').disabled = !(terms && pw.length >= 8 && match);
+  }
+
+  // expand/collapse a per-app access card
+  function toggleCard(head){ head.parentElement.classList.toggle('open'); }
+
+  // decision 1: reveal/hide the collapsed "+N more" perms on a card
+  function togglePerms(ev, btn){
+    ev.stopPropagation(); // don't also collapse the card
+    btn.closest('.acard').classList.toggle('perms-open');
+  }
+
+  // DEMO-ONLY state switcher — strip on port
+  function showState(which, btn){
+    ['valid','expired','accepted'].forEach(function(s){
+      document.getElementById('state-'+s).classList.toggle('hidden', s !== which);
+    });
+    document.querySelectorAll('.demo-switch button').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    window.scrollTo({ top: 0 });
+  }
+</script>
+
+</body>
+</html>

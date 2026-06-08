@@ -30,6 +30,13 @@ var (
 	PERM_ROLE_ASSIGN = rbac.Perm("role", "assign")
 )
 
+// isme self-app identifiers. isme is itself an app_service that owns the
+// original permission catalog and system roles (seeded by 014/015).
+const (
+	APP_ID_ISME   = "app_isme"
+	APP_CODE_ISME = "isme"
+)
+
 // System role codes
 const (
 	ROLE_CODE_ADMIN  = "admin"
@@ -37,7 +44,7 @@ const (
 	ROLE_CODE_VIEWER = "viewer"
 )
 
-// System role IDs (deterministic, seeded by 010_seed_rbac)
+// System role IDs (deterministic, owned by app_isme — seeded by 010_seed_rbac)
 const (
 	ROLE_ID_ADMIN  = "rol_admin"
 	ROLE_ID_MEMBER = "rol_member"

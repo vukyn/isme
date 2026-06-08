@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>isme — Invite user (app-scoped roles) · Aurora UI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg-0: #07071A; --bg-1: #0B0B23; --bg-2: #12122E;
+    --fg: #F4F5FF; --fg-soft: #C7CAE8; --fg-mute: #8A8FB5;
+    --border: rgba(255,255,255,0.10); --border-strong: rgba(255,255,255,0.18);
+    --glass: rgba(255,255,255,0.06); --glass-strong: rgba(255,255,255,0.10);
+    --c-cyan: #22D3EE; --c-blue: #6366F1; --c-violet: #8B5CF6;
+    --c-magenta: #EC4899; --c-amber: #F59E0B; --c-mint: #34D399;
+    --accent: var(--c-violet); --accent-glow: rgba(139,92,246,0.45);
+    --radius: 16px; --radius-sm: 12px; --easing: cubic-bezier(.2,.8,.2,1);
+    --shadow-glass: 0 1px 0 rgba(255,255,255,0.06) inset, 0 8px 32px rgba(0,0,0,0.45);
+    --shadow-pop: 0 20px 60px rgba(99,102,241,0.25), 0 4px 12px rgba(0,0,0,0.35);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: 'Inter','DM Sans',system-ui,-apple-system,sans-serif; color: var(--fg); background: var(--bg-0); -webkit-font-smoothing: antialiased; line-height: 1.5; overflow-x: hidden; }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+  body::before {
+    content: ""; position: fixed; inset: 0; z-index: -2;
+    background:
+      radial-gradient(60% 50% at 12% 10%, rgba(99,102,241,0.45), transparent 60%),
+      radial-gradient(45% 40% at 88% 18%, rgba(34,211,238,0.35), transparent 60%),
+      radial-gradient(55% 45% at 75% 92%, rgba(236,72,153,0.32), transparent 60%),
+      radial-gradient(50% 40% at 18% 80%, rgba(139,92,246,0.32), transparent 60%),
+      linear-gradient(180deg, #07071A 0%, #0B0B23 60%, #04040E 100%);
+    background-size: 200% 200%; animation: auroraFlow 14s ease-in-out infinite alternate; filter: saturate(1.15);
+  }
+  body::after { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px); background-size: 3px 3px; mix-blend-mode: overlay; opacity: 0.45; }
+  @keyframes auroraFlow { 0%{background-position:0% 0%,100% 0%,100% 100%,0% 100%,0 0;} 50%{background-position:30% 20%,60% 30%,70% 70%,30% 60%,0 0;} 100%{background-position:100% 100%,0% 100%,0% 0%,100% 0%,0 0;} }
+
+  /* Topbar */
+  .app-bar { position: sticky; top: 0; z-index: 50; height: 64px; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; border-bottom: 1px solid var(--border); background: rgba(7,7,26,0.62); backdrop-filter: blur(20px) saturate(1.2); }
+  .bar-left { display: flex; align-items: center; gap: 24px; }
+  .bar-right { display: flex; align-items: center; gap: 10px; }
+  .brand-row { display: flex; align-items: center; gap: 12px; }
+  .brand-mark { width: 34px; height: 34px; border-radius: 10px; background: conic-gradient(from 180deg at 50% 50%, var(--c-cyan), var(--c-blue), var(--c-violet), var(--c-magenta), var(--c-cyan)); display: grid; place-items: center; box-shadow: 0 8px 24px rgba(99,102,241,0.45); }
+  .brand-mark > span { width: 26px; height: 26px; border-radius: 7px; background: var(--bg-0); display: grid; place-items: center; }
+  .brand-name { font-weight: 700; font-size: 17px; letter-spacing: -0.01em; }
+  .nav { display: flex; gap: 4px; }
+  .nav a { font-size: 14px; padding: 8px 14px; border-radius: 10px; color: var(--fg-mute); text-decoration: none; font-weight: 500; transition: all .15s var(--easing); border: 1px solid transparent; }
+  .nav a.active { color: var(--fg); background: var(--glass); border-color: var(--border-strong); box-shadow: 0 0 20px rgba(99,102,241,0.20); }
+  .nav a:hover { color: var(--fg); }
+  .icon-btn { width: 40px; height: 40px; background: var(--glass); border: 1px solid var(--border-strong); border-radius: 10px; display: grid; place-items: center; color: var(--fg-soft); cursor: pointer; backdrop-filter: blur(12px); position: relative; }
+  .icon-btn .badge { position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--c-magenta); box-shadow: 0 0 8px var(--c-magenta); }
+  .user-chip { display: inline-flex; align-items: center; gap: 10px; padding: 4px 10px 4px 4px; border: 1px solid var(--border-strong); border-radius: 999px; background: var(--glass); backdrop-filter: blur(12px); cursor: pointer; }
+  .avatar-lg { width: 32px; height: 32px; border-radius: 999px; background: conic-gradient(from 200deg, var(--c-cyan), var(--c-blue), var(--c-violet), var(--c-magenta), var(--c-cyan)); color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 13px; box-shadow: 0 0 16px var(--accent-glow); }
+  .user-chip .meta { font-size: 13px; line-height: 1.15; }
+  .user-chip .meta b { display: block; font-weight: 600; color: var(--fg); }
+  .user-chip .meta span { color: var(--fg-mute); font-size: 12px; }
+
+  /* Main — centered form layout */
+  .app-main { max-width: 760px; margin: 0 auto; padding: 32px 28px 72px; display: grid; gap: 20px; }
+  .crumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--fg-mute); }
+  .crumb a { color: var(--fg-mute); text-decoration: none; }
+  .crumb a:hover { color: var(--fg); }
+  .crumb .sep { opacity: 0.5; }
+  .crumb .cur { color: var(--fg-soft); }
+  .page-head h1 { margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.025em; line-height: 1.1; }
+  .page-sub { margin: 6px 0 0; color: var(--fg-mute); font-size: 14px; }
+  .page-sub code { color: var(--fg-soft); font-family: inherit; }
+
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 9px; height: 44px; padding: 0 18px; border-radius: var(--radius-sm); border: 1px solid transparent; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; transition: transform .15s var(--easing), box-shadow .2s var(--easing), background .2s var(--easing); }
+  .btn:active { transform: translateY(1px) scale(0.995); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-primary { background: linear-gradient(135deg, var(--c-blue) 0%, var(--c-violet) 50%, var(--c-magenta) 100%); background-repeat: no-repeat; background-position: 0% 0%; color: #fff; box-shadow: 0 10px 30px rgba(99,102,241,0.45), 0 0 0 1px rgba(255,255,255,0.10) inset; background-size: 200% 200%; }
+  .btn-primary:hover:not(:disabled) { background-position: 100% 100%; box-shadow: 0 14px 40px rgba(139,92,246,0.55); }
+  .btn-ghost { background: var(--glass); color: var(--fg); border-color: var(--border-strong); backdrop-filter: blur(12px); }
+  .btn-ghost:hover:not(:disabled) { background: var(--glass-strong); border-color: rgba(255,255,255,0.28); }
+  .btn-sm { height: 36px; padding: 0 14px; font-size: 13px; border-radius: 10px; }
+
+  .panel { background: var(--glass); border: 1px solid var(--border); border-radius: 20px; backdrop-filter: blur(20px) saturate(1.15); box-shadow: var(--shadow-glass); overflow: hidden; }
+  .panel-head { display: flex; align-items: center; gap: 11px; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+  .panel-head .ph-icon { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: linear-gradient(135deg, rgba(99,102,241,0.22), rgba(236,72,153,0.16)); border: 1px solid var(--border-strong); color: var(--c-cyan); flex: 0 0 auto; }
+  .panel-head .ph-title { font-size: 15px; font-weight: 600; }
+  .panel-head .ph-sub { font-size: 12px; color: var(--fg-mute); }
+  .panel-body { padding: 20px; display: grid; gap: 18px; }
+
+  .field-label { display: block; font-size: 13px; font-weight: 500; color: var(--fg-soft); margin-bottom: 8px; }
+  .field-label .req { color: var(--c-magenta); }
+  .field-label .opt { color: var(--fg-mute); font-weight: 400; font-size: 12px; }
+  .helper { font-size: 12px; color: var(--fg-mute); margin-top: 8px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 560px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  .input-wrap { display: flex; align-items: center; gap: 10px; background: var(--glass); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 0 14px; height: 44px; transition: border-color .2s var(--easing), box-shadow .2s var(--easing), background .2s var(--easing); backdrop-filter: blur(12px); }
+  .input-wrap:hover { border-color: rgba(255,255,255,0.28); }
+  .input-wrap:focus-within { border-color: var(--c-violet); box-shadow: 0 0 0 4px rgba(139,92,246,0.18), 0 0 24px rgba(139,92,246,0.25); background: rgba(255,255,255,0.08); }
+  .input-wrap svg { color: var(--fg-mute); flex: 0 0 auto; }
+  .input-wrap:focus-within svg { color: var(--c-cyan); }
+  .input-wrap input { flex: 1; border: 0; outline: 0; background: transparent; font: inherit; font-size: 14px; color: var(--fg); height: 100%; }
+  .input-wrap input::placeholder { color: var(--fg-mute); }
+  .input-wrap.err { border-color: rgba(236,72,153,0.55); box-shadow: 0 0 0 4px rgba(236,72,153,0.15); }
+  .err-msg { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--c-magenta); margin-top: 7px; }
+
+  /* textarea for invite message */
+  .ta-wrap { background: var(--glass); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 12px 14px; transition: border-color .2s var(--easing), box-shadow .2s var(--easing), background .2s var(--easing); backdrop-filter: blur(12px); }
+  .ta-wrap:focus-within { border-color: var(--c-violet); box-shadow: 0 0 0 4px rgba(139,92,246,0.18), 0 0 24px rgba(139,92,246,0.25); background: rgba(255,255,255,0.08); }
+  .ta-wrap textarea { width: 100%; border: 0; outline: 0; background: transparent; font: inherit; font-size: 14px; color: var(--fg); resize: vertical; min-height: 64px; }
+  .ta-wrap textarea::placeholder { color: var(--fg-mute); }
+
+  .sel { appearance: none; -webkit-appearance: none; width: 100%; height: 44px; padding: 0 36px 0 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-strong); background: var(--glass) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238A8FB5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>") right 12px center/14px no-repeat; color: var(--fg); font: inherit; font-size: 14px; cursor: pointer; backdrop-filter: blur(12px); }
+  .sel:focus { outline: 0; border-color: var(--c-violet); box-shadow: 0 0 0 4px rgba(139,92,246,0.18); }
+  .sel:disabled { opacity: 0.5; cursor: not-allowed; }
+  .sel option { background: var(--bg-2); color: var(--fg); }
+
+  /* ====== App-scoped role assignment rows ====== */
+  .assign-cols { display: grid; grid-template-columns: 1fr 1fr 44px; gap: 12px; padding: 0 2px 2px; }
+  .assign-cols span { font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--fg-mute); }
+  .assign-row { display: grid; grid-template-columns: 1fr 1fr 44px; gap: 12px; align-items: center; margin-bottom: 12px; }
+  .assign-row.removing { opacity: 0.4; }
+  .app-cell { position: relative; }
+  .app-cell .tile { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; border-radius: 7px; display: grid; place-items: center; pointer-events: none; }
+  .app-cell .sel { padding-left: 44px; }
+  .tile-isme { background: conic-gradient(from 180deg, var(--c-cyan), var(--c-blue), var(--c-violet), var(--c-magenta), var(--c-cyan)); color: #fff; }
+  .tile-medioa { background: rgba(139,92,246,0.18); border: 1px solid rgba(139,92,246,0.40); color: var(--c-violet); }
+  .tile-rainy { background: rgba(34,211,238,0.14); border: 1px solid rgba(34,211,238,0.40); color: var(--c-cyan); }
+  .row-x { width: 44px; height: 44px; border-radius: var(--radius-sm); display: grid; place-items: center; cursor: pointer; background: rgba(236,72,153,0.08); border: 1px solid rgba(236,72,153,0.30); color: var(--c-magenta); transition: all .15s var(--easing); }
+  .row-x:hover { background: rgba(236,72,153,0.16); border-color: rgba(236,72,153,0.45); }
+  .add-row { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px; border-radius: var(--radius-sm); cursor: pointer; font: inherit; font-size: 13px; font-weight: 600; background: rgba(139,92,246,0.12); border: 1px dashed rgba(139,92,246,0.45); color: var(--c-violet); transition: all .15s var(--easing); }
+  .add-row:hover { background: rgba(139,92,246,0.20); border-style: solid; }
+
+  /* assignment summary chips (preview of what will be granted at invite time) */
+  .assign-summary { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 12px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: rgba(7,7,26,0.35); }
+  .assign-summary .lab { font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg-mute); margin-right: 2px; }
+  .scope-chip { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; padding: 4px 11px; border-radius: 999px; background: var(--glass); border: 1px solid var(--border-strong); }
+  .scope-chip .app { color: var(--fg-mute); font-weight: 500; }
+  .scope-chip.isme { border-color: rgba(139,92,246,0.40); background: rgba(139,92,246,0.12); color: var(--c-violet); }
+  .scope-chip.medioa { border-color: rgba(34,211,238,0.40); background: rgba(34,211,238,0.10); color: var(--c-cyan); }
+  .scope-chip.rainy { border-color: rgba(52,211,153,0.35); background: rgba(52,211,153,0.10); color: var(--c-mint); }
+
+  .note { display: flex; align-items: flex-start; gap: 9px; padding: 12px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--glass); font-size: 12px; color: var(--fg-mute); line-height: 1.5; }
+  .note svg { color: var(--fg-mute); flex: 0 0 auto; margin-top: 1px; }
+  .note .hl { color: var(--c-amber); font-weight: 600; }
+  .note code { color: var(--fg-soft); font-family: inherit; }
+
+  /* invite info banner at top of the form */
+  .invite-banner { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; border-radius: var(--radius-sm); border: 1px solid rgba(34,211,238,0.30); background: linear-gradient(135deg, rgba(34,211,238,0.10), rgba(99,102,241,0.08)); }
+  .invite-banner .ib-icon { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; flex: 0 0 auto; background: rgba(34,211,238,0.14); border: 1px solid rgba(34,211,238,0.40); color: var(--c-cyan); }
+  .invite-banner b { color: var(--fg); font-weight: 600; }
+  .invite-banner p { margin: 2px 0 0; font-size: 12.5px; color: var(--fg-soft); line-height: 1.5; }
+
+  .form-foot { display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 16px 20px; border-top: 1px solid var(--border); }
+  .form-foot .spacer { margin-right: auto; font-size: 12px; color: var(--fg-mute); display: inline-flex; align-items: center; gap: 7px; }
+</style>
+</head>
+<body>
+
+<!--
+  ===========================================================================
+  SCREEN — INVITE user with APP-SCOPED role assignment (admin side)
+  Renamed/reframed from aurora-user-create.html → this replaces "create user".
+  Implements: docs/rbac-app-owned-plan.md §2.7 (user CreateRequest gets
+              Assignments []{RoleID, AppServiceID}) + locked decision 6
+              (user create/INVITE assigns role(s) app-scoped at creation).
+              Uses isme's existing `user_invitation` domain (email + token +
+              pre-assigned roles; invitee accepts via link → see
+              aurora-invite-accept.html).
+  ===========================================================================
+
+  REFRAME vs the old create mock:
+    • Primary verb is INVITE, not create. No password field — the invitee sets
+      their own password when they accept (aurora-invite-accept.html). No
+      "create active user" toggle: the only path here is sending an invite.
+    • CTA = "Send invite". Copy throughout uses invite/invitee framing.
+    • Roles are assigned NOW (pre-assigned on the invitation record). They are
+      surfaced to the invitee on the acceptance screen and applied the moment
+      the account is created on acceptance.
+    • Still NO is_admin (decision 3) — platform admin = `admin` role on `isme`.
+
+  Each row = (App → Role) → one pre-assigned user_role { role_id,
+  app_service_id } stored on the invitation. The Role dropdown is scoped to
+  the chosen app's roles (app-owned RBAC). Bottom summary previews the
+  app:role chips the invitee will receive.
+
+  States mocked:
+    • 3 pre-filled rows (isme:member + medioa2:editor + rainy:viewer).
+    • Add / remove assignment rows (light JS).
+    • Inline email validation error example (commented toggle).
+    • Optional name + personal message fields.
+-->
+
+<!-- ====== Topbar shell ====== -->
+<header class="app-bar">
+  <div class="bar-left">
+    <div class="brand-row">
+      <div class="brand-mark"><span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 7l8 5 8-5-8-5Z"/><path d="m4 17 8 5 8-5"/><path d="m4 12 8 5 8-5"/></svg></span></div>
+      <div class="brand-name">isme</div>
+    </div>
+    <nav class="nav" aria-label="Primary">
+      <a href="#">Overview</a>
+      <a href="#" class="active">Users</a>
+      <a href="#">Roles &amp; Permissions</a>
+      <a href="#">App Services</a>
+      <a href="#">Sessions</a>
+    </nav>
+  </div>
+  <div class="bar-right">
+    <button class="icon-btn" aria-label="Notifications"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span class="badge"></span></button>
+    <div class="user-chip" tabindex="0"><div class="avatar-lg">VK</div><div class="meta"><b>Vu Ky</b><span>kyndv@hasaki.vn</span></div><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--fg-mute);margin-left:4px;"><path d="m6 9 6 6 6-6"/></svg></div>
+  </div>
+</header>
+
+<main class="app-main">
+
+  <nav class="crumb" aria-label="Breadcrumb">
+    <a href="#">Users</a><span class="sep">/</span><span class="cur">Invite user</span>
+  </nav>
+
+  <div class="page-head">
+    <h1>Invite a user</h1>
+    <p class="page-sub">Send an invitation with roles pre-assigned per app. The invitee accepts via an emailed link and sets their own password — each assignment becomes one <code>user_role { role_id, app_service_id }</code> on acceptance.</p>
+  </div>
+
+  <!-- ===== Invitee details ===== -->
+  <section class="panel">
+    <div class="panel-head">
+      <div class="ph-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 11h-6"/><path d="M19 8v6"/></svg></div>
+      <div><div class="ph-title">Invitee</div><div class="ph-sub">where to send the invite — no account exists yet, they create one on acceptance</div></div>
+    </div>
+    <div class="panel-body">
+
+      <div class="invite-banner">
+        <div class="ib-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></div>
+        <div>
+          <b>An invite email is sent — the user is not active yet.</b>
+          <p>They land on a public acceptance page showing exactly the access below, set a password, and the account is created with these roles applied. The link expires in 72 hours and can be resent or revoked from the Users list.</p>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div>
+          <label class="field-label">Invitee email <span class="req">*</span></label>
+          <span class="input-wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
+            <input type="email" placeholder="name@hasaki.vn" value="thao.nguyen@hasaki.vn" autocomplete="email" />
+          </span>
+          <div class="helper">The invite is addressed to this email; only this address can accept.</div>
+          <!-- ERROR STATE example — add class "err" to .input-wrap and unhide .err-msg:
+          <div class="err-msg"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>This email already has an account or a pending invite.</div>
+          -->
+        </div>
+        <div>
+          <label class="field-label">Name <span class="opt">· optional, prefilled for the invitee</span></label>
+          <span class="input-wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <input type="text" placeholder="Full name" autocomplete="name" />
+          </span>
+          <div class="helper">Shown as a greeting; the invitee can edit it on acceptance.</div>
+        </div>
+      </div>
+
+      <div>
+        <label class="field-label">Personal message <span class="opt">· optional, included in the invite email</span></label>
+        <div class="ta-wrap">
+          <textarea placeholder="Add a short note — e.g. why you're inviting them and what they'll work on."></textarea>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== App-scoped role assignments (pre-assigned at invite time) ===== -->
+  <section class="panel">
+    <div class="panel-head">
+      <div class="ph-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg></div>
+      <div style="flex:1;">
+        <div class="ph-title">Roles to grant on acceptance</div>
+        <div class="ph-sub">pre-assigned now — the invitee sees these on the acceptance page; add as many apps as needed</div>
+      </div>
+    </div>
+    <div class="panel-body">
+
+      <div class="assign-cols">
+        <span>App</span><span>Role</span><span></span>
+      </div>
+
+      <!-- Repeatable rows — each = (App dropdown → Role dropdown) → one pre-assigned
+           user_role on the invitation. Role options are SCOPED to the chosen app
+           (app-owned RBAC); changing App repopulates Role.
+           on click row ✕: remove this pre-assignment. -->
+      <div id="assign-rows"><!-- rendered by JS --></div>
+
+      <!-- on click: append a new empty assignment row -->
+      <button class="add-row" onclick="addRow()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+        Add assignment
+      </button>
+
+      <!-- Live preview of the app:role grants the invitee will receive on acceptance -->
+      <div class="assign-summary" id="summary">
+        <span class="lab">Invitee will get</span>
+        <!-- chips injected by JS -->
+      </div>
+
+      <div class="note">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+        <span>Inviting with the <span class="hl">admin</span> role on the <code>isme</code> app makes this user a platform administrator on acceptance — the replacement for the removed <code>is_admin</code> flag. There is no separate "grant admin" switch.</span>
+      </div>
+    </div>
+
+    <div class="form-foot">
+      <span class="spacer">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+        <span id="foot-count">3 assignments</span> · link expires in 72h
+      </span>
+      <button class="btn btn-ghost">Cancel</button>
+      <button class="btn btn-primary" id="submit-btn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+        Send invite
+      </button>
+    </div>
+  </section>
+
+</main>
+
+<script>
+  /* App-owned roles — each row's Role options come from the chosen app only. */
+  var APP_ROLES = {
+    isme:    ['member','viewer','admin'],
+    medioa2: ['admin','editor','viewer'],
+    rainy:   ['admin','viewer']
+  };
+  var APP_META = {
+    isme:    { label:'isme',    tile:'tile-isme',   appId:'app_isme',    chip:'isme'   },
+    medioa2: { label:'medioa2', tile:'tile-medioa', appId:'app_medioa2', chip:'medioa' },
+    rainy:   { label:'rainy',   tile:'tile-rainy',  appId:'app_rainy',   chip:'rainy'  }
+  };
+  var TILE_SVG = {
+    isme:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 7l8 5 8-5-8-5Z"/><path d="m4 17 8 5 8-5"/><path d="m4 12 8 5 8-5"/></svg>',
+    medioa2:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>',
+    rainy:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>'
+  };
+
+  // initial pre-assigned rows (mock state)
+  var rows = [
+    { app:'isme',    role:'member' },
+    { app:'medioa2', role:'editor' },
+    { app:'rainy',   role:'viewer' }
+  ];
+
+  function appOptions(selected){
+    return Object.keys(APP_META).map(function(k){
+      return '<option value="'+k+'"'+(k===selected?' selected':'')+'>'+APP_META[k].label+' · '+APP_META[k].appId+'</option>';
+    }).join('');
+  }
+  function roleOptions(app, selected){
+    return APP_ROLES[app].map(function(r){
+      return '<option value="'+r+'"'+(r===selected?' selected':'')+'>'+r+'</option>';
+    }).join('');
+  }
+
+  function render(){
+    var html = '';
+    rows.forEach(function(row, i){
+      var meta = APP_META[row.app];
+      html += '<div class="assign-row">'
+        + '<div class="app-cell">'
+          + '<span class="tile '+meta.tile+'">'+TILE_SVG[row.app]+'</span>'
+          + '<select class="sel" aria-label="App for assignment '+(i+1)+'" onchange="onAppChange('+i+', this.value)">'+appOptions(row.app)+'</select>'
+        + '</div>'
+        + '<select class="sel" aria-label="Role for assignment '+(i+1)+'" onchange="onRoleChange('+i+', this.value)">'+roleOptions(row.app, row.role)+'</select>'
+        + '<button class="row-x" title="Remove assignment" aria-label="Remove assignment '+(i+1)+'" onclick="removeRow('+i+')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>'
+        + '</div>';
+    });
+    document.getElementById('assign-rows').innerHTML = html;
+    renderSummary();
+    document.getElementById('foot-count').textContent = rows.length + ' assignment' + (rows.length===1?'':'s');
+  }
+
+  function renderSummary(){
+    var sum = document.getElementById('summary');
+    var chips = '<span class="lab">Invitee will get</span>';
+    if (rows.length === 0) {
+      chips += '<span style="font-size:12px;color:var(--fg-mute);">no roles — the invitee can sign in but holds no permissions on any app</span>';
+    } else {
+      rows.forEach(function(row){
+        chips += '<span class="scope-chip '+APP_META[row.app].chip+'"><span class="app">'+APP_META[row.app].label+':</span>'+row.role+'</span>';
+      });
+    }
+    sum.innerHTML = chips;
+  }
+
+  function onAppChange(i, app){
+    rows[i].app = app;
+    rows[i].role = APP_ROLES[app][0]; // reset role to first valid for the new app
+    render();
+  }
+  function onRoleChange(i, role){ rows[i].role = role; renderSummary(); }
+  function addRow(){ rows.push({ app:'medioa2', role:'viewer' }); render(); }
+  function removeRow(i){ rows.splice(i,1); render(); }
+
+  render();
+</script>
+
+</body>
+</html>

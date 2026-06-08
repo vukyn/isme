@@ -9,10 +9,14 @@ import (
 
 type UserInvitation struct {
 	bun.BaseModel `bun:"table:user_invitations,alias:uin"`
-	ID            string    `bun:"id,pk,notnull"`
-	Email         string    `bun:"email,notnull"`
-	RoleID        string    `bun:"role_id,notnull"`
-	TokenHash     string    `bun:"token_hash,notnull"`
+	ID            string `bun:"id,pk,notnull"`
+	Email         string `bun:"email,notnull"`
+	// RoleID is the legacy single-role column, kept nullable for back-compat.
+	// New invitations leave it empty and carry their assignments via the
+	// user_invitation_roles child table (see Roles).
+	RoleID    string                `bun:"role_id,nullzero"`
+	TokenHash string                `bun:"token_hash,notnull"`
+	Roles     []*UserInvitationRole `bun:"rel:has-many,join:id=invitation_id"`
 	Status        int32     `bun:"status,notnull,default:1"`
 	ExpiresAt     time.Time `bun:"expires_at,notnull"`
 	AcceptedAt    time.Time `bun:"accepted_at,nullzero"`

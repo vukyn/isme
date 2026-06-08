@@ -19,7 +19,6 @@ func Init() {
 	}
 	App = app
 	Config = idi.GetConfig(app)
-
 	err = log.Init(log.Config{
 		Mode:  Config.Logger.Mode,
 		Level: Config.Logger.Level,

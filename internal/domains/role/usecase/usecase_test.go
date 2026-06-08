@@ -48,16 +48,16 @@ func (f *fakeRoleRepository) GetByID(ctx context.Context, id string) (entity.Rol
 	return f.rolesByID[id], nil
 }
 
-func (f *fakeRoleRepository) GetByCode(ctx context.Context, code string) (entity.Role, error) {
+func (f *fakeRoleRepository) GetByAppAndCode(ctx context.Context, appID string, code string) (entity.Role, error) {
 	for _, role := range f.rolesByID {
-		if role.Code == code {
+		if role.AppID == appID && role.Code == code {
 			return role, nil
 		}
 	}
 	return entity.Role{}, nil
 }
 
-func (f *fakeRoleRepository) List(ctx context.Context) ([]models.RoleListItem, error) {
+func (f *fakeRoleRepository) List(ctx context.Context, req models.ListRequest) ([]models.RoleListItem, error) {
 	return nil, nil
 }
 
@@ -71,8 +71,16 @@ func (f *fakeRoleRepository) SoftDelete(ctx context.Context, id string) error {
 	return nil
 }
 
-func (f *fakeRoleRepository) ListPermissions(ctx context.Context) ([]entity.Permission, error) {
+func (f *fakeRoleRepository) ListPermissions(ctx context.Context, req models.ListPermissionsRequest) ([]entity.Permission, error) {
 	return nil, nil
+}
+
+func (f *fakeRoleRepository) CreatePermissions(ctx context.Context, appID string, perms []models.PermissionItem) (map[string]int64, error) {
+	ids := map[string]int64{}
+	for i, perm := range perms {
+		ids[perm.Resource+":"+perm.Action] = int64(i + 1)
+	}
+	return ids, nil
 }
 
 func (f *fakeRoleRepository) GetPermissionsByRoleID(ctx context.Context, roleID string) ([]entity.Permission, error) {
@@ -100,7 +108,15 @@ func (f *fakeRoleRepository) RemoveMember(ctx context.Context, roleID string, us
 	return nil
 }
 
-func (f *fakeRoleRepository) GetPermissionCodesByUserID(ctx context.Context, userID string, appServiceID string) ([]string, error) {
+func (f *fakeRoleRepository) GetPermissionCodesByUserID(ctx context.Context, userID string, appID string) ([]string, error) {
+	return nil, nil
+}
+
+func (f *fakeRoleRepository) GetPermissionCodesGroupedByApp(ctx context.Context, userID string) (map[string][]string, error) {
+	return nil, nil
+}
+
+func (f *fakeRoleRepository) GetAppCodesByUserID(ctx context.Context, userID string) ([]string, error) {
 	return nil, nil
 }
 
@@ -108,8 +124,12 @@ func (f *fakeRoleRepository) GetRoleCodesByUserID(ctx context.Context, userID st
 	return nil, nil
 }
 
-func (f *fakeRoleRepository) GetGlobalRoleCodesByUserIDs(ctx context.Context, userIDs []string) (map[string]string, error) {
-	return map[string]string{}, nil
+func (f *fakeRoleRepository) GetPermissionCodesByRoleIDs(ctx context.Context, roleIDs []string) (map[string][]string, error) {
+	return map[string][]string{}, nil
+}
+
+func (f *fakeRoleRepository) GetRoleCodesGroupedByAppByUserIDs(ctx context.Context, userIDs []string) (map[string][]models.UserAppRole, error) {
+	return map[string][]models.UserAppRole{}, nil
 }
 
 type fakeUserRepository struct{}
@@ -136,14 +156,6 @@ func (f *fakeUserRepository) UpdateLastLogin(ctx context.Context, id string) err
 	return nil
 }
 
-func (f *fakeUserRepository) PromoteAdmin(ctx context.Context, id string) error {
-	return nil
-}
-
-func (f *fakeUserRepository) IsAdmin(ctx context.Context, id string) (bool, error) {
-	return false, nil
-}
-
 func (f *fakeUserRepository) Verify(ctx context.Context, id string) error {
 	return nil
 }
@@ -160,7 +172,9 @@ func (f *fakeUserRepository) SoftDelete(ctx context.Context, id string) error {
 	return nil
 }
 
-type fakeAppServiceRepository struct{}
+type fakeAppServiceRepository struct {
+	appServicesByID map[string]appServiceEntity.AppService
+}
 
 var _ appServiceRepo.IRepository = (*fakeAppServiceRepository)(nil)
 
@@ -169,7 +183,17 @@ func (f *fakeAppServiceRepository) Create(ctx context.Context, req appServiceEnt
 }
 
 func (f *fakeAppServiceRepository) GetByID(ctx context.Context, id string) (appServiceEntity.AppService, error) {
-	return appServiceEntity.AppService{}, nil
+	return f.appServicesByID[id], nil
+}
+
+func (f *fakeAppServiceRepository) GetByIDs(ctx context.Context, ids []string) (map[string]appServiceEntity.AppService, error) {
+	result := map[string]appServiceEntity.AppService{}
+	for _, id := range ids {
+		if app, ok := f.appServicesByID[id]; ok {
+			result[id] = app
+		}
+	}
+	return result, nil
 }
 
 func (f *fakeAppServiceRepository) GetByCode(ctx context.Context, code string) (appServiceEntity.AppService, error) {
@@ -188,8 +212,15 @@ func (f *fakeAppServiceRepository) UpdateStatus(ctx context.Context, id string, 
 	return nil
 }
 
+const testAppID = "app_test"
+
 func newTestUsecase(fakeRole *fakeRoleRepository) IUseCase {
-	return NewUsecase(fakeRole, &fakeUserRepository{}, &fakeAppServiceRepository{})
+	fakeAppService := &fakeAppServiceRepository{
+		appServicesByID: map[string]appServiceEntity.AppService{
+			testAppID: {ID: testAppID, AppCode: "test"},
+		},
+	}
+	return NewUsecase(fakeRole, &fakeUserRepository{}, fakeAppService)
 }
 
 // === Tests ===
@@ -260,7 +291,7 @@ func TestDeleteRoleWithMembersRejected(t *testing.T) {
 
 func TestCreateWithCloneCopiesPermissions(t *testing.T) {
 	fakeRole := newFakeRoleRepository()
-	fakeRole.rolesByID["rol_source"] = entity.Role{ID: "rol_source", Code: "source", Name: "Source"}
+	fakeRole.rolesByID["rol_source"] = entity.Role{ID: "rol_source", AppID: testAppID, Code: "source", Name: "Source"}
 	fakeRole.permissionsByRole["rol_source"] = []entity.Permission{
 		{ID: 1, Resource: "user", Action: "read"},
 		{ID: 2, Resource: "role", Action: "read"},
@@ -269,6 +300,7 @@ func TestCreateWithCloneCopiesPermissions(t *testing.T) {
 	fakeRole.createID = "rol_new"
 
 	resp, err := newTestUsecase(fakeRole).Create(context.Background(), models.CreateRequest{
+		AppID:           testAppID,
 		Code:            "support-team",
 		Name:            "Support Team",
 		CloneFromRoleID: "rol_source",
@@ -281,6 +313,62 @@ func TestCreateWithCloneCopiesPermissions(t *testing.T) {
 	}
 	if got, want := fakeRole.replacedPermissions["rol_new"], []int64{1, 2, 3}; !slices.Equal(got, want) {
 		t.Errorf("cloned permissions = %v, want %v", got, want)
+	}
+}
+
+func TestCreateRejectsCrossAppClone(t *testing.T) {
+	fakeRole := newFakeRoleRepository()
+	// clone source belongs to a different app than the new role's target app
+	fakeRole.rolesByID["rol_other"] = entity.Role{ID: "rol_other", AppID: "app_other", Code: "other", Name: "Other"}
+	fakeRole.createID = "rol_new"
+
+	_, err := newTestUsecase(fakeRole).Create(context.Background(), models.CreateRequest{
+		AppID:           testAppID,
+		Code:            "support-team",
+		Name:            "Support Team",
+		CloneFromRoleID: "rol_other",
+	})
+	if err == nil {
+		t.Fatal("expected error for cross-app clone, got nil")
+	}
+	if !strings.Contains(err.Error(), "same app") {
+		t.Errorf("error = %q, want it to mention same app", err.Error())
+	}
+	if len(fakeRole.replacedPermissions) != 0 {
+		t.Error("permissions were copied despite cross-app clone rejection")
+	}
+}
+
+func TestProvisionDefaultRolesSeedsAdminRole(t *testing.T) {
+	fakeRole := newFakeRoleRepository()
+	fakeRole.createID = "rol_admin_new"
+
+	err := newTestUsecase(fakeRole).ProvisionDefaultRoles(context.Background(), testAppID)
+	if err != nil {
+		t.Fatalf("ProvisionDefaultRoles() error = %v", err)
+	}
+
+	// the admin role must have received a non-empty CRUD permission set
+	granted, ok := fakeRole.replacedPermissions["rol_admin_new"]
+	if !ok {
+		t.Fatal("expected the admin role to be granted permissions")
+	}
+	if len(granted) == 0 {
+		t.Error("expected a non-empty CRUD permission seed for the admin role")
+	}
+}
+
+func TestProvisionDefaultRolesIsIdempotent(t *testing.T) {
+	fakeRole := newFakeRoleRepository()
+	// admin role already exists for the app
+	fakeRole.rolesByID["rol_existing"] = entity.Role{ID: "rol_existing", AppID: testAppID, Code: "admin", Name: "Admin"}
+
+	err := newTestUsecase(fakeRole).ProvisionDefaultRoles(context.Background(), testAppID)
+	if err != nil {
+		t.Fatalf("ProvisionDefaultRoles() error = %v", err)
+	}
+	if len(fakeRole.replacedPermissions) != 0 {
+		t.Error("expected no provisioning when the admin role already exists")
 	}
 }
 
@@ -304,8 +392,9 @@ func TestCreateCodeSlugValidation(t *testing.T) {
 			fakeRole.createID = "rol_new"
 
 			_, err := newTestUsecase(fakeRole).Create(context.Background(), models.CreateRequest{
-				Code: tt.code,
-				Name: "Some Role",
+				AppID: testAppID,
+				Code:  tt.code,
+				Name:  "Some Role",
 			})
 			if tt.wantErr && err == nil {
 				t.Errorf("Create(code=%q) expected error, got nil", tt.code)

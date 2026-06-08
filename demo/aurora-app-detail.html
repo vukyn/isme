@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>isme — App service detail (RBAC) · Aurora UI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg-0: #07071A; --bg-1: #0B0B23; --bg-2: #12122E;
+    --fg: #F4F5FF; --fg-soft: #C7CAE8; --fg-mute: #8A8FB5;
+    --border: rgba(255,255,255,0.10); --border-strong: rgba(255,255,255,0.18);
+    --glass: rgba(255,255,255,0.06); --glass-strong: rgba(255,255,255,0.10);
+    --c-cyan: #22D3EE; --c-blue: #6366F1; --c-violet: #8B5CF6;
+    --c-magenta: #EC4899; --c-amber: #F59E0B; --c-mint: #34D399;
+    --accent: var(--c-violet); --accent-glow: rgba(139,92,246,0.45);
+    --radius: 16px; --radius-sm: 12px; --easing: cubic-bezier(.2,.8,.2,1);
+    --shadow-glass: 0 1px 0 rgba(255,255,255,0.06) inset, 0 8px 32px rgba(0,0,0,0.45);
+    --shadow-pop: 0 20px 60px rgba(99,102,241,0.25), 0 4px 12px rgba(0,0,0,0.35);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: 'Inter','DM Sans',system-ui,-apple-system,sans-serif; color: var(--fg); background: var(--bg-0); -webkit-font-smoothing: antialiased; line-height: 1.5; overflow-x: hidden; }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+  body::before { content: ""; position: fixed; inset: 0; z-index: -2; background: radial-gradient(60% 50% at 12% 10%, rgba(99,102,241,0.45), transparent 60%), radial-gradient(45% 40% at 88% 18%, rgba(34,211,238,0.35), transparent 60%), radial-gradient(55% 45% at 75% 92%, rgba(236,72,153,0.32), transparent 60%), radial-gradient(50% 40% at 18% 80%, rgba(139,92,246,0.32), transparent 60%), linear-gradient(180deg, #07071A 0%, #0B0B23 60%, #04040E 100%); background-size: 200% 200%; animation: auroraFlow 14s ease-in-out infinite alternate; filter: saturate(1.15); }
+  body::after { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px); background-size: 3px 3px; mix-blend-mode: overlay; opacity: 0.45; }
+  @keyframes auroraFlow { 0%{background-position:0% 0%,100% 0%,100% 100%,0% 100%,0 0;} 50%{background-position:30% 20%,60% 30%,70% 70%,30% 60%,0 0;} 100%{background-position:100% 100%,0% 100%,0% 0%,100% 0%,0 0;} }
+
+  /* Topbar */
+  .app-bar { position: sticky; top: 0; z-index: 50; height: 64px; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; border-bottom: 1px solid var(--border); background: rgba(7,7,26,0.62); backdrop-filter: blur(20px) saturate(1.2); }
+  .bar-left { display: flex; align-items: center; gap: 24px; } .bar-right { display: flex; align-items: center; gap: 10px; }
+  .brand-row { display: flex; align-items: center; gap: 12px; }
+  .brand-mark { width: 34px; height: 34px; border-radius: 10px; background: conic-gradient(from 180deg at 50% 50%, var(--c-cyan), var(--c-blue), var(--c-violet), var(--c-magenta), var(--c-cyan)); display: grid; place-items: center; box-shadow: 0 8px 24px rgba(99,102,241,0.45); }
+  .brand-mark > span { width: 26px; height: 26px; border-radius: 7px; background: var(--bg-0); display: grid; place-items: center; }
+  .brand-name { font-weight: 700; font-size: 17px; letter-spacing: -0.01em; }
+  .nav { display: flex; gap: 4px; }
+  .nav a { font-size: 14px; padding: 8px 14px; border-radius: 10px; color: var(--fg-mute); text-decoration: none; font-weight: 500; transition: all .15s var(--easing); border: 1px solid transparent; }
+  .nav a.active { color: var(--fg); background: var(--glass); border-color: var(--border-strong); box-shadow: 0 0 20px rgba(99,102,241,0.20); }
+  .nav a:hover { color: var(--fg); }
+  .icon-btn { width: 40px; height: 40px; background: var(--glass); border: 1px solid var(--border-strong); border-radius: 10px; display: grid; place-items: center; color: var(--fg-soft); cursor: pointer; backdrop-filter: blur(12px); position: relative; }
+  .icon-btn .badge { position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--c-magenta); box-shadow: 0 0 8px var(--c-magenta); }
+  .user-chip { display: inline-flex; align-items: center; gap: 10px; padding: 4px 10px 4px 4px; border: 1px solid var(--border-strong); border-radius: 999px; background: var(--glass); backdrop-filter: blur(12px); cursor: pointer; }
+  .avatar-lg { width: 32px; height: 32px; border-radius: 999px; background: conic-gradient(from 200deg, var(--c-cyan), var(--c-blue), var(--c-violet), var(--c-magenta), var(--c-cyan)); color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 13px; box-shadow: 0 0 16px var(--accent-glow); }
+  .user-chip .meta { font-size: 13px; line-height: 1.15; }
+  .user-chip .meta b { display: block; font-weight: 600; color: var(--fg); }
+  .user-chip .meta span { color: var(--fg-mute); font-size: 12px; }
+
+  /* Main */
+  .app-main { max-width: 1080px; margin: 0 auto; padding: 32px 28px 72px; display: grid; gap: 20px; }
+  .crumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--fg-mute); }
+  .crumb a { color: var(--fg-mute); text-decoration: none; } .crumb a:hover { color: var(--fg); }
+  .crumb .sep { opacity: 0.5; } .crumb .cur { color: var(--fg-soft); }
+
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 9px; height: 44px; padding: 0 18px; border-radius: var(--radius-sm); border: 1px solid transparent; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; transition: transform .15s var(--easing), box-shadow .2s var(--easing), background .2s var(--easing); }
+  .btn:active { transform: translateY(1px) scale(0.995); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-primary { background: linear-gradient(135deg, var(--c-blue) 0%, var(--c-violet) 50%, var(--c-magenta) 100%); background-repeat: no-repeat; background-position: 0% 0%; color: #fff; box-shadow: 0 10px 30px rgba(99,102,241,0.45), 0 0 0 1px rgba(255,255,255,0.10) inset; background-size: 200% 200%; }
+  .btn-primary:hover:not(:disabled) { background-position: 100% 100%; box-shadow: 0 14px 40px rgba(139,92,246,0.55); }
+  .btn-ghost { background: var(--glass); color: var(--fg); border-color: var(--border-strong); backdrop-filter: blur(12px); }
+  .btn-ghost:hover:not(:disabled) { background: var(--glass-strong); border-color: rgba(255,255,255,0.28); }
+  .btn-sm { height: 34px; padding: 0 12px; font-size: 13px; border-radius: 10px; }
+
+  .panel { background: var(--glass); border: 1px solid var(--border); border-radius: 20px; backdrop-filter: blur(20px) saturate(1.15); box-shadow: var(--shadow-glass); overflow: hidden; }
+  .panel-head { display: flex; align-items: center; gap: 11px; padding: 15px 20px; border-bottom: 1px solid var(--border); }
+  .panel-head .ph-title { font-size: 13px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg-mute); }
+  .panel-head .right { margin-left: auto; }
+
+  /* ====== App hero header ====== */
+  .app-hero { display: flex; align-items: center; gap: 18px; padding: 22px; flex-wrap: wrap; }
+  .app-tile-lg { width: 64px; height: 64px; border-radius: 18px; display: grid; place-items: center; flex: 0 0 auto; }
+  .tile-isme { background: conic-gradient(from 180deg, var(--c-cyan), var(--c-blue), var(--c-violet), var(--c-magenta), var(--c-cyan)); color: #fff; box-shadow: 0 8px 28px rgba(99,102,241,0.40); }
+  .tile-medioa { background: rgba(139,92,246,0.16); border: 1px solid rgba(139,92,246,0.40); color: var(--c-violet); box-shadow: 0 0 24px rgba(139,92,246,0.22); }
+  .tile-rainy { background: rgba(34,211,238,0.14); border: 1px solid rgba(34,211,238,0.40); color: var(--c-cyan); box-shadow: 0 0 24px rgba(34,211,238,0.18); }
+  .hero-meta { flex: 1; min-width: 0; }
+  .hero-name { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .hero-sub { margin-top: 6px; font-size: 13px; color: var(--fg-mute); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .hero-sub code { color: var(--fg-soft); font-family: inherit; }
+  .hero-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  .pill { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 500; padding: 4px 12px; border-radius: 999px; background: var(--glass); border: 1px solid var(--border-strong); color: var(--fg-soft); white-space: nowrap; }
+  .pill .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .pill.ok { color: var(--c-mint); border-color: rgba(52,211,153,0.35); background: rgba(52,211,153,0.10); }
+  .pill.ok .dot { background: var(--c-mint); box-shadow: 0 0 10px var(--c-mint); }
+  .pill.system { color: var(--c-amber); border-color: rgba(245,158,11,0.40); background: rgba(245,158,11,0.12); }
+  .pill.ctx { color: var(--c-cyan); border-color: rgba(34,211,238,0.35); background: rgba(34,211,238,0.10); }
+
+  /* ====== Info grid (app fields) ====== */
+  .info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; background: var(--border); }
+  @media (max-width: 620px) { .info-grid { grid-template-columns: 1fr; } }
+  .info-cell { background: rgba(7,7,26,0.30); padding: 16px 20px; }
+  .info-cell .k { font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg-mute); margin-bottom: 6px; }
+  .info-cell .v { font-size: 14px; color: var(--fg); font-variant-numeric: tabular-nums; display: flex; align-items: center; gap: 10px; }
+  .info-cell .v code { font-family: inherit; }
+  .info-cell .v .copy { width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; cursor: pointer; background: var(--glass); border: 1px solid var(--border-strong); color: var(--fg-mute); }
+  .info-cell .v .copy:hover { color: var(--fg); }
+  .secret-mask { font-size: 14px; color: var(--fg-mute); letter-spacing: 3px; user-select: none; }
+  .url-cell { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* ====== RBAC section ====== */
+  .sys-banner { display: flex; align-items: center; gap: 12px; padding: 14px 20px; background: linear-gradient(90deg, rgba(245,158,11,0.16), rgba(245,158,11,0.04)); border-bottom: 1px solid rgba(245,158,11,0.30); font-size: 13px; color: var(--fg-soft); }
+  .sys-banner .ico { width: 34px; height: 34px; border-radius: 10px; flex: 0 0 auto; display: grid; place-items: center; background: rgba(245,158,11,0.14); border: 1px solid rgba(245,158,11,0.35); color: var(--c-amber); }
+  .sys-banner b { color: var(--c-amber); } .sys-banner code { color: var(--fg-soft); font-family: inherit; }
+
+  /* roles list */
+  .role-row { display: flex; align-items: center; gap: 14px; padding: 14px 20px; border-bottom: 1px solid var(--border); }
+  .role-row:last-of-type { border-bottom: 0; }
+  .role-icon { width: 36px; height: 36px; border-radius: 11px; flex: 0 0 auto; display: grid; place-items: center; border: 1px solid var(--border-strong); }
+  .role-icon.violet { background: rgba(139,92,246,0.15); color: var(--c-violet); }
+  .role-icon.cyan { background: rgba(34,211,238,0.12); color: var(--c-cyan); }
+  .role-icon.mint { background: rgba(52,211,153,0.12); color: var(--c-mint); }
+  .role-icon.amber { background: rgba(245,158,11,0.12); color: var(--c-amber); }
+  .role-meta { flex: 1; min-width: 0; line-height: 1.3; }
+  .role-name { font-size: 14px; font-weight: 600; color: var(--fg); display: flex; align-items: center; gap: 8px; }
+  .role-name .lock { color: var(--c-amber); flex: 0 0 auto; }
+  .role-desc { font-size: 12px; color: var(--fg-mute); }
+  .role-stats { display: flex; align-items: center; gap: 16px; flex: 0 0 auto; }
+  .stat { text-align: right; line-height: 1.2; }
+  .stat .n { font-size: 14px; font-weight: 600; color: var(--fg); font-variant-numeric: tabular-nums; }
+  .stat .l { font-size: 11px; color: var(--fg-mute); }
+  .badge-sm { font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: 999px; }
+  .badge-sm.system { color: var(--c-amber); background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.35); }
+  .badge-sm.auto { color: var(--c-mint); background: rgba(52,211,153,0.10); border: 1px solid rgba(52,211,153,0.30); }
+  .badge-sm.custom { color: var(--c-amber); background: rgba(245,158,11,0.10); border: 1px solid rgba(245,158,11,0.30); }
+
+  /* permission set chips */
+  .perm-wrap { padding: 16px 20px; display: flex; flex-wrap: wrap; gap: 8px; }
+  .perm-chip { font-size: 12px; font-weight: 500; padding: 4px 11px; border-radius: 999px; background: rgba(7,7,26,0.40); border: 1px solid var(--border); color: var(--fg-soft); font-variant-numeric: tabular-nums; }
+  .perm-chip code { font-family: inherit; color: var(--c-cyan); }
+  .perm-group-label { width: 100%; font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--fg-mute); margin-top: 4px; }
+  .perm-group-label:first-child { margin-top: 0; }
+
+  .foot-note { display: flex; align-items: center; gap: 9px; padding: 14px 20px; border-top: 1px solid var(--border); font-size: 12px; color: var(--fg-mute); }
+  .foot-note svg { flex: 0 0 auto; } .foot-note code { color: var(--fg-soft); font-family: inherit; }
+
+  /* app switch for the demo (lets reviewer flip isme vs medioa2 detail) */
+  .demo-switch { display: flex; align-items: center; gap: 8px; padding: 12px 16px; }
+  .demo-switch .lab { font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg-mute); margin-right: 4px; }
+  .demo-btn { height: 36px; padding: 0 14px; border-radius: 10px; cursor: pointer; font: inherit; font-size: 13px; font-weight: 600; background: var(--glass); border: 1px solid var(--border-strong); color: var(--fg-soft); }
+  .demo-btn.on { color: var(--fg); background: linear-gradient(135deg, rgba(99,102,241,0.30), rgba(139,92,246,0.22)); border-color: var(--c-violet); }
+</style>
+</head>
+<body>
+
+<!--
+  ===========================================================================
+  SCREEN 4 of 4 — App service detail showing its RBAC
+  Implements: docs/rbac-app-owned-plan.md §2.13 (app detail shows app
+              roles/perms) + decisions 2 (isme system/read-only) & 5
+              (app-create auto-provisions a default role set).
+  ===========================================================================
+
+  Shows one app_service: app info block (app_code, name, ctx, status,
+  redirect_url with secret MASKED — AES at rest, never revealed) + an RBAC
+  section listing the app's auto-provisioned roles and its permission set.
+
+  READ-ONLY vs MANAGE:
+    • isme app    → RBAC section is system/read-only: amber banner, lock glyphs,
+      no "Manage roles" CTA (the roles screen is read-only for isme anyway).
+    • other apps  → RBAC section links out to the roles screen ("Manage roles"),
+      and the auto-provisioned admin role is highlighted (decision 5).
+
+  A small demo switch (top of RBAC panel) toggles the two states so the
+  reviewer can compare isme (locked) vs medioa2 (manageable) without leaving
+  the page. In React this page renders one app from route params.
+-->
+
+<header class="app-bar">
+  <div class="bar-left">
+    <div class="brand-row">
+      <div class="brand-mark"><span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 7l8 5 8-5-8-5Z"/><path d="m4 17 8 5 8-5"/><path d="m4 12 8 5 8-5"/></svg></span></div>
+      <div class="brand-name">isme</div>
+    </div>
+    <nav class="nav" aria-label="Primary">
+      <a href="#">Overview</a>
+      <a href="#">Users</a>
+      <a href="#">Roles &amp; Permissions</a>
+      <a href="#" class="active">App Services</a>
+      <a href="#">Sessions</a>
+    </nav>
+  </div>
+  <div class="bar-right">
+    <button class="icon-btn" aria-label="Notifications"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span class="badge"></span></button>
+    <div class="user-chip" tabindex="0"><div class="avatar-lg">VK</div><div class="meta"><b>Vu Ky</b><span>kyndv@hasaki.vn</span></div><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--fg-mute);margin-left:4px;"><path d="m6 9 6 6 6-6"/></svg></div>
+  </div>
+</header>
+
+<main class="app-main">
+
+  <nav class="crumb" aria-label="Breadcrumb">
+    <a href="#">App Services</a><span class="sep">/</span><span class="cur" id="crumb-name">medioa2</span>
+  </nav>
+
+  <!-- ===== App hero + info ===== -->
+  <section class="panel">
+    <div class="app-hero">
+      <div class="app-tile-lg" id="hero-tile">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
+      </div>
+      <div class="hero-meta">
+        <div class="hero-name">
+          <span id="hero-name">Medioa Cloud Storage</span>
+          <span class="pill ok" id="hero-status"><span class="dot"></span>active</span>
+          <span class="pill system" id="hero-system" style="display:none;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>System app</span>
+        </div>
+        <div class="hero-sub">
+          <span>app_code · <code id="hero-code">medioa2</code></span>
+          <span>·</span>
+          <span class="pill ctx" id="hero-ctx">authen</span>
+        </div>
+      </div>
+      <div class="hero-actions" id="hero-actions">
+        <button class="btn btn-ghost btn-sm">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15.4-6.4L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.4 6.4L3 16"/><path d="M3 21v-5h5"/></svg>
+          Rotate secret
+        </button>
+      </div>
+    </div>
+
+    <!-- app_service fields — secret permanently masked (AES at rest) -->
+    <div class="info-grid">
+      <div class="info-cell">
+        <div class="k">App ID</div>
+        <div class="v"><code id="info-appid">app_medioa2</code></div>
+      </div>
+      <div class="info-cell">
+        <div class="k">Redirect URL</div>
+        <div class="v"><span class="url-cell" id="info-redirect" title="https://app.medioa.local/auth/callback">https://app.medioa.local/auth/callback</span></div>
+      </div>
+      <div class="info-cell">
+        <div class="k">Client secret</div>
+        <!-- permanent mask: AES-encrypted at rest, irrecoverable; rotate to reissue -->
+        <div class="v"><span class="secret-mask" title="Secret is encrypted at rest and cannot be revealed. Rotate to issue a new one.">••••••••••••</span><span style="font-size:11px;color:var(--fg-mute);">rotated 2026-05-14</span></div>
+      </div>
+      <div class="info-cell">
+        <div class="k">Created</div>
+        <div class="v" style="font-size:13px;color:var(--fg-soft);" id="info-created">2025-11-03 · by Vu Ky</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== RBAC section ===== -->
+  <section class="panel">
+    <!-- demo-only app switch — flips between isme (locked) and medioa2 (manageable) -->
+    <div class="demo-switch">
+      <span class="lab">Preview app</span>
+      <button class="demo-btn" id="db-isme" onclick="setApp('isme')">isme (system)</button>
+      <button class="demo-btn on" id="db-medioa2" onclick="setApp('medioa2')">medioa2</button>
+    </div>
+
+    <!-- isme-only system banner -->
+    <div class="sys-banner" id="sys-banner" style="display:none;">
+      <div class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></div>
+      <div><b>System-managed RBAC.</b> isme's roles and 19 permissions are seeded and read-only (<code>is_system = true</code>). They cannot be edited or removed from here or the Roles screen.</div>
+    </div>
+
+    <div class="panel-head">
+      <span class="ph-title">Roles · <span id="rbac-app">medioa2</span></span>
+      <div class="right">
+        <!-- editable apps: link to the roles screen filtered to this app.
+             isme: this CTA is hidden (roles are read-only). -->
+        <a id="manage-link" href="aurora-rbac-roles.html"><button class="btn btn-ghost btn-sm">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg>
+          Manage roles
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg>
+        </button></a>
+      </div>
+    </div>
+
+    <div id="roles-list"><!-- rendered per app --></div>
+  </section>
+
+  <!-- ===== Permission set ===== -->
+  <section class="panel">
+    <div class="panel-head">
+      <span class="ph-title">Permission catalog · <span id="perm-count">12</span> permissions</span>
+    </div>
+    <div class="perm-wrap" id="perm-wrap"><!-- rendered per app --></div>
+    <div class="foot-note">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+      <span id="perm-foot">Permissions are <code>resource:action</code> strings owned by this app (<code>app_id</code>). They are NOT prefixed with the app code — the namespace lives in the token's <code>resource_access</code> key.</span>
+    </div>
+  </section>
+
+</main>
+
+<script>
+  var ROLE_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg>';
+  var SHIELD = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V6l-8-4-8 4v6c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg>';
+  var LOCK = '<svg class="lock" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+
+  var DATA = {
+    isme: {
+      label:'isme', code:'isme', appId:'app_isme', tile:'tile-isme', name:'isme — Identity &amp; SSO',
+      ctx:'authen', appIcon:'<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 7l8 5 8-5-8-5Z"/><path d="m4 17 8 5 8-5"/><path d="m4 12 8 5 8-5"/></svg>',
+      redirect:'(self — no SSO callback)', created:'seeded by migration 014', readOnly:true, permCount:19,
+      roles:[
+        { code:'admin', icon:'violet', shield:true, desc:'full access · all isme resources', perms:19, users:3, badge:'system' },
+        { code:'member', icon:'cyan', desc:'default on signup', perms:2, users:1156, badge:'system' },
+        { code:'viewer', icon:'mint', desc:'read-only', perms:3, users:97, badge:'system' }
+      ],
+      perms:[
+        { g:'Identity', items:['user:read','user:create','user:update','user:delete','user:reset_password','user:verify','user_session:read','user_session:delete','user_session:revoke'] },
+        { g:'Platform', items:['app_service:read','app_service:create','app_service:update','app_service:delete','app_service:rotate_secret','role:read','role:create','role:update','role:delete','role:assign'] }
+      ]
+    },
+    medioa2: {
+      label:'medioa2', code:'medioa2', appId:'app_medioa2', tile:'tile-medioa', name:'Medioa Cloud Storage',
+      ctx:'authen', appIcon:'<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>',
+      redirect:'https://app.medioa.local/auth/callback', created:'2025-11-03 · by Vu Ky', readOnly:false, permCount:12,
+      roles:[
+        { code:'admin', icon:'violet', shield:true, desc:'auto-provisioned on app create · full CRUD', perms:12, users:2, badge:'auto' },
+        { code:'editor', icon:'amber', desc:'custom · upload + edit, no delete', perms:5, users:14, badge:'custom' }
+      ],
+      perms:[
+        { g:'Storage', items:['object:read','object:create','object:update','object:delete','bucket:read','bucket:create','bucket:update','bucket:delete','storage:read','storage:create','storage:update','storage:delete'] }
+      ]
+    }
+  };
+
+  function render(key){
+    var d = DATA[key];
+    // hero + info
+    document.getElementById('crumb-name').textContent = d.label;
+    document.getElementById('hero-tile').className = 'app-tile-lg ' + d.tile;
+    document.getElementById('hero-tile').innerHTML = d.appIcon;
+    document.getElementById('hero-name').innerHTML = d.name;
+    document.getElementById('hero-code').textContent = d.code;
+    document.getElementById('hero-ctx').textContent = d.ctx;
+    document.getElementById('hero-system').style.display = d.readOnly ? '' : 'none';
+    document.getElementById('hero-actions').style.display = d.readOnly ? 'none' : '';
+    document.getElementById('info-appid').textContent = d.appId;
+    document.getElementById('info-redirect').textContent = d.redirect;
+    document.getElementById('info-redirect').title = d.redirect;
+    document.getElementById('info-created').textContent = d.created;
+
+    // rbac section chrome
+    document.getElementById('sys-banner').style.display = d.readOnly ? '' : 'none';
+    document.getElementById('manage-link').style.display = d.readOnly ? 'none' : '';
+    document.getElementById('rbac-app').textContent = d.label;
+    document.getElementById('perm-count').textContent = d.permCount;
+
+    // roles
+    var rhtml = '';
+    d.roles.forEach(function(r){
+      var badge = r.badge==='system' ? '<span class="badge-sm system">system</span>'
+        : r.badge==='auto' ? '<span class="badge-sm auto">auto-provisioned</span>'
+        : '<span class="badge-sm custom">custom</span>';
+      var lock = d.readOnly ? LOCK : '';
+      rhtml += '<div class="role-row">'
+        + '<div class="role-icon '+r.icon+'">'+(r.shield?SHIELD:ROLE_ICON)+'</div>'
+        + '<div class="role-meta"><div class="role-name">'+r.code+lock+' '+badge+'</div><div class="role-desc">'+r.desc+'</div></div>'
+        + '<div class="role-stats">'
+          + '<div class="stat"><div class="n">'+r.perms+'</div><div class="l">perms</div></div>'
+          + '<div class="stat"><div class="n">'+r.users.toLocaleString()+'</div><div class="l">users</div></div>'
+        + '</div></div>';
+    });
+    document.getElementById('roles-list').innerHTML = rhtml;
+
+    // perm set
+    var phtml = '';
+    d.perms.forEach(function(grp){
+      phtml += '<div class="perm-group-label">'+grp.g+'</div>';
+      grp.items.forEach(function(p){ phtml += '<span class="perm-chip"><code>'+p+'</code></span>'; });
+    });
+    document.getElementById('perm-wrap').innerHTML = phtml;
+    document.getElementById('perm-foot').innerHTML = d.readOnly
+      ? '<b style="color:var(--c-amber);">System-managed</b> — these 19 permissions are seeded and immutable. Perm strings are <code>resource:action</code>, never app-prefixed.'
+      : 'Permissions are <code>resource:action</code> strings owned by this app (<code>'+d.appId+'</code>). The full CRUD set was auto-provisioned on app create; the admin role holds all of them.';
+
+    // demo switch state
+    document.getElementById('db-isme').classList.toggle('on', key==='isme');
+    document.getElementById('db-medioa2').classList.toggle('on', key==='medioa2');
+  }
+  function setApp(k){ render(k); }
+  render('medioa2');
+</script>
+
+</body>
+</html>

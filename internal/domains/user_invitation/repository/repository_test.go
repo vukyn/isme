@@ -41,9 +41,14 @@ func newTestDB(t *testing.T) *bun.DB {
 func newInvitation(email string) entity.UserInvitation {
 	return entity.UserInvitation{
 		Email:     email,
-		RoleID:    "rol_member",
 		TokenHash: "hash-" + email,
 		ExpiresAt: time.Now().UTC().Add(time.Hour),
+	}
+}
+
+func memberAssignments() []entity.UserInvitationRole {
+	return []entity.UserInvitationRole{
+		{RoleID: "rol_member", AppServiceID: "app_isme"},
 	}
 }
 
@@ -52,9 +57,18 @@ func TestMarkAcceptedConditionalClaim(t *testing.T) {
 	ctx := context.Background()
 	invitationRepository := NewRepository(db)
 
-	invitationID, err := invitationRepository.Create(ctx, newInvitation("claim@example.com"))
+	invitationID, err := invitationRepository.Create(ctx, newInvitation("claim@example.com"), memberAssignments())
 	if err != nil {
 		t.Fatalf("create invitation: %v", err)
+	}
+
+	// the assignment child row is persisted and loadable
+	assignments, err := invitationRepository.GetAssignmentsByInvitationID(ctx, invitationID)
+	if err != nil {
+		t.Fatalf("get assignments: %v", err)
+	}
+	if len(assignments) != 1 || assignments[0].RoleID != "rol_member" || assignments[0].AppServiceID != "app_isme" {
+		t.Errorf("expected one member assignment, got %+v", assignments)
 	}
 
 	// first claim wins
@@ -92,7 +106,7 @@ func TestPendingEmailPartialUniqueIndex(t *testing.T) {
 	ctx := context.Background()
 	invitationRepository := NewRepository(db)
 
-	firstID, err := invitationRepository.Create(ctx, newInvitation("unique@example.com"))
+	firstID, err := invitationRepository.Create(ctx, newInvitation("unique@example.com"), memberAssignments())
 	if err != nil {
 		t.Fatalf("create first invitation: %v", err)
 	}
@@ -100,7 +114,7 @@ func TestPendingEmailPartialUniqueIndex(t *testing.T) {
 	// a second pending invitation for the same email violates the partial index
 	duplicate := newInvitation("unique@example.com")
 	duplicate.TokenHash = "hash-other"
-	if _, err := invitationRepository.Create(ctx, duplicate); err == nil {
+	if _, err := invitationRepository.Create(ctx, duplicate, memberAssignments()); err == nil {
 		t.Fatal("expected second pending invitation for the same email to fail")
 	} else if !strings.Contains(strings.ToLower(err.Error()), "unique") {
 		t.Errorf("expected a unique-constraint error, got: %v", err)
@@ -117,7 +131,7 @@ func TestPendingEmailPartialUniqueIndex(t *testing.T) {
 
 	reissued := newInvitation("unique@example.com")
 	reissued.TokenHash = "hash-reissue"
-	if _, err := invitationRepository.Create(ctx, reissued); err != nil {
+	if _, err := invitationRepository.Create(ctx, reissued, memberAssignments()); err != nil {
 		t.Fatalf("expected re-issue after revoke to succeed, got: %v", err)
 	}
 }

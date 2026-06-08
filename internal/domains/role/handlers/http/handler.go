@@ -19,7 +19,12 @@ func ListRoles(c *fiber.Ctx) error {
 		return pkgHttp.Err(c, err)
 	}
 
-	roles, err := uc.List(pkgCtx.NewContextFromFiberCtx(c))
+	listRequest := models.ListRequest{}
+	if err := c.QueryParser(&listRequest); err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	roles, err := uc.List(pkgCtx.NewContextFromFiberCtx(c), listRequest)
 	if err != nil {
 		return pkgHttp.Err(c, err)
 	}
@@ -197,7 +202,12 @@ func ListPermissions(c *fiber.Ctx) error {
 		return pkgHttp.Err(c, err)
 	}
 
-	permissions, err := uc.ListPermissions(pkgCtx.NewContextFromFiberCtx(c))
+	listPermissionsRequest := models.ListPermissionsRequest{}
+	if err := c.QueryParser(&listPermissionsRequest); err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	permissions, err := uc.ListPermissions(pkgCtx.NewContextFromFiberCtx(c), listPermissionsRequest)
 	if err != nil {
 		return pkgHttp.Err(c, err)
 	}

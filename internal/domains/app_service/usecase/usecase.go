@@ -9,6 +9,7 @@ import (
 	"github.com/vukyn/isme/internal/domains/app_service/entity"
 	"github.com/vukyn/isme/internal/domains/app_service/models"
 	appServiceRepo "github.com/vukyn/isme/internal/domains/app_service/repository"
+	roleUsecase "github.com/vukyn/isme/internal/domains/role/usecase"
 	userRepo "github.com/vukyn/isme/internal/domains/user/repository"
 	"github.com/vukyn/kuery/cryp/aes"
 	pkgCtx "github.com/vukyn/kuery/ctx"
@@ -19,17 +20,20 @@ type usecase struct {
 	cfg            *config.Config
 	appServiceRepo appServiceRepo.IRepository
 	userRepo       userRepo.IRepository
+	roleUsecase    roleUsecase.IUseCase
 }
 
 func NewUsecase(
 	appServiceRepo appServiceRepo.IRepository,
 	userRepo userRepo.IRepository,
+	roleUsecase roleUsecase.IUseCase,
 	cfg *config.Config,
 ) IUseCase {
 	return &usecase{
 		cfg:            cfg,
 		appServiceRepo: appServiceRepo,
 		userRepo:       userRepo,
+		roleUsecase:    roleUsecase,
 	}
 }
 
@@ -60,7 +64,7 @@ func (u *usecase) RegisterApp(ctx context.Context, req models.RegisterRequest) (
 	}
 
 	// create app service
-	_, err = u.appServiceRepo.Create(ctx, entity.CreateRequest{
+	appServiceID, err := u.appServiceRepo.Create(ctx, entity.CreateRequest{
 		AppCode:     req.AppCode,
 		AppName:     req.AppName,
 		AppSecret:   encryptedSecret,
@@ -69,6 +73,11 @@ func (u *usecase) RegisterApp(ctx context.Context, req models.RegisterRequest) (
 		Status:      constants.AppServiceStatusActive,
 	})
 	if err != nil {
+		return models.RegisterResponse{}, err
+	}
+
+	// auto-provision the default per-app role set (admin role + CRUD perm seed)
+	if err := u.roleUsecase.ProvisionDefaultRoles(ctx, appServiceID); err != nil {
 		return models.RegisterResponse{}, err
 	}
 
@@ -170,13 +179,11 @@ func (u *usecase) RefreshApp(ctx context.Context, req models.RefreshRequest) (mo
 		return models.RefreshResponse{}, pkgErr.InvalidRequest("invalid app_secret")
 	}
 
-	// check authorization: user must be admin OR creator
-	isAdmin, err := u.userRepo.IsAdmin(ctx, userID)
-	if err != nil {
-		return models.RefreshResponse{}, err
-	}
-	if !isAdmin && userID != appService.CreatedBy {
-		return models.RefreshResponse{}, pkgErr.InvalidRequest("unauthorized: only admin or creator can refresh app secret")
+	// check authorization: caller must be the app creator. Permission-level
+	// access (app_service:rotate_secret) is enforced at the route guard; this
+	// ownership check additionally restricts rotation to the creator.
+	if userID != appService.CreatedBy {
+		return models.RefreshResponse{}, pkgErr.InvalidRequest("unauthorized: only the creator can refresh app secret")
 	}
 
 	// generate new app_secret

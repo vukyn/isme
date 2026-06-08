@@ -13,10 +13,9 @@ type GetMeResponse struct {
 	Code    int32  `json:"code"`
 	Message string `json:"message"`
 	Data    struct {
-		ID      string `json:"id"`
-		Name    string `json:"name"`
-		Email   string `json:"email"`
-		IsAdmin bool   `json:"is_admin"`
+		ID    string `json:"id"`
+		Name  string `json:"name"`
+		Email string `json:"email"`
 	} `json:"data"`
 }
 

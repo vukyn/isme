@@ -44,10 +44,28 @@ export interface LogoutResponse {
 	};
 }
 
+/** One assigned role in the public invite detail — app identity, role identity,
+ *  and the resource:action permission preview. Maps to models.InviteAssignmentDetail. */
+export interface InviteAssignmentDetail {
+	app_code: string;
+	app_name: string;
+	role_name: string;
+	role_code: string;
+	/** resource:action codes this role grants. */
+	permissions: string[];
+}
+
+/** Display state driving the accept page — independent of the raw status int. */
+export type InviteDisplayStatus = "valid" | "expired" | "accepted" | "revoked";
+
 /** Maps to internal/domains/user_invitation/models.InviteDetailResponse. */
 export interface InviteDetailResponse {
 	email: string;
-	role_name: string;
+	/** Raw invitation status (1=pending, 2=accepted, 3=revoked). */
+	status: number;
+	/** Stable string the page switches on: valid | expired | accepted | revoked. */
+	display_status: InviteDisplayStatus;
+	assignments: InviteAssignmentDetail[];
 }
 
 /** Maps to internal/domains/user_invitation/models.AcceptRequest. */

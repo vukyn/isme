@@ -13,6 +13,10 @@ type CreateRequest struct {
 	ExpiresAt    time.Time
 	ClientIP     string
 	UserAgent    string
+	// AppServiceID records the requesting app for SSO logins (empty for
+	// first-party isme logins). Used at refresh time to decide whether the
+	// new token stays aud-restricted to that app or spans all apps.
+	AppServiceID string
 }
 
 func (r CreateRequest) Validate() error {

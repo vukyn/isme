@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { Box, Button, Center, Dialog, Field, Flex, Grid, Heading, HStack, Input, Spinner, Table, Text } from "@chakra-ui/react";
 import {
@@ -27,6 +27,7 @@ import {
 	addRoleMembers,
 	deleteRole,
 	getRole,
+	listAppServices,
 	listPermissions,
 	listRoleMembers,
 	listRoles,
@@ -35,14 +36,16 @@ import {
 	setRolePermissions,
 	updateRole,
 } from "@/apis";
+import { AppTile } from "@/components/AppRoleChip";
 import { CreateRoleDialog } from "@/components/CreateRoleDialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import { APP_SERVICE_STATUS } from "@/consts";
 import { toaster } from "@/components/ui/toaster";
 import { AURORA_CTA_STYLE } from "@/consts/styles";
 import { useUser } from "@/hooks/useUser";
 import { usePermissions } from "@/hooks/usePermissions";
 import { AppShell } from "@/layouts/AppShell";
-import type { PermissionItem, RoleDetailResponse, RoleListItem, RoleMemberItem, UserListItem } from "@/types";
+import type { AppService, PermissionItem, RoleDetailResponse, RoleListItem, RoleMemberItem, UserListItem } from "@/types";
 import { formatDateOnly } from "@/utils";
 
 const MEMBERS_PAGE_SIZE = 8;
@@ -75,65 +78,64 @@ interface MatrixResource {
 	label: string;
 	accent: { color: string; bg: string };
 	icon: ReactNode;
-	/** CRUD actions this resource supports — unsupported cells render "—". */
+	/** Which CRUD actions this resource has in the app's catalog. */
 	crud: Record<"read" | "create" | "update" | "delete", boolean>;
+	/** Non-CRUD actions (verify, revoke, rotate_secret, …). */
 	special: string[];
 }
 
-interface MatrixGroup {
-	label: string;
-	resources: MatrixResource[];
-}
-
 const CRUD_ACTIONS = ["read", "create", "update", "delete"] as const;
+const CRUD_SET = new Set<string>(CRUD_ACTIONS);
 
-/** Matrix layout mirrors the mock: resources grouped by area × CRUD + special actions. */
-const MATRIX_GROUPS: MatrixGroup[] = [
-	{
-		label: "Identity",
-		resources: [
-			{
-				resource: "user",
-				label: "Users",
-				accent: { color: "aurora.violet", bg: "rgba(139,92,246,0.15)" },
-				icon: <LuUsers size={14} />,
-				crud: { read: true, create: true, update: true, delete: true },
-				// verify — account verification (one-way is_verified flip); the chip
-				// only renders once GET /permissions returns user:verify (migration 012)
-				special: ["reset_password", "verify"],
-			},
-			{
-				resource: "user_session",
-				label: "Sessions",
-				accent: { color: "aurora.cyan", bg: "rgba(34,211,238,0.12)" },
-				icon: <LuMonitorSmartphone size={14} />,
-				crud: { read: true, create: false, update: false, delete: true },
-				special: ["revoke"],
-			},
-		],
-	},
-	{
-		label: "Platform",
-		resources: [
-			{
-				resource: "app_service",
-				label: "App Services",
-				accent: { color: "aurora.mint", bg: "rgba(52,211,153,0.12)" },
-				icon: <LuAppWindow size={14} />,
-				crud: { read: true, create: true, update: true, delete: true },
-				special: ["rotate_secret"],
-			},
-			{
-				resource: "role",
-				label: "Roles",
-				accent: { color: "aurora.amber", bg: "rgba(245,158,11,0.12)" },
-				icon: <LuKeyRound size={14} />,
-				crud: { read: true, create: true, update: true, delete: true },
-				special: ["assign"],
-			},
-		],
-	},
+const RESOURCE_ACCENTS = [
+	{ color: "aurora.violet", bg: "rgba(139,92,246,0.15)" },
+	{ color: "aurora.cyan", bg: "rgba(34,211,238,0.12)" },
+	{ color: "aurora.mint", bg: "rgba(52,211,153,0.12)" },
+	{ color: "aurora.amber", bg: "rgba(245,158,11,0.12)" },
 ];
+
+const RESOURCE_ICONS: Record<string, ReactNode> = {
+	user: <LuUsers size={14} />,
+	user_session: <LuMonitorSmartphone size={14} />,
+	session: <LuMonitorSmartphone size={14} />,
+	app_service: <LuAppWindow size={14} />,
+	role: <LuKeyRound size={14} />,
+};
+
+/** Turn a snake_case resource into a Title Case label. */
+const resourceLabel = (resource: string) =>
+	resource
+		.split("_")
+		.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+		.join(" ");
+
+/**
+ * Build the role × permission matrix from the SELECTED APP's permission catalog
+ * (app-owned RBAC: each app has its own resources). Rows are grouped by
+ * resource; columns are CRUD; anything non-CRUD becomes a "special" chip.
+ */
+const buildMatrix = (catalog: PermissionItem[]): MatrixResource[] => {
+	const byResource = new Map<string, Set<string>>();
+	for (const permission of catalog) {
+		if (!byResource.has(permission.resource)) byResource.set(permission.resource, new Set());
+		byResource.get(permission.resource)!.add(permission.action);
+	}
+	return [...byResource.entries()]
+		.sort(([a], [b]) => a.localeCompare(b))
+		.map(([resource, actions], index) => ({
+			resource,
+			label: resourceLabel(resource),
+			accent: RESOURCE_ACCENTS[index % RESOURCE_ACCENTS.length],
+			icon: RESOURCE_ICONS[resource] ?? <LuKeyRound size={14} />,
+			crud: {
+				read: actions.has("read"),
+				create: actions.has("create"),
+				update: actions.has("update"),
+				delete: actions.has("delete"),
+			},
+			special: [...actions].filter((action) => !CRUD_SET.has(action)).sort(),
+		}));
+};
 
 const AVATAR_GRADIENTS = [
 	"conic-gradient(from 200deg, #22D3EE, #6366F1, #8B5CF6, #EC4899, #22D3EE)",
@@ -295,6 +297,11 @@ export const Roles = () => {
 	const canAssign = can("role:assign");
 	const canReadUsers = can("user:read");
 
+	// App switcher (app-owned RBAC) — selecting an app reloads its roles + catalog.
+	const [apps, setApps] = useState<AppService[]>([]);
+	const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
+	const [appsLoading, setAppsLoading] = useState(true);
+
 	const [roles, setRoles] = useState<RoleListItem[]>([]);
 	const [catalog, setCatalog] = useState<PermissionItem[]>([]);
 	const [loading, setLoading] = useState(true);
@@ -327,21 +334,53 @@ export const Roles = () => {
 	const [deleteOpen, setDeleteOpen] = useState(false);
 	const [deleting, setDeleting] = useState(false);
 
-	const refreshRoles = useCallback(async (selectId?: string) => {
-		const items = await listRoles();
-		setRoles(items);
-		if (selectId) {
-			setSelectedRoleId(selectId);
-		} else {
-			setSelectedRoleId((previous) => (previous && items.some((role) => role.id === previous) ? previous : (items[0]?.id ?? null)));
-		}
-		return items;
-	}, []);
+	const selectedApp = useMemo(() => apps.find((app) => app.id === selectedAppId) ?? null, [apps, selectedAppId]);
+	// isme is itself an app whose roles/permissions are system-managed (read-only).
+	const isIsmeApp = selectedApp?.app_code === "isme";
 
-	// Initial load: roles list + permission catalog.
+	const refreshRoles = useCallback(
+		async (selectId?: string) => {
+			if (!selectedApp) return [];
+			const items = await listRoles({ app_code: selectedApp.app_code });
+			setRoles(items);
+			if (selectId) {
+				setSelectedRoleId(selectId);
+			} else {
+				setSelectedRoleId((previous) => (previous && items.some((role) => role.id === previous) ? previous : (items[0]?.id ?? null)));
+			}
+			return items;
+		},
+		[selectedApp]
+	);
+
+	// Load the app catalog for the switcher (active apps only).
 	useEffect(() => {
 		let active = true;
-		Promise.all([listRoles(), listPermissions()])
+		listAppServices({ page: 1, page_size: 100, status: APP_SERVICE_STATUS.ACTIVE })
+			.then((response) => {
+				if (!active) return;
+				setApps(response.items);
+				// default to isme (the system app) when present, else the first app
+				const isme = response.items.find((app) => app.app_code === "isme");
+				setSelectedAppId(isme?.id ?? response.items[0]?.id ?? null);
+			})
+			.catch((error: unknown) => {
+				if (active) toaster.create({ title: errorMessage(error, "Failed to load apps"), type: "error", meta: { closable: true } });
+			})
+			.finally(() => {
+				if (active) setAppsLoading(false);
+			});
+		return () => {
+			active = false;
+		};
+	}, []);
+
+	// Per-app load: roles list + permission catalog scoped to the selected app.
+	useEffect(() => {
+		if (!selectedApp) return;
+		let active = true;
+		setLoading(true);
+		Promise.all([listRoles({ app_code: selectedApp.app_code }), listPermissions({ app_code: selectedApp.app_code })])
 			.then(([roleItems, permissionItems]) => {
 				if (!active) return;
 				setRoles(roleItems);
@@ -359,7 +398,7 @@ export const Roles = () => {
 		return () => {
 			active = false;
 		};
-	}, []);
+	}, [selectedApp]);
 
 	// Role selection → load detail, reset tab-local state.
 	useEffect(() => {
@@ -446,8 +485,12 @@ export const Roles = () => {
 	}, [catalog]);
 
 	const selectedRole = useMemo(() => roles.find((role) => role.id === selectedRoleId) ?? null, [roles, selectedRoleId]);
-	const isSystemRole = !!detail?.is_system;
-	const matrixEditable = !!detail && !isSystemRole && canUpdate;
+	// Read-only when the role is a system role OR the whole app is system-managed
+	// (isme): definitions are seeded and locked.
+	const isReadOnly = !!detail?.is_system || isIsmeApp;
+	const matrixEditable = !!detail && !isReadOnly && canUpdate;
+	// Dynamic matrix from the selected app's permission catalog.
+	const matrixResources = useMemo(() => buildMatrix(catalog), [catalog]);
 
 	const dirtyCount = useMemo(() => {
 		let count = 0;
@@ -456,7 +499,6 @@ export const Roles = () => {
 		return count;
 	}, [draftPermissionIds, originalPermissionIds]);
 
-	const systemCount = roles.filter((role) => role.is_system).length;
 	const membersTotalPages = Math.max(1, Math.ceil(membersTotal / MEMBERS_PAGE_SIZE));
 
 	// Scope distribution of the loaded assignments (App scope tab is read-only).
@@ -648,18 +690,14 @@ export const Roles = () => {
 						Roles & Permissions
 					</Heading>
 					<Text fontSize="sm" color="fg.muted" mt="1.5">
-						<Text as="span" color="aurora.cyan" fontWeight="semibold" css={{ fontVariantNumeric: "tabular-nums" }}>
-							{roles.length}
+						App-owned RBAC · roles &amp; permissions belong to an{" "}
+						<Text as="span" color="fg.subtle">
+							app_service
 						</Text>{" "}
-						roles ·{" "}
-						<Text as="span" color="aurora.cyan" fontWeight="semibold" css={{ fontVariantNumeric: "tabular-nums" }}>
-							{systemCount}
-						</Text>{" "}
-						system ·{" "}
-						<Text as="span" color="aurora.cyan" fontWeight="semibold" css={{ fontVariantNumeric: "tabular-nums" }}>
-							{roles.length - systemCount}
-						</Text>{" "}
-						custom
+						· managing{" "}
+						<Text as="span" color="aurora.cyan" fontWeight="semibold">
+							{selectedApp?.app_code ?? "—"}
+						</Text>
 					</Text>
 				</Box>
 				{canCreate && (
@@ -674,14 +712,92 @@ export const Roles = () => {
 						boxShadow="ctaGlow"
 						_hover={{ boxShadow: "ctaGlowHi", backgroundPosition: "100% 100%" }}
 						_focusVisible={{ boxShadow: "focusRing" }}
+						disabled={isIsmeApp}
+						title={isIsmeApp ? "isme roles are system-managed — read-only" : undefined}
 						onClick={() => setCreateOpen(true)}
 					>
-						<LuPlus size={16} /> New role
+						{isIsmeApp ? <LuLock size={16} /> : <LuPlus size={16} />} New role
 					</Button>
 				)}
 			</Flex>
 
-			{loading ? (
+			{/* App switcher — drives the whole panel below (roles + catalog + read-only). */}
+			<Box {...PANEL_PROPS} p="3.5">
+				<Flex align="center" gap="2.5" wrap="wrap">
+					<Text {...LABEL_PROPS} mr="1">
+						App
+					</Text>
+					{apps.map((app) => {
+						const on = app.id === selectedAppId;
+						return (
+							<HStack
+								key={app.id}
+								as="button"
+								gap="2.5"
+								h="11"
+								px="3.5"
+								borderRadius="glassSm"
+								cursor="pointer"
+								borderWidth="1px"
+								borderColor={on ? "rgba(139,92,246,0.45)" : "border.strong"}
+								bg={on ? "linear-gradient(135deg, rgba(99,102,241,0.30), rgba(139,92,246,0.25))" : "bg.glass"}
+								boxShadow={on ? "0 0 16px rgba(139,92,246,0.25) inset" : "none"}
+								color={on ? "fg" : "fg.muted"}
+								_hover={{ color: "fg" }}
+								onClick={() => setSelectedAppId(app.id)}
+							>
+								<AppTile appCode={app.app_code} size="22px" />
+								<Box lineHeight="1.2" textAlign="left">
+									<Text fontSize="13px" fontWeight="semibold">
+										{app.app_code}
+									</Text>
+									<Text fontSize="11px" color="fg.muted" truncate maxW="120px">
+										{app.app_name}
+									</Text>
+								</Box>
+								{app.app_code === "isme" && (
+									<Box color="aurora.amber" flex="none" title="System-managed">
+										<LuLock size={12} />
+									</Box>
+								)}
+							</HStack>
+						);
+					})}
+				</Flex>
+				{/* isme system banner — only for the isme app */}
+				{isIsmeApp && (
+					<HStack
+						gap="2.5"
+						mt="3"
+						px="3.5"
+						py="3"
+						borderRadius="glassSm"
+						borderWidth="1px"
+						borderColor="rgba(245,158,11,0.30)"
+						bg="rgba(245,158,11,0.07)"
+						fontSize="12.5px"
+						color="aurora.amber"
+						align="flex-start"
+					>
+						<Box mt="0.5" flex="none">
+							<LuLock size={14} />
+						</Box>
+						<Text color="fg.subtle">
+							<Text as="span" color="fg" fontWeight="semibold">
+								System-managed app.
+							</Text>{" "}
+							isme's own roles (admin / member / viewer) and its permissions are seeded and{" "}
+							<Text as="span" color="aurora.amber" fontWeight="semibold">
+								read-only
+							</Text>{" "}
+							here (is_system = true). You can still assign these roles to users — only the role &amp; permission definitions are
+							locked. Platform admin = the admin role on this app.
+						</Text>
+					</HStack>
+				)}
+			</Box>
+
+			{loading || appsLoading ? (
 				<Center py="16">
 					<Spinner size="lg" color="accent" />
 				</Center>
@@ -774,22 +890,17 @@ export const Roles = () => {
 											{detail.name && ` · ${detail.name}`}
 										</Text>
 									</Box>
-									<Button
-										{...GHOST_SM_BUTTON_PROPS}
-										disabled={isSystemRole || !canUpdate}
-										title={isSystemRole ? "System role — immutable" : undefined}
-										onClick={handleOpenRename}
-									>
-										<LuPencil size={13} /> Rename
-									</Button>
-									<Button
-										{...DANGER_SM_BUTTON_PROPS}
-										disabled={isSystemRole || !canDelete}
-										title={isSystemRole ? "System role — immutable" : undefined}
-										onClick={() => setDeleteOpen(true)}
-									>
-										<LuTrash2 size={13} /> Delete
-									</Button>
+									{/* Rename + Delete — hidden for system/isme roles, shown for editable custom roles. */}
+									{!isReadOnly && (
+										<>
+											<Button {...GHOST_SM_BUTTON_PROPS} disabled={!canUpdate} onClick={handleOpenRename}>
+												<LuPencil size={13} /> Rename
+											</Button>
+											<Button {...DANGER_SM_BUTTON_PROPS} disabled={!canDelete} onClick={() => setDeleteOpen(true)}>
+												<LuTrash2 size={13} /> Delete
+											</Button>
+										</>
+									)}
 								</HStack>
 
 								{/* Tabs */}
@@ -807,107 +918,130 @@ export const Roles = () => {
 								{/* Tab 1 · permission matrix */}
 								{tab === "permissions" && (
 									<>
-										{isSystemRole && (
-											<HStack gap="2" px="4.5" py="2.5" borderBottomWidth="1px" borderColor="border" fontSize="12px" color="fg.muted">
-												<LuLock size={13} /> system role — permissions are seeded and read-only
+										{isReadOnly && (
+											<HStack gap="2" px="4.5" py="2.5" borderBottomWidth="1px" borderColor="rgba(245,158,11,0.25)" bg="rgba(245,158,11,0.06)" fontSize="12px" color="aurora.amber">
+												<LuLock size={13} />
+												{isIsmeApp
+													? "System-managed app — isme permissions are seeded and read-only"
+													: "System role — permissions are seeded and read-only"}
 											</HStack>
 										)}
-										<Table.Root size="sm" css={{ "& td, & th": { borderColor: "rgba(255,255,255,0.10)" } }}>
-											<Table.Header>
-												<Table.Row bg="transparent">
-													<Table.ColumnHeader px="4.5" py="3" bg="transparent" {...LABEL_PROPS}>
-														Resource
-													</Table.ColumnHeader>
-													{CRUD_ACTIONS.map((action) => (
-														<Table.ColumnHeader key={action} w="84px" px="2" py="3" bg="transparent" textAlign="center" {...LABEL_PROPS}>
-															{action}
+										{/* read-only matrix gets a faint amber wash (mock .matrix-readonly) */}
+										<Box bg={isReadOnly ? "rgba(245,158,11,0.03)" : "transparent"}>
+											<Table.Root size="sm" css={{ "& td, & th": { borderColor: "rgba(255,255,255,0.10)" } }}>
+												<Table.Header>
+													<Table.Row bg="transparent">
+														<Table.ColumnHeader px="4.5" py="3" bg="transparent" {...LABEL_PROPS}>
+															Resource
 														</Table.ColumnHeader>
-													))}
-													<Table.ColumnHeader w="220px" px="4.5" py="3" bg="transparent" {...LABEL_PROPS}>
-														Special
-													</Table.ColumnHeader>
-												</Table.Row>
-											</Table.Header>
-											<Table.Body>
-												{MATRIX_GROUPS.map((group) => (
-													<Fragment key={group.label}>
-														<Table.Row bg="rgba(7,7,26,0.35)">
-															<Table.Cell colSpan={6} px="4.5" py="2" {...LABEL_PROPS} letterSpacing="0.16em">
-																{group.label}
+														{CRUD_ACTIONS.map((action) => (
+															<Table.ColumnHeader key={action} w="84px" px="2" py="3" bg="transparent" textAlign="center" {...LABEL_PROPS}>
+																{action}
+															</Table.ColumnHeader>
+														))}
+														<Table.ColumnHeader w="220px" px="4.5" py="3" bg="transparent" {...LABEL_PROPS}>
+															Special
+														</Table.ColumnHeader>
+													</Table.Row>
+												</Table.Header>
+												<Table.Body>
+													{matrixResources.length === 0 && (
+														<Table.Row bg="transparent">
+															<Table.Cell colSpan={6} px="4.5" py="8" textAlign="center" fontSize="sm" color="fg.muted">
+																This app has no permissions in its catalog.
 															</Table.Cell>
 														</Table.Row>
-														{group.resources.map((resource) => (
-															<Table.Row key={resource.resource} bg="transparent" transition="background .15s ease-out" _hover={{ bg: "rgba(255,255,255,0.03)" }}>
-																<Table.Cell px="4.5" py="13px">
-																	<HStack gap="3">
-																		<Center
-																			w="8"
-																			h="8"
-																			flex="none"
-																			borderRadius="10px"
-																			bg={resource.accent.bg}
-																			borderWidth="1px"
-																			borderColor="border.strong"
-																			color={resource.accent.color}
-																		>
-																			{resource.icon}
-																		</Center>
-																		<Box lineHeight="1.25">
-																			<Text fontSize="sm" fontWeight="medium" color="fg">
-																				{resource.label}
-																			</Text>
-																			<Text fontSize="11px" color="fg.muted">
-																				{resource.resource}
-																			</Text>
-																		</Box>
-																	</HStack>
+													)}
+													{matrixResources.map((resource) => (
+														<Table.Row key={resource.resource} bg="transparent" transition="background .15s ease-out" _hover={{ bg: "rgba(255,255,255,0.03)" }}>
+															<Table.Cell px="4.5" py="13px">
+																<HStack gap="3">
+																	<Center
+																		w="8"
+																		h="8"
+																		flex="none"
+																		borderRadius="10px"
+																		bg={resource.accent.bg}
+																		borderWidth="1px"
+																		borderColor="border.strong"
+																		color={resource.accent.color}
+																	>
+																		{resource.icon}
+																	</Center>
+																	<Box lineHeight="1.25">
+																		<Text fontSize="sm" fontWeight="medium" color="fg">
+																			{resource.label}
+																		</Text>
+																		<Text fontSize="11px" color="fg.muted">
+																			{resource.resource}
+																		</Text>
+																	</Box>
+																</HStack>
+															</Table.Cell>
+															{CRUD_ACTIONS.map((action) => (
+																<Table.Cell key={action} px="2" py="13px" textAlign="center">
+																	<Center>{renderPermissionCell(resource, action)}</Center>
 																</Table.Cell>
-																{CRUD_ACTIONS.map((action) => (
-																	<Table.Cell key={action} px="2" py="13px" textAlign="center">
-																		<Center>{renderPermissionCell(resource, action)}</Center>
-																	</Table.Cell>
-																))}
-																<Table.Cell px="4.5" py="13px">
-																	<HStack gap="2" wrap="wrap">
-																		{resource.special.map((action) => {
-																			const permission = permissionByCode.get(`${resource.resource}:${action}`);
-																			if (!permission) return null;
-																			return (
-																				<HStack
-																					key={action}
-																					as="label"
-																					{...PILL_BASE}
-																					px="3"
-																					py="5px"
-																					gap="2"
-																					color="fg.subtle"
-																					cursor={matrixEditable ? "pointer" : "default"}
-																					transition="border-color .15s ease-out, background .15s ease-out"
-																					_hover={matrixEditable ? { borderColor: "rgba(255,255,255,0.30)", bg: "bg.glassHi" } : undefined}
-																				>
-																					<Checkbox
-																						size="sm"
-																						colorPalette="purple"
-																						css={CHECKBOX_CSS}
-																						checked={draftPermissionIds.has(permission.id)}
-																						disabled={!matrixEditable}
-																						onCheckedChange={() => togglePermission(permission.id)}
-																					/>
-																					{action}
-																				</HStack>
-																			);
-																		})}
-																	</HStack>
-																</Table.Cell>
-															</Table.Row>
-														))}
-													</Fragment>
-												))}
-											</Table.Body>
-										</Table.Root>
+															))}
+															<Table.Cell px="4.5" py="13px">
+																<HStack gap="2" wrap="wrap">
+																	{resource.special.map((action) => {
+																		const permission = permissionByCode.get(`${resource.resource}:${action}`);
+																		if (!permission) return null;
+																		const checked = draftPermissionIds.has(permission.id);
+																		return (
+																			<HStack
+																				key={action}
+																				as="label"
+																				{...PILL_BASE}
+																				px="3"
+																				py="5px"
+																				gap="2"
+																				color={isReadOnly && checked ? "aurora.amber" : "fg.subtle"}
+																				borderColor={isReadOnly && checked ? "rgba(245,158,11,0.35)" : "border.strong"}
+																				bg={isReadOnly && checked ? "rgba(245,158,11,0.10)" : "bg.glass"}
+																				cursor={matrixEditable ? "pointer" : "default"}
+																				transition="border-color .15s ease-out, background .15s ease-out"
+																				_hover={matrixEditable ? { borderColor: "rgba(255,255,255,0.30)", bg: "bg.glassHi" } : undefined}
+																			>
+																				<Checkbox
+																					size="sm"
+																					colorPalette={isReadOnly ? "yellow" : "purple"}
+																					css={CHECKBOX_CSS}
+																					checked={checked}
+																					disabled={!matrixEditable}
+																					onCheckedChange={() => togglePermission(permission.id)}
+																				/>
+																				{action}
+																			</HStack>
+																		);
+																	})}
+																</HStack>
+															</Table.Cell>
+														</Table.Row>
+													))}
+												</Table.Body>
+											</Table.Root>
+										</Box>
 
-										{/* Unsaved-changes bar */}
-										{dirtyCount > 0 && (
+										{/* Read-only lock notice (mock .lock-notice) — replaces the unsaved bar. */}
+										{isReadOnly && (
+											<HStack gap="2" px="4.5" py="3" borderTopWidth="1px" borderColor="rgba(245,158,11,0.25)" bg="rgba(245,158,11,0.06)" fontSize="12px" color="aurora.amber" align="flex-start">
+												<Box mt="0.5" flex="none">
+													<LuLock size={13} />
+												</Box>
+												<Text>
+													<Text as="span" fontWeight="semibold">
+														System-managed
+													</Text>{" "}
+													— {isIsmeApp ? "isme" : "system role"} permissions are seeded and immutable. To grant or revoke access, assign a
+													different role to the user from the Users screen.
+												</Text>
+											</HStack>
+										)}
+
+										{/* Unsaved-changes bar (editable apps only) */}
+										{!isReadOnly && dirtyCount > 0 && (
 											<HStack
 												gap="3"
 												px="4.5"
@@ -1276,7 +1410,14 @@ export const Roles = () => {
 				</Grid>
 			)}
 
-			<CreateRoleDialog open={createOpen} onOpenChange={setCreateOpen} roles={roles} onCreated={handleCreated} />
+			<CreateRoleDialog
+				open={createOpen}
+				onOpenChange={setCreateOpen}
+				appId={selectedApp?.id ?? ""}
+				appCode={selectedApp?.app_code ?? ""}
+				roles={roles}
+				onCreated={handleCreated}
+			/>
 
 			{/* Rename dialog (custom roles only) */}
 			<Dialog.Root open={renameOpen} onOpenChange={(details) => setRenameOpen(details.open)} placement="center">

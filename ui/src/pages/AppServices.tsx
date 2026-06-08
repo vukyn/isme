@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Box, Button, Center, Flex, Heading, HStack, Input, NativeSelect, Spinner, Table, Text } from "@chakra-ui/react";
 import {
 	LuAppWindow,
@@ -11,6 +12,8 @@ import {
 	LuCircleSlash,
 	LuCircleX,
 	LuCopy,
+	LuKeyRound,
+	LuLock,
 	LuPlus,
 	LuRefreshCw,
 	LuSearch,
@@ -230,6 +233,7 @@ const secretSubLabel = (service: AppService) => {
 
 export const AppServices = () => {
 	const { user: currentUser } = useUser();
+	const navigate = useNavigate();
 
 	const [services, setServices] = useState<AppService[]>([]);
 	const [total, setTotal] = useState(0);
@@ -662,6 +666,16 @@ export const AppServices = () => {
 											</Table.Cell>
 											<Table.Cell px="3.5" py="13px">
 												<HStack className="row-actions" gap="1.5" justify="flex-end">
+													{/* RBAC: isme is system-managed (read-only); other apps link to the
+													    Roles screen (its app switcher scopes to this app). */}
+													<QuickActionButton
+														label={service.app_code === "isme" ? "isme RBAC is system-managed (read-only)" : "Manage roles"}
+														color="aurora.violet"
+														disabled={service.app_code === "isme"}
+														onClick={() => navigate("/roles")}
+													>
+														{service.app_code === "isme" ? <LuLock size={14} /> : <LuKeyRound size={14} />}
+													</QuickActionButton>
 													<QuickActionButton
 														label={terminated ? "Terminated apps cannot rotate secrets" : "Rotate secret"}
 														color="aurora.cyan"

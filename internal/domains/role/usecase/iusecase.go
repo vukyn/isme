@@ -7,8 +7,8 @@ import (
 )
 
 type IUseCase interface {
-	// List roles with member counts
-	List(ctx context.Context) ([]models.RoleListItem, error)
+	// List roles with member counts, filtered by owning app
+	List(ctx context.Context, req models.ListRequest) ([]models.RoleListItem, error)
 	// Create a role, optionally cloning permissions from another role
 	Create(ctx context.Context, req models.CreateRequest) (models.CreateResponse, error)
 	// Get role detail including its permissions
@@ -19,8 +19,11 @@ type IUseCase interface {
 	Delete(ctx context.Context, id string) error
 	// Replace the permissions of a role
 	SetPermissions(ctx context.Context, id string, req models.SetPermissionsRequest) error
-	// List the full permission catalog
-	ListPermissions(ctx context.Context) ([]models.PermissionItem, error)
+	// List the permission catalog, filtered by owning app
+	ListPermissions(ctx context.Context, req models.ListPermissionsRequest) ([]models.PermissionItem, error)
+	// ProvisionDefaultRoles seeds the default per-app role set (an admin role
+	// holding the app's full CRUD permission catalog) for a newly created app
+	ProvisionDefaultRoles(ctx context.Context, appID string) error
 	// List role members with pagination
 	ListMembers(ctx context.Context, id string, req models.ListMembersRequest) (models.ListMembersResponse, error)
 	// Add members to a role
