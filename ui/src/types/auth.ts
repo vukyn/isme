@@ -44,6 +44,19 @@ export interface LogoutResponse {
 	};
 }
 
+/** Maps to internal/domains/user_invitation/models.InviteDetailResponse. */
+export interface InviteDetailResponse {
+	email: string;
+	role_name: string;
+}
+
+/** Maps to internal/domains/user_invitation/models.AcceptRequest. */
+export interface AcceptInviteRequest {
+	token: string;
+	name: string;
+	password: string;
+}
+
 export interface AuthTokens {
 	access_token: string;
 	refresh_token: string;

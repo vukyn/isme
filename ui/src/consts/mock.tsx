@@ -72,7 +72,7 @@ export const MOCK_ACTIVITY: ActivityEntry[] = [
 		icon: <LuUserPlus />,
 		body: (
 			<>
-				Invited <b>thanhlp3@hasaki.vn</b> as Admin
+				Invited <b>thanhlp3@example.com</b> as Admin
 			</>
 		),
 		time: "yesterday",

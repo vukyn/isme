@@ -14,32 +14,6 @@ type GetMeResponse struct {
 	Email string `json:"email"`
 }
 
-type SignUpRequest struct {
-	Name     string `json:"name"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
-func (r SignUpRequest) Validate() error {
-	if r.Name == "" {
-		return errors.New("name is required")
-	}
-	if r.Email == "" {
-		return errors.New("email is required")
-	}
-	if !validator.IsEmail(r.Email) {
-		return errors.New("invalid email")
-	}
-	if r.Password == "" {
-		return errors.New("password is required")
-	}
-	return nil
-}
-
-type SignUpResponse struct {
-	ID string `json:"id"`
-}
-
 type LoginRequest struct {
 	Email     string `json:"email"`
 	Password  string `json:"password"`

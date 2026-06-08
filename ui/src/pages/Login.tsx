@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Field, Flex, HStack, Heading, Stack, Text } from "@chakra-ui/react";
-import { Link as RouterLink } from "react-router-dom";
+import { Button, Field, HStack, Heading, Stack, Text } from "@chakra-ui/react";
 import { LuArrowRight, LuMail, LuShieldCheck, LuClock, LuCheckCheck } from "react-icons/lu";
 import { useAuth } from "@/hooks/useAuth";
 import { loginSchema, type LoginFormData } from "@/validators";
@@ -10,7 +9,6 @@ import { Input } from "@/components/ui/input";
 import { toaster } from "@/components/ui/toaster";
 import { PasswordField } from "@/components/ui/password-field";
 import { BrandPanel } from "@/components/ui/brand-panel";
-import { TopLink } from "@/components/ui/top-link";
 import { AuthLayout } from "@/layouts/AuthLayout";
 import { AURORA_CTA_STYLE } from "@/consts/styles";
 
@@ -56,7 +54,6 @@ export const Login = () => {
 
 	return (
 		<AuthLayout
-			topRight={<TopLink prompt="New here?" linkText="Create account" to="/signup" />}
 			brand={
 				<BrandPanel
 					pill="Welcome back"
@@ -97,16 +94,8 @@ export const Login = () => {
 					placeholder="Enter password"
 				/>
 
-				<Flex justify="flex-end" align="center" mt="1" mb="2">
-					<RouterLink
-						to="/forgot-password"
-						style={{ color: "var(--chakra-colors-fg-subtle)", fontSize: 14, fontWeight: 500, textDecoration: "none" }}
-					>
-						Forgot password?
-					</RouterLink>
-				</Flex>
-
 				<Button
+					mt="2"
 					type="submit"
 					h="12"
 					loading={loading}

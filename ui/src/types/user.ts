@@ -57,9 +57,42 @@ export interface UserSessionItem {
 	status: number;
 }
 
-export interface InviteUserRequest {
+/** Maps to internal/domains/user_invitation/models.CreateRequest. */
+export interface CreateInvitationRequest {
 	email: string;
-	name?: string;
-	role: string;
-	is_admin: boolean;
+	role_id: string;
+}
+
+/** One-time invite link — the raw token is never re-displayable after creation. */
+export interface CreateInvitationResponse {
+	id: string;
+	invite_link: string;
+}
+
+/**
+ * Stored invitation status (1 pending / 2 accepted / 3 revoked).
+ * "expired" is never stored — it is derived client-side from expires_at
+ * on pending rows.
+ */
+export type InvitationStatus = 1 | 2 | 3;
+
+export type InvitationDisplayStatus = "pending" | "accepted" | "revoked" | "expired";
+
+export const INVITATION_STATUS_LABELS: Record<InvitationStatus, InvitationDisplayStatus> = {
+	1: "pending",
+	2: "accepted",
+	3: "revoked",
+};
+
+/** Maps to internal/domains/user_invitation/models.InvitationListItem. */
+export interface InvitationListItem {
+	id: string;
+	email: string;
+	role_id: string;
+	role_name: string;
+	status: InvitationStatus;
+	expires_at: string;
+	/** RFC3339; empty when not accepted. */
+	accepted_at: string;
+	created_at: string;
 }

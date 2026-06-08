@@ -4,13 +4,14 @@ const (
 	// Auth
 	AUTH_GROUP_NAME               = "auth"
 	AUTH_ENDPOINT_LOGIN           = "/login"
-	AUTH_ENDPOINT_SIGNUP          = "/signup"
 	AUTH_ENDPOINT_REFRESH         = "/refresh"
 	AUTH_ENDPOINT_ME              = "/me"
 	AUTH_ENDPOINT_LOGOUT          = "/logout"
 	AUTH_ENDPOINT_CHANGE_PASSWORD = "/change-password"
 	AUTH_ENDPOINT_REQUEST_LOGIN   = "/request-login"
 	AUTH_ENDPOINT_EXCHANGE_CODE   = "/exchange-code"
+	AUTH_ENDPOINT_INVITE_DETAIL   = "/invites/:token"
+	AUTH_ENDPOINT_ACCEPT_INVITE   = "/accept-invite"
 
 	// App service
 	APP_SERVICE_GROUP_NAME        = "app-service"
@@ -28,6 +29,8 @@ const (
 	USER_ENDPOINT_VERIFY         = "/:userID/verify"
 	USER_ENDPOINT_SESSIONS       = "/:userID/sessions"
 	USER_ENDPOINT_SESSION_REVOKE = "/:userID/sessions/:sessionID/revoke"
+	USER_ENDPOINT_INVITES        = "/invites"
+	USER_ENDPOINT_INVITE_REVOKE  = "/invites/:invitationID/revoke"
 
 	// Role
 	ROLE_GROUP_NAME             = "/roles"

@@ -1,8 +1,9 @@
 import type {
-	InviteUserRequest,
+	CreateInvitationRequest,
+	CreateInvitationResponse,
+	InvitationListItem,
 	ListUsersRequest,
 	ListUsersResponse,
-	UserListItem,
 	UserSessionItem,
 	UserStatus,
 } from "@/types";
@@ -67,27 +68,17 @@ export const resetUserPassword = async (userId: string): Promise<void> => {
 	return stub(undefined);
 };
 
-export const inviteUser = async (request: InviteUserRequest): Promise<UserListItem> => {
-	// TODO(backend): phase 2 (no email infra yet) — POST /api/v1/users/invite
-	// should create a pending account and send an invite email with a
-	// set-password link (expires after 72h).
-	return stub({
-		id: `usr_invite_${Date.now()}`,
-		name: request.name ?? "",
-		email: request.email,
-		status: 3,
-		is_admin: request.is_admin,
-		// new accounts always start unverified (login blocked until verified)
-		is_verified: false,
-		role: request.role,
-		sessions_count: 0,
-		last_login_at: "",
-		created_at: new Date().toISOString(),
-	});
+/** The returned invite_link carries the raw token EXACTLY ONCE — it can never be re-displayed. */
+export const createInvitation = async (request: CreateInvitationRequest): Promise<CreateInvitationResponse> => {
+	const response = await apiClient.post<Envelope<CreateInvitationResponse>>(API_ENDPOINTS.USER_INVITES, request);
+	return response.data.data;
 };
 
-export const resendUserInvite = async (userId: string): Promise<void> => {
-	// TODO(backend): phase 2 (no email infra yet) — POST /api/v1/users/:id/resend-invite.
-	void userId;
-	return stub(undefined);
+export const listInvitations = async (): Promise<InvitationListItem[]> => {
+	const response = await apiClient.get<Envelope<{ items: InvitationListItem[] }>>(API_ENDPOINTS.USER_INVITES);
+	return response.data.data?.items ?? [];
+};
+
+export const revokeInvitation = async (invitationId: string): Promise<void> => {
+	await apiClient.post(API_ENDPOINTS.USER_INVITE_REVOKE(invitationId));
 };

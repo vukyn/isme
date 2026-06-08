@@ -27,7 +27,7 @@ import { AURORA_CTA_STYLE } from "@/consts/styles";
 import { useUser } from "@/hooks/useUser";
 import { AppShell } from "@/layouts/AppShell";
 import type { AppService, AppServiceCtxInfo, AppServiceStatus } from "@/types";
-import { formatDateOnly } from "@/utils";
+import { copyToClipboard, formatDateOnly } from "@/utils";
 
 type StatusFilter = (typeof APP_SERVICE_STATUS_FILTER_OPTIONS)[number];
 
@@ -315,7 +315,7 @@ export const AppServices = () => {
 
 	const handleCopyCode = async (service: AppService) => {
 		try {
-			await navigator.clipboard.writeText(service.app_code);
+			await copyToClipboard(service.app_code);
 			toaster.create({ title: `Copied "${service.app_code}"`, type: "success", meta: { closable: true } });
 		} catch {
 			toaster.create({ title: "Failed to copy app code", type: "error", meta: { closable: true } });

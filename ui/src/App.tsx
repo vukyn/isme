@@ -2,9 +2,8 @@ import "./App.css";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Login } from "./pages/Login";
 import { SSOLogin } from "./pages/SSOLogin";
-import { Signup } from "./pages/Signup";
+import { AcceptInvite } from "./pages/AcceptInvite";
 import { Welcome } from "./pages/Welcome";
-import { ForgotPassword } from "./pages/ForgotPassword";
 import { Sessions } from "./pages/Sessions";
 import { Team } from "./pages/Team";
 import { Users } from "./pages/Users";
@@ -23,8 +22,8 @@ function App() {
 				<Routes>
 					<Route path="/login" element={<Login />} />
 					<Route path="/sso/login" element={<SSOLogin />} />
-					<Route path="/signup" element={<Signup />} />
-					<Route path="/forgot-password" element={<ForgotPassword />} />
+					{/* public — invite links are the only way to create an account */}
+					<Route path="/accept-invite" element={<AcceptInvite />} />
 					<Route
 						path="/welcome"
 						element={

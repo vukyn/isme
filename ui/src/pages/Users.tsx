@@ -18,6 +18,7 @@ import {
 } from "@chakra-ui/react";
 import {
 	LuBadgeCheck,
+	LuBan,
 	LuChevronLeft,
 	LuChevronRight,
 	LuCircleCheck,
@@ -26,24 +27,28 @@ import {
 	LuFilter,
 	LuInfo,
 	LuKeyRound,
+	LuLink,
 	LuLogOut,
 	LuMail,
 	LuMonitor,
 	LuMonitorSmartphone,
 	LuPencil,
+	LuRefreshCw,
 	LuSearch,
 	LuShieldCheck,
 	LuShieldQuestion,
 	LuTrash2,
 	LuUserPlus,
+	LuUsers,
 	LuX,
 } from "react-icons/lu";
 import {
 	assignUserRole,
+	listInvitations,
 	listRoles,
 	listUsers,
 	listUserSessions,
-	resendUserInvite,
+	revokeInvitation,
 	revokeUserSession,
 	softDeleteUser,
 	updateUserStatus,
@@ -64,7 +69,15 @@ import { AURORA_CTA_STYLE } from "@/consts/styles";
 import { useUser } from "@/hooks/useUser";
 import { usePermissions } from "@/hooks/usePermissions";
 import { AppShell } from "@/layouts/AppShell";
-import type { RoleListItem, UserListItem, UserSessionItem, UserStatus } from "@/types";
+import { INVITATION_STATUS_LABELS } from "@/types";
+import type {
+	InvitationDisplayStatus,
+	InvitationListItem,
+	RoleListItem,
+	UserListItem,
+	UserSessionItem,
+	UserStatus,
+} from "@/types";
 import { formatDateOnly, formatShortDateTime, isZeroTime, parseUserAgent } from "@/utils";
 
 type StatusFilter = (typeof USER_STATUS_FILTER_OPTIONS)[number];
@@ -246,6 +259,101 @@ const RolePill = ({ role }: { role?: string }) => {
 		<Box {...PILL_BASE} color="aurora.cyan" borderColor="rgba(34,211,238,0.40)" bg="rgba(34,211,238,0.10)">
 			{value}
 		</Box>
+	);
+};
+
+/** "expired" is derived — pending rows past expires_at; never stored server-side. */
+const invitationDisplayStatus = (invitation: InvitationListItem): InvitationDisplayStatus => {
+	if (invitation.status === 1 && new Date(invitation.expires_at).getTime() < Date.now()) return "expired";
+	return INVITATION_STATUS_LABELS[invitation.status];
+};
+
+const INVITATION_STATUS_FILTER_OPTIONS = ["all", "pending", "accepted", "revoked", "expired"] as const;
+
+const InvitationStatusPill = ({ status }: { status: InvitationDisplayStatus }) => {
+	if (status === "pending") {
+		return (
+			<Box {...PILL_BASE} color="aurora.amber" borderColor="rgba(245,158,11,0.35)" bg="rgba(245,158,11,0.10)">
+				<Box w="6px" h="6px" borderRadius="full" bg="aurora.amber" css={{ boxShadow: "0 0 10px #F59E0B" }} />
+				pending
+			</Box>
+		);
+	}
+	if (status === "accepted") {
+		return (
+			<Box {...PILL_BASE} color="aurora.mint" borderColor="rgba(52,211,153,0.35)" bg="rgba(52,211,153,0.10)">
+				<Box w="6px" h="6px" borderRadius="full" bg="aurora.mint" css={{ boxShadow: "0 0 10px #34D399" }} />
+				accepted
+			</Box>
+		);
+	}
+	if (status === "revoked") {
+		return (
+			<Box {...PILL_BASE} color="aurora.magenta" borderColor="rgba(236,72,153,0.35)" bg="rgba(236,72,153,0.10)">
+				<Box w="6px" h="6px" borderRadius="full" bg="aurora.magenta" css={{ boxShadow: "0 0 10px #EC4899" }} />
+				revoked
+			</Box>
+		);
+	}
+	return (
+		<Box {...PILL_BASE} color="fg.muted">
+			<Box w="6px" h="6px" borderRadius="full" bg="fg.muted" />
+			expired
+		</Box>
+	);
+};
+
+/** Mock .num.warn cell — "in 71h · 2026-06-11" for live pending invites. */
+const formatExpiry = (expiresAt: string) => {
+	const remainingMs = new Date(expiresAt).getTime() - Date.now();
+	const hours = Math.floor(remainingMs / (60 * 60 * 1000));
+	const relative = hours >= 48 ? `in ${Math.floor(hours / 24)}d` : `in ${Math.max(hours, 1)}h`;
+	return `${relative} · ${formatDateOnly(expiresAt)}`;
+};
+
+const emailInitials = (email: string) =>
+	email
+		.split("@")[0]
+		.split(/[._-]/)
+		.filter(Boolean)
+		.map((part) => part[0]?.toUpperCase())
+		.slice(0, 2)
+		.join("") || "?";
+
+/** Dashed avatar = no account yet; gradient = accepted (account exists). */
+const InvitationAvatar = ({ invitation }: { invitation: InvitationListItem }) => {
+	if (invitation.status === 2) {
+		return (
+			<Center
+				w="8"
+				h="8"
+				flex="none"
+				borderRadius="full"
+				fontSize="12px"
+				fontWeight="bold"
+				color="white"
+				css={{ background: "linear-gradient(135deg, #22D3EE, #34D399)", boxShadow: "0 0 14px rgba(52,211,153,0.30)" }}
+			>
+				{emailInitials(invitation.email)}
+			</Center>
+		);
+	}
+	return (
+		<Center
+			w="8"
+			h="8"
+			flex="none"
+			borderRadius="full"
+			bg="bg.glass"
+			borderWidth="1.5px"
+			borderStyle="dashed"
+			borderColor="border.strong"
+			fontSize="12px"
+			fontWeight="bold"
+			color="fg.muted"
+		>
+			{emailInitials(invitation.email)}
+		</Center>
 	);
 };
 
@@ -456,6 +564,16 @@ export const Users = () => {
 	const [pageSize, setPageSize] = useState(USERS_PAGE_SIZE_OPTIONS[0].value);
 
 	const [inviteOpen, setInviteOpen] = useState(false);
+	// Prefill for the "New invite" re-issue action on revoked/expired invitations.
+	const [invitePrefill, setInvitePrefill] = useState<{ email: string; roleId: string } | null>(null);
+
+	// Users | Invitations sub-tab (mock frame 02).
+	const [activeTab, setActiveTab] = useState<"users" | "invitations">("users");
+	const [invitations, setInvitations] = useState<InvitationListItem[]>([]);
+	const [invitationsLoading, setInvitationsLoading] = useState(true);
+	const [invitationSearch, setInvitationSearch] = useState("");
+	const [invitationStatusFilter, setInvitationStatusFilter] =
+		useState<(typeof INVITATION_STATUS_FILTER_OPTIONS)[number]>("all");
 
 	// One-way verify confirm (mock #verify-modal) — row action targets one
 	// user, the bulk button targets every selected unverified user.
@@ -520,6 +638,25 @@ export const Users = () => {
 			})
 			.catch(() => {
 				// non-fatal — the subtitle simply omits the count
+			});
+		return () => {
+			active = false;
+		};
+	}, [reloadKey]);
+
+	// Invitations list — loaded alongside the users list so the tab badge and
+	// subtitle pending count are always current. Refetched on reloadKey bumps.
+	useEffect(() => {
+		let active = true;
+		listInvitations()
+			.then((items) => {
+				if (active) setInvitations(items);
+			})
+			.catch(() => {
+				if (active) toaster.create({ title: "Failed to load invitations", type: "error", meta: { closable: true } });
+			})
+			.finally(() => {
+				if (active) setInvitationsLoading(false);
 			});
 		return () => {
 			active = false;
@@ -630,9 +767,22 @@ export const Users = () => {
 		});
 	};
 
-	const handleResendInvite = async (user: UserListItem) => {
-		await resendUserInvite(user.id);
-		toaster.create({ title: `Invite resent to ${user.email}`, type: "success", meta: { closable: true } });
+	const handleRevokeInvitation = async (invitation: InvitationListItem) => {
+		if (!window.confirm(`Revoke invite for ${invitation.email}? The link stops working immediately.`)) return;
+		try {
+			await revokeInvitation(invitation.id);
+			setReloadKey((previous) => previous + 1);
+			toaster.create({ title: `Invite for ${invitation.email} revoked`, type: "success", meta: { closable: true } });
+		} catch (error: unknown) {
+			const err = error as { response?: { data?: { message?: string } } };
+			toaster.create({ title: err?.response?.data?.message || "Failed to revoke invite", type: "error", meta: { closable: true } });
+		}
+	};
+
+	// Re-issue: opens the invite dialog prefilled — accepting creates a NEW row.
+	const handleReissueInvite = (invitation: InvitationListItem) => {
+		setInvitePrefill({ email: invitation.email, roleId: invitation.role_id });
+		setInviteOpen(true);
 	};
 
 	const handleDelete = async (user: UserListItem) => {
@@ -766,6 +916,20 @@ export const Users = () => {
 
 	const filterButtonActive = filterOpen || appliedCount > 0;
 
+	// Invitations are a small set — filtered client-side (search + display status).
+	const pendingInvitationsCount = invitations.filter(
+		(invitation) => invitationDisplayStatus(invitation) === "pending"
+	).length;
+	const visibleInvitations = invitations.filter((invitation) => {
+		if (invitationSearch && !invitation.email.toLowerCase().includes(invitationSearch.trim().toLowerCase())) {
+			return false;
+		}
+		if (invitationStatusFilter !== "all" && invitationDisplayStatus(invitation) !== invitationStatusFilter) {
+			return false;
+		}
+		return true;
+	});
+
 	return (
 		<AppShell active="users" user={{ name: currentUser?.name || "User", email: currentUser?.email || "" }}>
 			{/* Page head */}
@@ -793,8 +957,73 @@ export const Users = () => {
 								pending verification
 							</>
 						)}
+						{pendingInvitationsCount > 0 && (
+							<>
+								{" "}
+								·{" "}
+								<Text as="span" color="aurora.amber" fontWeight="semibold" css={{ fontVariantNumeric: "tabular-nums" }}>
+									{pendingInvitationsCount.toLocaleString()}
+								</Text>{" "}
+								pending invitation{pendingInvitationsCount > 1 ? "s" : ""}
+							</>
+						)}
 					</Text>
 				</Box>
+			</Flex>
+
+			{/* Sub-tabs (left) + page actions (right) on one row */}
+			<Flex align="center" justify="space-between" gap="4" wrap="wrap">
+				{/* Sub-tabs: Users (existing table) | Invitations (mock frame 02) */}
+				<HStack
+					gap="1"
+					p="1"
+					borderWidth="1px"
+					borderColor="border.strong"
+					borderRadius="glassSm"
+					bg="bg.glass"
+					w="fit-content"
+					role="tablist"
+					aria-label="Users page sections"
+					css={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
+				>
+					{(
+						[
+							{ key: "users", label: "Users", icon: <LuUsers size={14} /> },
+							{ key: "invitations", label: "Invitations", icon: <LuLink size={14} /> },
+						] as const
+					).map((tab) => {
+						const on = activeTab === tab.key;
+						return (
+							<HStack
+								key={tab.key}
+								as="button"
+								role="tab"
+								aria-selected={on}
+								h="9"
+								px="4"
+								gap="2"
+								borderRadius="9px"
+								cursor="pointer"
+								fontSize="13px"
+								fontWeight="semibold"
+								color={on ? "fg" : "fg.muted"}
+								bg={on ? "linear-gradient(135deg, rgba(99,102,241,0.30), rgba(139,92,246,0.25))" : "transparent"}
+								boxShadow={on ? "0 0 16px rgba(139,92,246,0.25) inset" : "none"}
+								_hover={{ color: "fg" }}
+								onClick={() => setActiveTab(tab.key)}
+							>
+								{tab.icon}
+								{tab.label}
+								{tab.key === "invitations" && pendingInvitationsCount > 0 && (
+									<Center minW="18px" h="18px" px="5px" borderRadius="full" fontSize="11px" bg="rgba(245,158,11,0.22)" color="aurora.amber">
+										{pendingInvitationsCount}
+									</Center>
+								)}
+							</HStack>
+						);
+					})}
+				</HStack>
+
 				<HStack gap="2.5">
 					<Button h="11" px="4.5" fontSize="sm" {...GHOST_BUTTON_PROPS} onClick={handleExportCsv} disabled>
 						<LuDownload size={16} /> Export CSV
@@ -818,6 +1047,7 @@ export const Users = () => {
 			</Flex>
 
 			{/* Users glass panel */}
+			{activeTab === "users" && (
 			<Box
 				bg="bg.glass"
 				borderWidth="1px"
@@ -1207,38 +1437,25 @@ export const Users = () => {
 															<LuBadgeCheck size={14} />
 														</QuickActionButton>
 													)}
-													{pending ? (
-														<>
-															<QuickActionButton label="Resend invite" color="aurora.cyan" onClick={() => handleResendInvite(user)}>
-																<LuMail size={14} />
-															</QuickActionButton>
-															<QuickActionButton label="Delete" color="aurora.magenta" danger onClick={() => handleDelete(user)}>
-																<LuTrash2 size={14} />
-															</QuickActionButton>
-														</>
+													<QuickActionButton label="Edit" color="fg.subtle" onClick={handleEdit}>
+														<LuPencil size={14} />
+													</QuickActionButton>
+													{user.status === USER_STATUS.ACTIVE ? (
+														<QuickActionButton label="Deactivate" color="aurora.amber" onClick={() => handleToggleStatus(user)}>
+															<LuCircleSlash size={14} />
+														</QuickActionButton>
 													) : (
-														<>
-															<QuickActionButton label="Edit" color="fg.subtle" onClick={handleEdit}>
-																<LuPencil size={14} />
-															</QuickActionButton>
-															{user.status === USER_STATUS.ACTIVE ? (
-																<QuickActionButton label="Deactivate" color="aurora.amber" onClick={() => handleToggleStatus(user)}>
-																	<LuCircleSlash size={14} />
-																</QuickActionButton>
-															) : (
-																<QuickActionButton label="Activate" color="aurora.mint" onClick={() => handleToggleStatus(user)}>
-																	<LuCircleCheck size={14} />
-																</QuickActionButton>
-															)}
-															{/* TODO(backend): reset-password deferred — needs email infra to send the link. */}
-															<QuickActionButton label="Reset password — available when email lands" color="fg.subtle" disabled>
-																<LuKeyRound size={14} />
-															</QuickActionButton>
-															<QuickActionButton label="Delete" color="aurora.magenta" danger onClick={() => handleDelete(user)}>
-																<LuTrash2 size={14} />
-															</QuickActionButton>
-														</>
+														<QuickActionButton label="Activate" color="aurora.mint" onClick={() => handleToggleStatus(user)}>
+															<LuCircleCheck size={14} />
+														</QuickActionButton>
 													)}
+													{/* TODO(backend): reset-password deferred — needs email infra to send the link. */}
+													<QuickActionButton label="Reset password — available when email lands" color="fg.subtle" disabled>
+														<LuKeyRound size={14} />
+													</QuickActionButton>
+													<QuickActionButton label="Delete" color="aurora.magenta" danger onClick={() => handleDelete(user)}>
+														<LuTrash2 size={14} />
+													</QuickActionButton>
 												</HStack>
 											</Table.Cell>
 										</Table.Row>
@@ -1460,11 +1677,227 @@ export const Users = () => {
 					</HStack>
 				</Flex>
 			</Box>
+			)}
+
+			{/* Invitations glass panel (mock frame 02) */}
+			{activeTab === "invitations" && (
+			<Box
+				bg="bg.glass"
+				borderWidth="1px"
+				borderColor="border"
+				borderRadius="20px"
+				boxShadow="glassSoft"
+				overflow="hidden"
+				css={{ backdropFilter: "blur(20px) saturate(1.15)", WebkitBackdropFilter: "blur(20px) saturate(1.15)" }}
+			>
+				{invitationsLoading ? (
+					<Center py="16">
+						<Spinner size="lg" color="accent" />
+					</Center>
+				) : invitations.length === 0 ? (
+					<Center flexDirection="column" gap="1" py="14" px="6" textAlign="center">
+						<Center
+							w="52px"
+							h="52px"
+							borderRadius="16px"
+							mb="2.5"
+							bg="linear-gradient(135deg, rgba(99,102,241,0.20), rgba(236,72,153,0.15))"
+							borderWidth="1px"
+							borderColor="border.strong"
+							color="aurora.cyan"
+						>
+							<LuLink size={22} />
+						</Center>
+						<Text fontSize="md" fontWeight="semibold" color="fg">
+							No invitations yet
+						</Text>
+						<Text fontSize="13px" color="fg.muted" maxW="360px" mb="3.5">
+							Invite links are the only way to create accounts — public signup is disabled. Create one to get a teammate on board.
+						</Text>
+						<Button
+							h="10"
+							px="4"
+							borderRadius="glassSm"
+							fontSize="13px"
+							fontWeight="semibold"
+							color="white"
+							css={AURORA_CTA_STYLE}
+							boxShadow="ctaGlow"
+							_hover={{ boxShadow: "ctaGlowHi", backgroundPosition: "100% 100%" }}
+							onClick={() => setInviteOpen(true)}
+						>
+							<LuUserPlus size={15} /> Invite user
+						</Button>
+					</Center>
+				) : (
+					<>
+						{/* Toolbar: email search + display-status filter (client-side) */}
+						<Flex align="center" gap="2.5" p="3.5" wrap="wrap" borderBottomWidth="1px" borderColor="border">
+							<Box flex="1" minW="240px" position="relative" css={{ "&:focus-within .search-icon": { color: "#22D3EE" } }}>
+								<Box className="search-icon" position="absolute" left="3.5" top="3.5" color="fg.muted" pointerEvents="none">
+									<LuSearch size={16} />
+								</Box>
+								<Input
+									h="11"
+									pl="10"
+									borderRadius="glassSm"
+									bg="bg.glass"
+									borderColor="border.strong"
+									fontSize="sm"
+									color="fg"
+									placeholder="Search by email…"
+									css={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
+									_placeholder={{ color: "fg.muted" }}
+									_hover={{ borderColor: "rgba(255,255,255,0.28)" }}
+									_focus={{ borderColor: "aurora.violet", boxShadow: "focusRing", outline: "none", bg: "rgba(255,255,255,0.08)" }}
+									value={invitationSearch}
+									onChange={(event) => setInvitationSearch(event.target.value)}
+								/>
+							</Box>
+							<NativeSelect.Root size="sm" w="40">
+								<NativeSelect.Field
+									h="11"
+									borderRadius="glassSm"
+									bg="bg.glass"
+									borderColor="border.strong"
+									fontSize="13px"
+									color="fg"
+									aria-label="Status filter"
+									css={{
+										backdropFilter: "blur(12px)",
+										WebkitBackdropFilter: "blur(12px)",
+										"& option": { background: "#12122E", color: "#F4F5FF" },
+									}}
+									_focus={{ borderColor: "aurora.violet", boxShadow: "focusRing", outline: "none" }}
+									value={invitationStatusFilter}
+									onChange={(event) =>
+										setInvitationStatusFilter(event.target.value as (typeof INVITATION_STATUS_FILTER_OPTIONS)[number])
+									}
+								>
+									{INVITATION_STATUS_FILTER_OPTIONS.map((option) => (
+										<option key={option} value={option}>
+											{option === "all" ? "all statuses" : option}
+										</option>
+									))}
+								</NativeSelect.Field>
+								<NativeSelect.Indicator color="fg.muted" />
+							</NativeSelect.Root>
+						</Flex>
+
+						<Table.Root size="sm" css={{ "& td, & th": { borderColor: "rgba(255,255,255,0.10)" } }}>
+							<Table.Header>
+								<Table.Row bg="transparent">
+									{["Email", "Role", "Status", "Expires", "Created"].map((label) => (
+										<Table.ColumnHeader key={label} px="3.5" py="3" bg="transparent" {...LABEL_PROPS}>
+											{label}
+										</Table.ColumnHeader>
+									))}
+									<Table.ColumnHeader w="120px" px="3.5" py="3" bg="transparent" />
+								</Table.Row>
+							</Table.Header>
+							<Table.Body>
+								{visibleInvitations.length === 0 && (
+									<Table.Row bg="transparent">
+										<Table.Cell colSpan={6} px="3.5" py="8" textAlign="center" fontSize="sm" color="fg.muted">
+											No invitations match the current search / filters.
+										</Table.Cell>
+									</Table.Row>
+								)}
+								{visibleInvitations.map((invitation) => {
+									const displayStatus = invitationDisplayStatus(invitation);
+									const muted = displayStatus === "revoked" || displayStatus === "expired";
+									return (
+										<Table.Row
+											key={invitation.id}
+											transition="background .15s ease-out"
+											bg="transparent"
+											_hover={{ bg: "rgba(255,255,255,0.04)" }}
+											css={{
+												"& > td": muted ? { opacity: 0.6 } : undefined,
+												"& > td:last-of-type": { opacity: 1 },
+												"& .row-actions": { opacity: 0, transition: "opacity .15s ease-out" },
+												"&:hover .row-actions": { opacity: 1 },
+											}}
+										>
+											<Table.Cell px="3.5" py="13px">
+												<HStack gap="3" minW="0" maxW="320px">
+													<InvitationAvatar invitation={invitation} />
+													<Box minW="0" lineHeight="1.25">
+														<Text fontSize="sm" fontWeight="semibold" truncate color="fg" title={invitation.email}>
+															{invitation.email}
+														</Text>
+														{invitation.accepted_at && (
+															<Text fontSize="12px" color="fg.muted" truncate>
+																accepted {formatDateOnly(invitation.accepted_at)}
+															</Text>
+														)}
+													</Box>
+												</HStack>
+											</Table.Cell>
+											<Table.Cell px="3.5" py="13px">
+												<RolePill role={invitation.role_name || invitation.role_id} />
+											</Table.Cell>
+											<Table.Cell px="3.5" py="13px">
+												<InvitationStatusPill status={displayStatus} />
+											</Table.Cell>
+											<Table.Cell px="3.5" py="13px" {...NUM_PROPS} color={displayStatus === "pending" ? "aurora.amber" : "fg.muted"}>
+												{displayStatus === "pending"
+													? formatExpiry(invitation.expires_at)
+													: displayStatus === "expired"
+														? formatDateOnly(invitation.expires_at)
+														: "—"}
+											</Table.Cell>
+											<Table.Cell px="3.5" py="13px" {...NUM_PROPS} color="fg.muted">
+												{formatDateOnly(invitation.created_at)}
+											</Table.Cell>
+											<Table.Cell px="3.5" py="13px">
+												<HStack className="row-actions" gap="1.5" justify="flex-end">
+													{displayStatus === "pending" && (
+														<QuickActionButton label="Revoke invite" color="aurora.magenta" danger onClick={() => handleRevokeInvitation(invitation)}>
+															<LuBan size={14} />
+														</QuickActionButton>
+													)}
+													{muted && (
+														<QuickActionButton label="New invite" color="aurora.cyan" onClick={() => handleReissueInvite(invitation)}>
+															<LuRefreshCw size={14} />
+														</QuickActionButton>
+													)}
+												</HStack>
+											</Table.Cell>
+										</Table.Row>
+									);
+								})}
+							</Table.Body>
+						</Table.Root>
+
+						<Flex
+							align="center"
+							justify="space-between"
+							px="4"
+							py="3"
+							borderTopWidth="1px"
+							borderColor="border"
+							fontSize="12px"
+							color="fg.muted"
+							css={{ fontVariantNumeric: "tabular-nums" }}
+						>
+							<Text>
+								{visibleInvitations.length} of {invitations.length} invitation{invitations.length === 1 ? "" : "s"} shown
+							</Text>
+						</Flex>
+					</>
+				)}
+			</Box>
+			)}
 
 			<InviteUserDialog
 				open={inviteOpen}
-				onOpenChange={setInviteOpen}
-				onInvited={(invited) => setUsers((previous) => [invited, ...previous])}
+				onOpenChange={(open) => {
+					setInviteOpen(open);
+					if (!open) setInvitePrefill(null);
+				}}
+				onInvited={() => setReloadKey((previous) => previous + 1)}
+				prefill={invitePrefill}
 			/>
 
 			<VerifyUserDialog

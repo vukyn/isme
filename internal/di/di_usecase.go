@@ -7,6 +7,7 @@ import (
 	authUsecase "github.com/vukyn/isme/internal/domains/auth/usecase"
 	roleUsecase "github.com/vukyn/isme/internal/domains/role/usecase"
 	userUsecase "github.com/vukyn/isme/internal/domains/user/usecase"
+	userInvitationUsecase "github.com/vukyn/isme/internal/domains/user_invitation/usecase"
 
 	"github.com/sarulabs/di/v2"
 	"github.com/vukyn/kuery/log"
@@ -18,6 +19,7 @@ func defineUsecase() []*di.Def {
 		defineAppServiceUsecase(),
 		defineUserUsecase(),
 		defineRoleUsecase(),
+		defineUserInvitationUsecase(),
 	}
 }
 
@@ -166,4 +168,41 @@ func GetRoleUsecase(ctn di.Container) (roleUsecase.IUseCase, error) {
 		return nil, err
 	}
 	return uc.(roleUsecase.IUseCase), nil
+}
+
+func defineUserInvitationUsecase() *di.Def {
+	def := &di.Def{
+		Name:  constants.CONTAINER_NAME_USER_INVITATION_USECASE,
+		Scope: di.Request,
+		Build: func(ctn di.Container) (any, error) {
+			cfg := ctn.Get(constants.CONTAINER_NAME_CONFIG).(*config.Config)
+			userInvitationRepo, err := GetUserInvitationRepository(ctn)
+			if err != nil {
+				return nil, err
+			}
+			userRepo, err := GetUserRepository(ctn)
+			if err != nil {
+				return nil, err
+			}
+			roleRepo, err := GetRoleRepository(ctn)
+			if err != nil {
+				return nil, err
+			}
+			log.New().Debug("User invitation usecase initialized")
+			return userInvitationUsecase.NewUsecase(cfg, userInvitationRepo, userRepo, roleRepo), nil
+		},
+		Close: func(obj any) error {
+			log.New().Debug("User invitation usecase destroyed")
+			return nil
+		},
+	}
+	return def
+}
+
+func GetUserInvitationUsecase(ctn di.Container) (userInvitationUsecase.IUseCase, error) {
+	uc, err := ctn.SafeGet(constants.CONTAINER_NAME_USER_INVITATION_USECASE)
+	if err != nil {
+		return nil, err
+	}
+	return uc.(userInvitationUsecase.IUseCase), nil
 }
