@@ -11,6 +11,7 @@ import (
 	authHandlers "github.com/vukyn/isme/internal/domains/auth/handlers/http"
 	roleHandlers "github.com/vukyn/isme/internal/domains/role/handlers/http"
 	userHandlers "github.com/vukyn/isme/internal/domains/user/handlers/http"
+	userInvitationHandlers "github.com/vukyn/isme/internal/domains/user_invitation/handlers/http"
 
 	pkgCtx "github.com/vukyn/kuery/ctx"
 
@@ -69,6 +70,8 @@ func (s *Server) Start() {
 	apiV1 := s.app.Group("/api/v1")
 	authHandlers.SetupAuthRoutes(apiV1)
 	appServiceHandlers.SetupAppServiceRoutes(apiV1)
+	// before user routes so /users/invites is matched ahead of /users/:userID
+	userInvitationHandlers.SetupUserInvitationRoutes(apiV1)
 	userHandlers.SetupUserRoutes(apiV1)
 	roleHandlers.SetupRoleRoutes(apiV1)
 

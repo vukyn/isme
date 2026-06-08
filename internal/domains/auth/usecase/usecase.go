@@ -10,7 +10,6 @@ import (
 	"github.com/vukyn/isme/internal/domains/auth/models"
 	roleRepo "github.com/vukyn/isme/internal/domains/role/repository"
 	userConstants "github.com/vukyn/isme/internal/domains/user/constants"
-	userModels "github.com/vukyn/isme/internal/domains/user/models"
 	userRepo "github.com/vukyn/isme/internal/domains/user/repository"
 	userSessionConstants "github.com/vukyn/isme/internal/domains/user_session/constants"
 	userSessionRepo "github.com/vukyn/isme/internal/domains/user_session/repository"
@@ -117,42 +116,6 @@ func (u *usecase) VerifyToken(ctx context.Context, req models.VerifyTokenRequest
 	return models.VerifyTokenResponse{
 		Ok:     true,
 		Claims: claims,
-	}, nil
-}
-
-func (u *usecase) SignUp(ctx context.Context, req models.SignUpRequest) (models.SignUpResponse, error) {
-	// validation
-	if err := req.Validate(); err != nil {
-		return models.SignUpResponse{}, pkgErr.InvalidRequest(err.Error())
-	}
-
-	// check if user already exists
-	user, err := u.userRepo.GetByEmail(ctx, req.Email)
-	if err != nil {
-		return models.SignUpResponse{}, err
-	}
-	if user.ID != "" {
-		return models.SignUpResponse{}, pkgErr.InvalidRequest("user already exists")
-	}
-
-	// create user
-	userID, err := u.userRepo.Create(ctx, userModels.CreateRequest{
-		Name:  req.Name,
-		Email: req.Email,
-	})
-	if err != nil {
-		return models.SignUpResponse{}, err
-	}
-
-	// set user password
-	err = u.userRepo.SetPassword(ctx, userID, req.Password)
-	if err != nil {
-		return models.SignUpResponse{}, err
-	}
-
-	// return response
-	return models.SignUpResponse{
-		ID: userID,
 	}, nil
 }
 

@@ -40,16 +40,27 @@ export type SignupFormData = z.infer<typeof signupSchema>;
 
 /**
  * Invite user form schema (Users management)
- * Name is optional — the invitee can edit it on first login.
+ * Mirrors user_invitation models.CreateRequest — email + role only; the
+ * invitee picks their own name and password on the accept page.
  */
 export const inviteUserSchema = z.object({
 	email: z.email("Invalid email address"),
-	name: z.string().optional(),
-	role: z.string().min(1, "Role is required"),
-	is_admin: z.boolean(),
+	role_id: z.string().min(1, "Role is required"),
 });
 
 export type InviteUserFormData = z.infer<typeof inviteUserSchema>;
+
+/**
+ * Accept invite form schema (public /accept-invite page)
+ * Mirrors user_invitation models.AcceptRequest — password min 6, no
+ * complexity rules beyond the backend's.
+ */
+export const acceptInviteSchema = z.object({
+	name: z.string().min(1, "Name is required"),
+	password: z.string().min(6, "Password must be at least 6 characters"),
+});
+
+export type AcceptInviteFormData = z.infer<typeof acceptInviteSchema>;
 
 /**
  * ctx_info fixed set — mirrors app_service constants.AllowedCtxInfos.

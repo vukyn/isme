@@ -6,8 +6,13 @@ export type {
 	ListUsersRequest,
 	ListUsersResponse,
 	UserSessionItem,
-	InviteUserRequest,
+	CreateInvitationRequest,
+	CreateInvitationResponse,
+	InvitationStatus,
+	InvitationDisplayStatus,
+	InvitationListItem,
 } from "./user";
+export { INVITATION_STATUS_LABELS } from "./user";
 export type {
 	LoginRequest,
 	LoginResponse,
@@ -17,6 +22,8 @@ export type {
 	RefreshTokenResponse,
 	GetMeResponse,
 	LogoutResponse,
+	InviteDetailResponse,
+	AcceptInviteRequest,
 } from "./auth";
 export type {
 	AppService,

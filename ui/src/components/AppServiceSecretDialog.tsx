@@ -6,6 +6,7 @@ import { LuCheck, LuCopy, LuTriangleAlert } from "react-icons/lu";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toaster } from "@/components/ui/toaster";
 import { AURORA_CTA_STYLE } from "@/consts/styles";
+import { copyToClipboard } from "@/utils";
 
 interface AppServiceSecretDialogProps {
 	open: boolean;
@@ -50,7 +51,7 @@ export const AppServiceSecretDialog = ({ open, title, appCode, secret, onDone }:
 
 	const handleCopy = async () => {
 		try {
-			await navigator.clipboard.writeText(secret);
+			await copyToClipboard(secret);
 			setCopied(true);
 			toaster.create({ title: "Secret copied to clipboard", type: "success", meta: { closable: true } });
 			setTimeout(() => setCopied(false), 1500);

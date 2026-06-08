@@ -8,6 +8,8 @@ export const API_ENDPOINTS = {
 	AUTH_ME: "/api/v1/auth/me",
 	AUTH_REFRESH: "/api/v1/auth/refresh",
 	AUTH_LOGOUT: "/api/v1/auth/logout",
+	AUTH_INVITE_DETAIL: (token: string) => `/api/v1/auth/invites/${encodeURIComponent(token)}`,
+	AUTH_ACCEPT_INVITE: "/api/v1/auth/accept-invite",
 
 	// User
 	USER_ME: "/api/user/me",
@@ -17,6 +19,8 @@ export const API_ENDPOINTS = {
 	USER_VERIFY: (userId: string) => `/api/v1/users/${userId}/verify`,
 	USER_SESSIONS: (userId: string) => `/api/v1/users/${userId}/sessions`,
 	USER_SESSION_REVOKE: (userId: string, sessionId: string) => `/api/v1/users/${userId}/sessions/${sessionId}/revoke`,
+	USER_INVITES: "/api/v1/users/invites",
+	USER_INVITE_REVOKE: (invitationId: string) => `/api/v1/users/invites/${invitationId}/revoke`,
 
 	// App service
 	APP_SERVICES: "/api/v1/app-service",

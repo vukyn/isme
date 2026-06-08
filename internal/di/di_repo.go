@@ -5,6 +5,7 @@ import (
 	appServiceRepo "github.com/vukyn/isme/internal/domains/app_service/repository"
 	roleRepo "github.com/vukyn/isme/internal/domains/role/repository"
 	userRepo "github.com/vukyn/isme/internal/domains/user/repository"
+	userInvitationRepo "github.com/vukyn/isme/internal/domains/user_invitation/repository"
 	userSessionRepo "github.com/vukyn/isme/internal/domains/user_session/repository"
 
 	"github.com/sarulabs/di/v2"
@@ -18,6 +19,7 @@ func defineRepository() []*di.Def {
 		defineUserSessionRepository(),
 		defineAppServiceRepository(),
 		defineRoleRepository(),
+		defineUserInvitationRepository(),
 	}
 }
 
@@ -119,4 +121,29 @@ func GetRoleRepository(ctn di.Container) (roleRepo.IRepository, error) {
 		return nil, err
 	}
 	return repo.(roleRepo.IRepository), nil
+}
+
+func defineUserInvitationRepository() *di.Def {
+	def := &di.Def{
+		Name:  constants.CONTAINER_NAME_USER_INVITATION_REPOSITORY,
+		Scope: di.Request,
+		Build: func(ctn di.Container) (any, error) {
+			db := ctn.Get(constants.CONTAINER_NAME_DB).(*bun.DB)
+			log.New().Debug("User invitation repository initialized")
+			return userInvitationRepo.NewRepository(db), nil
+		},
+		Close: func(obj any) error {
+			log.New().Debug("User invitation repository destroyed")
+			return nil
+		},
+	}
+	return def
+}
+
+func GetUserInvitationRepository(ctn di.Container) (userInvitationRepo.IRepository, error) {
+	repo, err := ctn.SafeGet(constants.CONTAINER_NAME_USER_INVITATION_REPOSITORY)
+	if err != nil {
+		return nil, err
+	}
+	return repo.(userInvitationRepo.IRepository), nil
 }

@@ -17,6 +17,7 @@ type Config struct {
 	}
 	Auth struct {
 		EndpointWebSSOLogin     string `envconfig:"AUTH_ENDPOINT_WEB_SSO_LOGIN"`
+		EndpointWebAcceptInvite string `envconfig:"AUTH_ENDPOINT_WEB_ACCEPT_INVITE"`
 		AccessTokenPrivateKey   string `envconfig:"AUTH_ACCESS_TOKEN_PRIVATE_KEY"`
 		AccessTokenPublicKey    string `envconfig:"AUTH_ACCESS_TOKEN_PUBLIC_KEY"`
 		AccessTokenSecretKey    string `envconfig:"AUTH_ACCESS_TOKEN_SECRET_KEY"`

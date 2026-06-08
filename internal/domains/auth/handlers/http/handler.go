@@ -9,28 +9,6 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func SignUp(c *fiber.Ctx) error {
-	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
-
-	uc, err := idi.GetAuthUsecase(ctn)
-	if err != nil {
-		return pkgHttp.Err(c, err)
-	}
-
-	signUpRequest := models.SignUpRequest{}
-	if err := c.BodyParser(&signUpRequest); err != nil {
-		return pkgHttp.Err(c, err)
-	}
-
-	signUpRepsonse, err := uc.SignUp(pkgCtx.NewContextFromFiberCtx(c), signUpRequest)
-	if err != nil {
-		return pkgHttp.Err(c, err)
-	}
-
-	return pkgHttp.OK(c, signUpRepsonse)
-}
-
 func Login(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 	defer ctn.Delete()

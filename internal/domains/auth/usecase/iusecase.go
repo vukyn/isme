@@ -8,7 +8,6 @@ import (
 
 type IUseCase interface {
 	GetMe(ctx context.Context) (models.GetMeResponse, error)
-	SignUp(ctx context.Context, req models.SignUpRequest) (models.SignUpResponse, error)
 	Login(ctx context.Context, req models.LoginRequest) (models.LoginResponse, error)
 	RefreshToken(ctx context.Context, req models.RefreshTokenRequest) (models.RefreshTokenResponse, error)
 	VerifyToken(ctx context.Context, req models.VerifyTokenRequest) (models.VerifyTokenResponse, error)
