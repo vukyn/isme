@@ -1,10 +1,12 @@
 import type {
 	AddRoleMembersRequest,
+	CreatePermissionsRequest,
 	CreateRoleRequest,
 	CreateRoleResponse,
 	ListRoleMembersRequest,
 	ListRoleMembersResponse,
 	PermissionItem,
+	PermissionPair,
 	RoleDetailResponse,
 	RoleListFilter,
 	RoleListItem,
@@ -57,6 +59,20 @@ export const listPermissions = async (filter?: RoleListFilter): Promise<Permissi
 
 export const setRolePermissions = async (roleId: string, permissionIds: number[]): Promise<void> => {
 	await apiClient.put(API_ENDPOINTS.ROLE_PERMISSIONS(roleId), { permission_ids: permissionIds });
+};
+
+/** Creates resource:action permissions in an app's catalog (rejected for the
+ *  isme system app). Returns the created/resulting permission items with ids. */
+export const createPermissions = async (appId: string, permissions: PermissionPair[]): Promise<PermissionItem[]> => {
+	const request: CreatePermissionsRequest = { app_id: appId, permissions };
+	const response = await apiClient.post<Envelope<PermissionItem[]>>(API_ENDPOINTS.PERMISSIONS, request);
+	return response.data.data ?? [];
+};
+
+/** Deletes a permission from an app's catalog (rejected for the isme system
+ *  app). The backend clears any role grants referencing it first. */
+export const deletePermission = async (permissionId: number): Promise<void> => {
+	await apiClient.delete(API_ENDPOINTS.PERMISSION_DETAIL(permissionId));
 };
 
 export const listRoleMembers = async (

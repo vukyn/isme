@@ -295,7 +295,123 @@
   .empty { display: grid; place-items: center; gap: 14px; padding: 56px 24px; text-align: center; }
   .empty .ico { width: 56px; height: 56px; border-radius: 16px; display: grid; place-items: center; background: var(--glass); border: 1px solid var(--border-strong); color: var(--fg-mute); }
   .empty h3 { margin: 0; font-size: 16px; font-weight: 600; }
-  .empty p { margin: 0; font-size: 13px; color: var(--fg-mute); max-width: 340px; }
+  .empty p { margin: 0; font-size: 13px; color: var(--fg-mute); max-width: 360px; }
+  /* zero-permission empty state gets a violet "first run" accent */
+  .empty.first .ico { background: linear-gradient(135deg, rgba(99,102,241,0.22), rgba(139,92,246,0.16)); border-color: var(--c-violet); color: var(--c-violet); box-shadow: 0 0 26px rgba(139,92,246,0.22); }
+  .empty .empty-cta { margin-top: 4px; }
+
+  /* ====== Catalog tab header bar (holds "Add permission") ====== */
+  .catalog-bar {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 13px 18px; border-bottom: 1px solid var(--border); background: rgba(7,7,26,0.30);
+  }
+  .catalog-bar .cb-meta { font-size: 12px; color: var(--fg-mute); line-height: 1.35; }
+  .catalog-bar .cb-meta b { color: var(--fg-soft); font-weight: 600; }
+  .catalog-bar .cb-spacer { margin-left: auto; }
+  /* locked variant of Add-permission button (isme) — amber, matches New role */
+  .btn.btn-locked { opacity: 1; background: rgba(245,158,11,0.08); color: var(--c-amber); border-color: rgba(245,158,11,0.35); cursor: not-allowed; box-shadow: none; }
+  .btn.btn-locked:hover { background: rgba(245,158,11,0.08); box-shadow: none; }
+
+  /* ====== resource:action live preview pill (in Add-permission dialog) ====== */
+  .perm-preview {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 13px 14px; border-radius: var(--radius-sm);
+    border: 1px dashed var(--border-strong); background: rgba(7,7,26,0.35);
+  }
+  .perm-preview .pp-label { font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg-mute); }
+  .perm-pill {
+    display: inline-flex; align-items: center; gap: 2px; font-family: inherit;
+    font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums;
+    padding: 5px 12px; border-radius: 999px;
+    background: rgba(34,211,238,0.10); border: 1px solid rgba(34,211,238,0.35); color: var(--c-cyan);
+    transition: all .15s var(--easing);
+  }
+  .perm-pill.empty-pill { background: var(--glass); border-color: var(--border-strong); color: var(--fg-mute); font-weight: 500; }
+  .perm-pill.invalid { background: rgba(236,72,153,0.10); border-color: rgba(236,72,153,0.40); color: var(--c-magenta); }
+  .perm-pill .sep { color: var(--fg-mute); font-weight: 700; }
+  /* ====== resource ICON PICKER (Add-permission dialog) ====== */
+  /* Shown when the typed Resource is NEW. Compact single-select grid of small
+     rounded icon-buttons, styled like aurora's selectable chips (special-chip):
+     violet ring + tinted bg on the selected one. Hidden entirely when the
+     resource matches an existing one (replaced by the locked state below). */
+  .iconpick { display: grid; gap: 10px; }
+  .iconpick-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .iconpick-head .ip-label { font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg-mute); }
+  .iconpick-head .ip-hint { font-size: 12px; color: var(--fg-mute); }
+  .iconpick-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, 38px); gap: 8px;
+    justify-content: start;
+    padding: 12px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border); background: rgba(7,7,26,0.35);
+  }
+  .icon-opt {
+    width: 38px; height: 38px; display: grid; place-items: center; cursor: pointer;
+    border-radius: 9px; border: 1px solid var(--border-strong);
+    background: var(--glass); color: var(--fg-soft); padding: 0;
+    transition: all .15s var(--easing);
+  }
+  .icon-opt svg { width: 16px; height: 16px; }
+  .icon-opt:hover { color: var(--fg); border-color: rgba(255,255,255,0.30); background: var(--glass-strong); }
+  .icon-opt:focus-visible { outline: 0; border-color: var(--c-violet); box-shadow: 0 0 0 3px rgba(139,92,246,0.30); }
+  .icon-opt.sel {
+    color: var(--c-violet);
+    background: linear-gradient(135deg, rgba(139,92,246,0.22), rgba(99,102,241,0.14));
+    border-color: var(--c-violet); box-shadow: 0 0 0 3px rgba(139,92,246,0.25), 0 0 16px rgba(139,92,246,0.20) inset;
+  }
+  .icon-opt svg { width: 17px; height: 17px; }
+
+  /* locked icon state — shown when the typed Resource matches an EXISTING one.
+     The icon can't be changed here; render it locked + an amber hint. */
+  .icon-locked {
+    display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+    border-radius: var(--radius-sm); border: 1px solid rgba(245,158,11,0.30);
+    background: linear-gradient(90deg, rgba(245,158,11,0.12), rgba(245,158,11,0.03));
+  }
+  .icon-locked .il-icon {
+    width: 36px; height: 36px; border-radius: 10px; flex: 0 0 auto; display: grid; place-items: center;
+    background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.35); color: var(--c-amber);
+  }
+  .icon-locked .il-icon svg { width: 17px; height: 17px; }
+  .icon-locked .il-text { font-size: 12px; color: var(--fg-soft); line-height: 1.4; }
+  .icon-locked .il-text b { color: var(--c-amber); font-weight: 600; }
+  .icon-locked .il-lock { color: var(--c-amber); flex: 0 0 auto; margin-left: auto; }
+
+  /* the chosen icon echoed inside the live preview pill */
+  .perm-pill .pp-ico { display: inline-flex; align-items: center; margin-right: 5px; }
+  .perm-pill .pp-ico svg { width: 13px; height: 13px; }
+
+  /* validation hint / error line under the inputs */
+  .field-err { font-size: 12px; color: var(--c-magenta); margin-top: 8px; display: none; align-items: center; gap: 6px; }
+  .field-err.show { display: flex; }
+  .field-err svg { flex: 0 0 auto; }
+
+  /* queued-rows (add-another) list */
+  .queue { display: grid; gap: 8px; }
+  .queue:empty { display: none; }
+  .queue-row {
+    display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+    border-radius: 10px; border: 1px solid var(--border); background: var(--glass);
+  }
+  .queue-row code { font-size: 13px; color: var(--c-cyan); font-family: inherit; font-weight: 600; flex: 1; }
+  .queue-row .qrm { width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; background: transparent; border: 0; color: var(--fg-mute); cursor: pointer; transition: all .15s var(--easing); }
+  .queue-row .qrm:hover { background: rgba(236,72,153,0.12); color: var(--c-magenta); }
+
+  /* newly-added matrix/catalog row flash (demo feedback) */
+  @keyframes rowFlash { 0% { background: rgba(52,211,153,0.22); } 100% { background: transparent; } }
+  .row-new { animation: rowFlash 1.6s var(--easing) 1; }
+
+  /* toast (success feedback after add) */
+  .toast {
+    position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(8px);
+    z-index: 120; display: inline-flex; align-items: center; gap: 10px;
+    padding: 12px 18px; border-radius: 999px; font-size: 13px; font-weight: 500; color: var(--fg);
+    background: linear-gradient(135deg, rgba(18,18,46,0.96), rgba(11,11,35,0.96));
+    border: 1px solid rgba(52,211,153,0.40); box-shadow: var(--shadow-pop);
+    opacity: 0; pointer-events: none; transition: opacity .2s var(--easing), transform .2s var(--easing);
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast svg { color: var(--c-mint); flex: 0 0 auto; }
+  .toast code { color: var(--c-cyan); font-family: inherit; font-weight: 600; }
 
   /* ====== Modal ====== */
   .overlay { position: fixed; inset: 0; z-index: 100; background: rgba(4,4,14,0.70); backdrop-filter: blur(10px); display: grid; place-items: center; }
@@ -329,6 +445,43 @@
 
 <!--
   ===========================================================================
+  ADDED (2026-06-08) — "Add permission" affordance + empty-permission state.
+  ---------------------------------------------------------------------------
+  New behavior shipped: creating an app no longer auto-seeds permissions. An
+  app's admin role starts EMPTY; admins create resource:action perms by hand,
+  then toggle them onto roles via the existing matrix. This file now adds:
+    • an "Add permission" button in the Permission-catalog tab header, scoped
+      to the currently selected app (HIDDEN/locked-amber for the isme app —
+      isme perms are system-managed, same read-only treatment as everywhere
+      else in this file);
+    • an "Add permission" dialog mirroring the create-role modal: Resource +
+      Action inputs, a live `resource:action` preview pill, validation hint
+      (lowercase, [a-z0-9_], no `:`), and an optional "+ add another" queue;
+    • on (mock) submit the new perm is appended to the app's in-memory catalog
+      and immediately appears as a new matrix row + catalog row (toggle-able);
+    • an EMPTY STATE for apps with zero perms (the `rainy` tab demonstrates the
+      empty → add-first-permission flow) with a prominent "Add your first
+      permission" CTA in both the matrix and catalog tabs.
+  All additive — existing screens/states are untouched. Mock-only inline JS.
+  ---------------------------------------------------------------------------
+  ADDED (2026-06-08, icon picker) — RESOURCE ICON PICKER in the add-permission
+  dialog. Each resource now carries a user-chosen, persisted icon:
+    • NEW resource (not in the app's catalog) → a compact single-select grid of
+      20 icons (file/folder/database/box/image/music/video/shield/key/user/
+      users/globe/tag/lock/bell/star/settings/server/cloud/code) appears below
+      the Resource field; the neutral 'file' icon is pre-selected. Aurora
+      selectable-chip styling (violet ring/bg on the selected one).
+    • EXISTING resource (typed name matches one in the app, e.g. medioa2's
+      object/bucket/storage) → the picker is hidden and the resource's current
+      icon is shown LOCKED with an amber "icon set by existing resource" hint
+      (an icon can't be changed here once a resource exists).
+    • The chosen/locked icon reflects in the live preview pill (icon + the
+      resource:action string) and on submit the new matrix/catalog resource row
+      renders with that icon.
+    • Works with the "Add another" queue — the icon is chosen ONCE per new
+      resource (resIconMap); queued rows show their chosen icon.
+  ===========================================================================
+
   SCREEN 1 of 4 — Per-app Role & Permission management (APP-OWNED RBAC)
   Implements: docs/rbac-app-owned-plan.md §2.13 (isme UI) + locked decisions
               1 (app-owned), 2 (isme is itself an app, system/read-only),
@@ -492,7 +645,7 @@
         </button>
         <button onclick="showTab('catalog')" id="tab-catalog" class="tab" role="tab" aria-selected="false">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-          Permission catalog <span class="count-pill" id="catalog-count">19</span>
+          Permission catalog
         </button>
       </div>
 
@@ -526,6 +679,14 @@
            Read reference of the app's full resource:action catalog. For isme
            every row is locked; editable apps could add/remove perms here later. -->
       <div id="panel-catalog" class="hidden" role="tabpanel" style="display:none;">
+
+        <!-- ===== Catalog header bar: "Add permission" (app-scoped) =====
+             Editable apps → violet primary button opens the add-permission
+             dialog. isme → button is rendered as a locked amber affordance
+             (disabled, lock glyph) matching the read-only treatment used by
+             "New role" and the matrix. Rebuilt per app by JS (renderCatalogBar). -->
+        <div class="catalog-bar" id="catalog-bar"><!-- populated per app --></div>
+
         <table id="catalog"><!-- populated per app --></table>
         <div class="lock-notice" id="catalog-foot">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
@@ -593,6 +754,122 @@
   </div>
 </div>
 
+<!-- ================= ADD PERMISSION MODAL =================
+     Reachable only on editable apps (isme's Add-permission is locked). The new
+     permission belongs to the CURRENTLY SELECTED app (app_id pre-bound, shown
+     read-only). Two inputs (Resource + Action) compose a live `resource:action`
+     preview pill. Optional "+ add another" queues several before submitting.
+     On submit: appends to APPS[current.app] catalog → new matrix + catalog row. -->
+<div id="perm-modal" class="overlay hidden" onclick="if(event.target===this)closePermModal()">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="perm-title">
+    <div class="modal-head">
+      <div class="modal-title" id="perm-title">
+        <div class="modal-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg></div>
+        Add permission to <span id="perm-modal-app" style="color:var(--c-violet);">rainy</span>
+      </div>
+      <button class="modal-x" onclick="closePermModal()" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+
+      <!-- App is bound to the selected app (decision 1: app-owned) -->
+      <label class="field">
+        <span class="field-label">App <span class="opt">· bound to the selected app, not editable</span></span>
+        <span class="input-wrap" style="opacity:0.7;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 8h20"/></svg>
+          <input type="text" value="rainy · app_rainy" readonly id="perm-modal-app-field" />
+        </span>
+      </label>
+
+      <!-- Resource + Action — composed into resource:action -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+        <label class="field">
+          <span class="field-label">Resource</span>
+          <span class="input-wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><path d="M14 2v6h6"/></svg>
+            <input type="text" class="slug" id="perm-res" placeholder="report" autocomplete="off"
+                   oninput="onPermInput()" onblur="validatePerm(true)" />
+          </span>
+        </label>
+        <label class="field">
+          <span class="field-label">Action</span>
+          <span class="input-wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/></svg>
+            <input type="text" class="slug" id="perm-act" placeholder="export" autocomplete="off"
+                   oninput="onPermInput()" onblur="validatePerm(true)" />
+          </span>
+        </label>
+      </div>
+
+      <!-- ===== RESOURCE ICON PICKER =====
+           Each resource carries a user-chosen icon, persisted. This block is
+           driven by the Resource input (renderIconState):
+             • Resource is NEW (not in this app's catalog) → show the picker grid
+               below. A neutral default ('file') is pre-selected. The chosen icon
+               flows into the live preview pill and the appended matrix/catalog
+               row(s). Same new resource across queued pairs = icon chosen once.
+             • Resource matches an EXISTING resource → hide the grid, show that
+               resource's current icon LOCKED with an "icon set by existing
+               resource" hint (icons can't be changed here once a resource exists).
+           Demo: on medioa2 type `object` / `bucket` / `storage` → locked state.
+                 Any other name (e.g. `report`) → picker grid. -->
+      <div class="field" id="perm-icon-field">
+        <span class="field-label">Resource icon <span class="opt" id="perm-icon-opt">· pick an icon for the new resource</span></span>
+
+        <!-- (a) picker grid — NEW resource -->
+        <div class="iconpick" id="perm-iconpick">
+          <div class="iconpick-grid" id="perm-icongrid" role="radiogroup" aria-label="Resource icon"><!-- icon options injected by JS --></div>
+        </div>
+
+        <!-- (b) locked icon — EXISTING resource -->
+        <div class="icon-locked hidden" id="perm-iconlocked">
+          <div class="il-icon" id="perm-iconlocked-glyph"><!-- existing resource's icon --></div>
+          <div class="il-text">Icon <b id="perm-iconlocked-name">set by existing resource</b><br/>An icon is fixed once a resource exists — it can't be changed here.</div>
+          <svg class="il-lock" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+        </div>
+      </div>
+
+      <!-- live resource:action preview pill (now leads with the chosen icon) -->
+      <div class="perm-preview">
+        <span class="pp-label">Preview</span>
+        <span class="perm-pill empty-pill" id="perm-pill">resource:action</span>
+      </div>
+
+      <!-- validation hint (always) + error line (on invalid) -->
+      <div class="helper" id="perm-hint">Lowercase letters, digits and underscore only · no spaces or <code>:</code> (it’s the separator). The app namespace is implicit — don’t prefix with the app name.</div>
+      <div class="field-err" id="perm-err">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+        <span id="perm-err-text">Enter both a resource and an action.</span>
+      </div>
+
+      <!-- optional: queue several perms before submitting -->
+      <div>
+        <button type="button" class="btn btn-ghost btn-sm" id="perm-add-another" onclick="queuePerm()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+          Add another
+        </button>
+        <div class="queue" id="perm-queue" style="margin-top:10px;"><!-- queued resource:action rows --></div>
+      </div>
+
+      <div class="modal-note">
+        <span><span class="hl">resource:action</span> — once created, this permission becomes toggle-able onto any role in this app via the matrix. It grants nothing until a role is checked.</span>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closePermModal()">Cancel</button>
+      <button class="btn btn-primary" id="perm-submit" onclick="submitPerms()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+        <span id="perm-submit-label">Add permission</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- success toast (demo feedback) -->
+<div class="toast" id="toast" role="status" aria-live="polite">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+  <span id="toast-text">Permission added</span>
+</div>
+
 <script>
   /* ---------------------------------------------------------------------
      Demo data — three apps. Each: readOnly flag, role list, and a resource
@@ -609,8 +886,33 @@
     storage:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>',
     playlist:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15V6"/><path d="M19 18a2 2 0 1 0-4 0 2 2 0 0 0 4 0z"/><path d="M3 6h13"/><path d="M3 12h10"/><path d="M3 18h6"/></svg>',
     station:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"/><path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5"/><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5"/><path d="M19.1 4.9C23 8.8 23 15.2 19.1 19.1"/></svg>',
-    track:  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>'
+    track:  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>',
+
+    /* ---- ICON-PICKER set (20 options) — simple inline SVGs, aurora style.
+       Keyed by the picker's value; some reuse existing glyphs above. ---- */
+    file:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><path d="M14 2v6h6"/></svg>',
+    folder:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>',
+    database:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>',
+    box:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>',
+    image:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.5-3.5a2 2 0 0 0-2.8 0L6 21"/></svg>',
+    music:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>',
+    video:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 8-6 4 6 4V8Z"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg>',
+    shield:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V6l-8-4-8 4v6c0 6 8 10 8 10Z"/></svg>',
+    key:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg>',
+    user:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+    globe:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10Z"/></svg>',
+    tag:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.432 0l6.58-6.58a2.426 2.426 0 0 0 0-3.432z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></svg>',
+    lock:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
+    bell:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>',
+    star:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>',
+    settings:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2Z"/><circle cx="12" cy="12" r="3"/></svg>',
+    server:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="8" rx="2"/><rect x="2" y="13" width="20" height="8" rx="2"/><path d="M6 7h.01"/><path d="M6 17h.01"/></svg>',
+    cloud:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>',
+    code:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg>'
   };
+  // the 20 selectable icons in display order; 'file' is the neutral default.
+  var PICK_ICONS = ['file','folder','database','box','image','music','video','shield','key','user','users','globe','tag','lock','bell','star','settings','server','cloud','code'];
+  var DEFAULT_ICON = 'file';
   var RC = ['violet','cyan','mint','amber']; // res-icon color rotation
 
   var APPS = {
@@ -650,19 +952,20 @@
       ]
     },
     rainy: {
+      /* NEW-app shape (post-change): no perms auto-seeded. The admin role is
+         auto-provisioned but EMPTY because there are zero permissions to grant
+         yet. This drives the empty → "Add your first permission" demo flow.
+         (Suggested perms below are NOT seeded — kept only as quick-fill chips
+         the admin can click in the Add-permission dialog.) */
       label: 'rainy', appId: 'app_rainy', readOnly: false, statusOk: true,
-      groups: [
-        { name: 'Catalog', resources: [
-          { res:'playlist', name:'Playlists', icon:'playlist', actions:['read','create','update','delete'], special:[] },
-          { res:'station', name:'Stations', icon:'station', actions:['read','create','update','delete'], special:[] },
-          { res:'track', name:'Tracks', icon:'track', actions:['read','create','update','delete'], special:[] }
-        ]}
-      ],
-      catalogCount: 12,
+      groups: [ /* empty catalog — admin must create perms manually */ ],
+      suggested: ['playlist:read','playlist:create','station:read','track:read'],
+      resIcon: { playlist:'playlist', station:'station', track:'track' },
+      catalogCount: 0,
       roles: [
-        { code:'admin', desc:'auto-provisioned · full CRUD', icon:'violet', system:false, autoAdmin:true, users:1, rid:'rol_rny_admin', perms:'ALL' }
+        { code:'admin', desc:'auto-provisioned · 0 permissions yet', icon:'violet', system:false, autoAdmin:true, users:1, rid:'rol_rny_admin', perms:'ALL' }
       ],
-      empty: true /* only the seeded admin role — show empty-custom-role hint */
+      empty: true /* zero permissions — show "Add your first permission" CTA */
     }
   };
 
@@ -673,6 +976,17 @@
     return role.perms === 'ALL' || (role.perms && role.perms.indexOf(perm) !== -1);
   }
 
+  // an app has zero permissions when no group exposes any resource
+  function appPermCount(app){
+    var n = 0;
+    (app.groups||[]).forEach(function(g){ (g.resources||[]).forEach(function(rsrc){
+      (rsrc.actions||[]).forEach(function(a){ if(a) n++; });
+      n += (rsrc.special||[]).length;
+    }); });
+    return n;
+  }
+  function appIsEmpty(app){ return appPermCount(app) === 0; }
+
   function renderRoles(appKey){
     var app = APPS[appKey];
     var html = '';
@@ -681,7 +995,7 @@
       var lock = (app.readOnly || r.system)
         ? '<svg class="lock" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-label="System role — immutable"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>'
         : '';
-      var permCount = r.perms === 'ALL' ? app.catalogCount : (r.perms ? r.perms.length : 0);
+      var permCount = r.perms === 'ALL' ? appPermCount(app) : (r.perms ? r.perms.length : 0);
       html += '<div class="role-item'+sel+'" onclick="selectRole('+i+')"'+(sel?' aria-current="true"':'')+'>'
         + '<div class="role-icon '+r.icon+'">'+ICONS.role+'</div>'
         + '<div class="role-meta"><div class="role-name">'+r.code+lock+'</div>'
@@ -697,6 +1011,26 @@
     var app = APPS[appKey];
     var role = app.roles[current.roleIndex];
     var ro = app.readOnly;
+
+    // EMPTY STATE — new app with zero permissions. The matrix has nothing to
+    // toggle yet, so we show a "first permission" CTA instead of an empty grid.
+    if (appIsEmpty(app)) {
+      var wrap = document.getElementById('matrix-wrap');
+      wrap.classList.remove('matrix-readonly');
+      var cta = ro
+        ? '' // isme never reaches here (it always has its 19 seeded perms)
+        : '<div class="empty-cta"><button class="btn btn-primary" onclick="openPermModal()">'
+          + '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>'
+          + 'Add your first permission</button></div>';
+      wrap.innerHTML = '<table id="matrix"></table>'
+        + '<div class="empty first">'
+        + '<div class="ico"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg></div>'
+        + '<h3>No permissions yet</h3>'
+        + '<p>This app starts with an empty permission catalog. Create your first <code>resource:action</code> permission — then toggle it onto the <b>'+role.code+'</b> role here.</p>'
+        + cta + '</div>';
+      return;
+    }
+
     var html = '<thead><tr><th>Resource</th>'
       + '<th class="c">Read</th><th class="c">Create</th><th class="c">Update</th><th class="c">Delete</th>'
       + '<th style="width:230px;">Special</th></tr></thead><tbody>';
@@ -705,7 +1039,7 @@
       html += '<tr class="group-row"><td colspan="6">'+g.name+'</td></tr>';
       g.resources.forEach(function(rsrc){
         var color = RC[ci % RC.length]; ci++;
-        html += '<tr class="perm-row"><td><div class="res-cell">'
+        html += '<tr class="perm-row" data-res="'+rsrc.res+'"><td><div class="res-cell">'
           + '<div class="res-icon '+color+'">'+ICONS[rsrc.icon]+'</div>'
           + '<div><div class="res-name">'+rsrc.name+'</div><div class="res-code">'+rsrc.res+'</div></div></div></td>';
         rsrc.actions.forEach(function(act){
@@ -733,13 +1067,63 @@
       });
     });
     html += '</tbody>';
+    // restore the wrap to a single <table id="matrix"> (it may have been
+    // replaced by the empty-state markup on a previous render)
+    var mwrap = document.getElementById('matrix-wrap');
+    if (!document.getElementById('matrix') || mwrap.querySelector('.empty')) {
+      mwrap.innerHTML = '<table id="matrix"></table>';
+    }
     document.getElementById('matrix').innerHTML = html;
-    document.getElementById('matrix-wrap').classList.toggle('matrix-readonly', ro);
+    mwrap.classList.toggle('matrix-readonly', ro);
+
+    // flash any rows for permissions just added this session (demo feedback)
+    flashNewRows('#matrix');
+  }
+
+  // Catalog header bar: "Add permission" (app-scoped). Locked-amber for isme,
+  // violet primary for editable apps. Rebuilt per app so the lock state and the
+  // live perm count never go stale when switching apps.
+  function renderCatalogBar(appKey){
+    var app = APPS[appKey];
+    var bar = document.getElementById('catalog-bar');
+    var count = appPermCount(app);
+    var btn = app.readOnly
+      ? '<button class="btn btn-sm btn-locked cb-spacer" disabled title="isme permissions are system-managed — read-only">'
+        + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>'
+        + 'Add permission'
+        + '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></button>'
+      : '<button class="btn btn-primary btn-sm cb-spacer" onclick="openPermModal()">'
+        + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>'
+        + 'Add permission</button>';
+    var meta = app.readOnly
+      ? '<div class="cb-meta"><b>'+count+' permissions</b> · seeded &amp; system-managed (read-only)</div>'
+      : '<div class="cb-meta"><b>'+count+' permission'+(count===1?'':'s')+'</b> · add <code style="color:var(--c-cyan)">resource:action</code> perms, then toggle them onto roles</div>';
+    bar.innerHTML = meta + btn;
   }
 
   function renderCatalog(appKey){
     var app = APPS[appKey];
     var ro = app.readOnly;
+    renderCatalogBar(appKey);
+
+    // EMPTY STATE — zero permissions. Show the first-permission CTA instead of
+    // an empty table; isme can never be empty (always has its seeded perms).
+    if (appIsEmpty(app)) {
+      document.getElementById('catalog').innerHTML = '';
+      var foot = document.getElementById('catalog-foot');
+      foot.className = 'lock-notice';
+      foot.removeAttribute('style');
+      foot.style.cssText = 'background:transparent;border-top:0;padding:0;';
+      foot.innerHTML = '<div class="empty first" style="width:100%;">'
+        + '<div class="ico"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div>'
+        + '<h3>Empty permission catalog</h3>'
+        + '<p>New apps no longer auto-seed permissions. Create <code>resource:action</code> entries (e.g. <code style="color:var(--c-cyan)">track:read</code>) and they become available to toggle onto roles.</p>'
+        + '<div class="empty-cta"><button class="btn btn-primary" onclick="openPermModal()">'
+        + '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>'
+        + 'Add your first permission</button></div></div>';
+      return;
+    }
+
     var html = '<thead><tr><th>Resource</th><th>Action</th><th>Permission</th><th style="width:120px;"></th></tr></thead><tbody>';
     var ci = 0;
     app.groups.forEach(function(g){
@@ -757,7 +1141,7 @@
           var actionBtn = ro
             ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--c-amber)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>'
             : '<button class="qa danger" title="Remove permission" style="width:30px;height:30px;border-radius:8px;display:inline-grid;place-items:center;background:rgba(236,72,153,0.08);border:1px solid rgba(236,72,153,0.30);color:var(--c-magenta);cursor:pointer;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg></button>';
-          html += '<tr class="perm-row"><td>'+resCell+'</td>'
+          html += '<tr class="perm-row" data-perm="'+perm+'"><td>'+resCell+'</td>'
             + '<td><span style="font-size:13px;color:var(--fg-soft);">'+act+'</span></td>'
             + '<td><code style="font-size:13px;color:var(--c-cyan);font-family:inherit;">'+perm+'</code></td>'
             + '<td style="text-align:right;">'+actionBtn+'</td></tr>';
@@ -766,7 +1150,7 @@
     });
     html += '</tbody>';
     document.getElementById('catalog').innerHTML = html;
-    document.getElementById('catalog-count').textContent = app.catalogCount;
+    flashNewRows('#catalog');
     // catalog foot: lock-notice (isme) vs neutral hint (editable). Rebuilt
     // fully each render so switching apps never leaves a stale icon/colour.
     var foot = document.getElementById('catalog-foot');
@@ -779,8 +1163,283 @@
       foot.className = 'lock-notice';
       foot.setAttribute('style', 'background:rgba(7,7,26,0.35);border-top-color:var(--border);');
       foot.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--fg-mute)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>'
-        + '<span id="catalog-foot-text" style="color:var(--fg-mute);">Perm strings are <code>resource:action</code> — not app-prefixed. The app namespace lives in the token\'s <code>resource_access</code> key. Use "New role" to bundle these into a role.</span>';
+        + '<span id="catalog-foot-text" style="color:var(--fg-mute);">Perm strings are <code>resource:action</code> — not app-prefixed. The app namespace lives in the token\'s <code>resource_access</code> key. Use "Add permission" above to create more, then toggle them onto roles.</span>';
     }
+  }
+
+  /* =====================================================================
+     ADD PERMISSION — dialog + live preview + queue + mock submit.
+     All mock-only: mutates APPS[current.app] in memory so the new perm
+     appears in the matrix + catalog. React replaces this with an API call.
+  ===================================================================== */
+  var permQueue = [];          // queued resource:action strings before submit
+  var justAdded = {};          // perm strings added this session → row flash
+  var iconChoice = DEFAULT_ICON; // icon picked for the resource in the live inputs
+  var resIconMap = {};         // res(new) → chosen icon, so queued pairs on the
+                               // SAME new resource keep one icon (chosen once)
+
+  /* ---- ICON PICKER (resource icons) ----
+     A resource's icon is chosen once. lookupResIcon returns the locked icon of
+     an EXISTING resource (so we render the read-only state), or null if new. */
+  function lookupResIcon(app, res){
+    var found = null;
+    (app.groups||[]).forEach(function(g){
+      (g.resources||[]).forEach(function(r){ if(r.res === res) found = r.icon; });
+    });
+    return found; // null → new resource
+  }
+
+  // build the selectable icon grid once (idempotent)
+  function buildIconGrid(){
+    var grid = document.getElementById('perm-icongrid');
+    if (grid.childElementCount) return;
+    grid.innerHTML = PICK_ICONS.map(function(name){
+      return '<button type="button" class="icon-opt" role="radio" aria-checked="false"'
+        + ' data-icon="'+name+'" aria-label="'+name+'" title="'+name+'"'
+        + ' onclick="pickIcon(\''+name+'\')">'+ICONS[name]+'</button>';
+    }).join('');
+  }
+
+  // mark one option selected; reflect into preview pill
+  function pickIcon(name){
+    iconChoice = name;
+    document.querySelectorAll('#perm-icongrid .icon-opt').forEach(function(b){
+      var on = b.getAttribute('data-icon') === name;
+      b.classList.toggle('sel', on);
+      b.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+    validatePerm(document.getElementById('perm-err').classList.contains('show'));
+  }
+
+  // Decide picker (new) vs locked (existing) for the typed resource, and resolve
+  // the icon currently in effect for the live inputs (iconChoice / locked icon).
+  // Returns the effective icon name so the preview + submit can echo it.
+  function renderIconState(){
+    var res = cleanSeg(document.getElementById('perm-res').value);
+    var app = APPS[current.app];
+    var picker = document.getElementById('perm-iconpick');
+    var locked = document.getElementById('perm-iconlocked');
+    var optHint = document.getElementById('perm-icon-opt');
+
+    var existing = res ? lookupResIcon(app, res) : null;
+
+    if (existing) {
+      // EXISTING resource → locked icon, no picker
+      picker.classList.add('hidden');
+      locked.classList.remove('hidden');
+      optHint.textContent = '· locked';
+      document.getElementById('perm-iconlocked-glyph').innerHTML = ICONS[existing] || ICONS.object;
+      document.getElementById('perm-iconlocked-name').textContent = 'set by existing resource “'+res+'”';
+      return existing;
+    }
+
+    // NEW (or empty) resource → show picker. If this exact new resource was
+    // already given an icon earlier in the queue, reuse it (chosen once).
+    locked.classList.add('hidden');
+    picker.classList.remove('hidden');
+    optHint.textContent = '· pick an icon for the new resource';
+    if (res && resIconMap[res]) iconChoice = resIconMap[res];
+    buildIconGrid();
+    // sync selected highlight to the active iconChoice
+    document.querySelectorAll('#perm-icongrid .icon-opt').forEach(function(b){
+      var on = b.getAttribute('data-icon') === iconChoice;
+      b.classList.toggle('sel', on);
+      b.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+    return iconChoice;
+  }
+
+  // sanitize one segment: lowercase, strip anything not [a-z0-9_]
+  function cleanSeg(v){ return (v||'').toLowerCase().replace(/[^a-z0-9_]/g, ''); }
+
+  // current resource/action from the inputs (cleaned)
+  function permParts(){
+    return {
+      res: cleanSeg(document.getElementById('perm-res').value),
+      act: cleanSeg(document.getElementById('perm-act').value)
+    };
+  }
+
+  // live preview pill + validity. showErr=true surfaces the error line.
+  function validatePerm(showErr){
+    var p = permParts();
+    var pill = document.getElementById('perm-pill');
+    var err = document.getElementById('perm-err');
+    var errText = document.getElementById('perm-err-text');
+    var app = APPS[current.app];
+    var full = p.res + ':' + p.act;
+
+    // resolve the icon in effect for the live resource (locked existing icon,
+    // or the picked one for a new resource) and prepend it to the preview pill.
+    var effIcon = renderIconState();
+    var icoHtml = '<span class="pp-ico">' + (ICONS[effIcon] || ICONS.object) + '</span>';
+
+    // render the pill
+    if (!p.res && !p.act) {
+      pill.className = 'perm-pill empty-pill'; pill.textContent = 'resource:action';
+    } else {
+      pill.className = 'perm-pill';
+      pill.innerHTML = icoHtml + (p.res||'resource') + '<span class="sep">:</span>' + (p.act||'action');
+    }
+
+    // validity
+    var ok = true, msg = '';
+    if (!p.res || !p.act) { ok = false; msg = 'Enter both a resource and an action.'; }
+    else if (appPermExists(app, full) || permQueue.indexOf(full) !== -1) {
+      ok = false; msg = full + ' already exists in this app.'; pill.className = 'perm-pill invalid';
+    }
+
+    if (showErr) { err.classList.toggle('show', !ok && (p.res||p.act)); errText.textContent = msg; }
+    document.getElementById('perm-add-another').disabled = !ok;
+    refreshSubmitLabel();
+    return ok ? full : null;
+  }
+  function onPermInput(){ validatePerm(document.getElementById('perm-err').classList.contains('show')); }
+
+  function appPermExists(app, full){
+    var hit = false;
+    (app.groups||[]).forEach(function(g){
+      (g.resources||[]).forEach(function(r){
+        (r.actions||[]).forEach(function(a){ if(a && r.res+':'+a===full) hit = true; });
+        (r.special||[]).forEach(function(s){ if(r.res+':'+s===full) hit = true; });
+      });
+    });
+    return hit;
+  }
+
+  function refreshSubmitLabel(){
+    var n = permQueue.length;
+    var label = document.getElementById('perm-submit-label');
+    // queued count + (1 if the live inputs hold a valid unqueued perm)
+    var p = permParts(); var live = (p.res && p.act) ? 1 : 0;
+    var total = n + live;
+    label.textContent = total > 1 ? ('Add ' + total + ' permissions') : 'Add permission';
+  }
+
+  // "+ Add another" — push the current inputs onto the queue, clear inputs
+  function queuePerm(){
+    var full = validatePerm(true);
+    if (!full) return;
+    permQueue.push(full);
+    // remember the icon chosen for this resource → reused if the admin queues
+    // another action on the SAME new resource (icon is chosen once per resource).
+    var res = full.split(':')[0];
+    var app = APPS[current.app];
+    var existing = lookupResIcon(app, res);
+    if (!existing && !resIconMap[res]) resIconMap[res] = iconChoice;
+    renderQueue();
+    document.getElementById('perm-res').value = '';
+    document.getElementById('perm-act').value = '';
+    iconChoice = DEFAULT_ICON; // reset to neutral for the next (different) resource
+    document.getElementById('perm-res').focus();
+    validatePerm(false);
+  }
+  function renderQueue(){
+    var q = document.getElementById('perm-queue');
+    var app = APPS[current.app];
+    q.innerHTML = permQueue.map(function(p, i){
+      var res = p.split(':')[0];
+      var ico = lookupResIcon(app, res) || resIconMap[res] || DEFAULT_ICON;
+      return '<div class="queue-row"><span class="pp-ico" style="color:var(--c-violet);flex:0 0 auto;">'+(ICONS[ico]||ICONS.object)+'</span><code>'+p+'</code>'
+        + '<button class="qrm" title="Remove" onclick="unqueuePerm('+i+')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button></div>';
+    }).join('');
+  }
+  function unqueuePerm(i){ permQueue.splice(i,1); renderQueue(); validatePerm(false); }
+
+  // append a resource:action to the current app's catalog (mock state).
+  // groups are flat here ("Catalog"); resources are grouped by `res`.
+  function addPermToApp(app, full){
+    var parts = full.split(':'); var res = parts[0], act = parts[1];
+    if (!app.groups.length) app.groups.push({ name: 'Catalog', resources: [] });
+    var grp = app.groups[0];
+    var rsrc = grp.resources.filter(function(r){ return r.res === res; })[0];
+    if (!rsrc) {
+      // user-chosen icon for this new resource (recorded per-resource in
+      // resIconMap); fall back to the live iconChoice, then a neutral glyph.
+      var icon = resIconMap[res] || iconChoice || DEFAULT_ICON;
+      rsrc = { res: res, name: res.charAt(0).toUpperCase()+res.slice(1), icon: icon, actions: [], special: [] };
+      grp.resources.push(rsrc);
+    }
+    // CRUD actions go in the action columns; everything else is a "special" chip
+    if (['read','create','update','delete'].indexOf(act) !== -1) {
+      if (rsrc.actions.indexOf(act) === -1) rsrc.actions.push(act);
+    } else {
+      if (rsrc.special.indexOf(act) === -1) rsrc.special.push(act);
+    }
+    justAdded[full] = true;
+  }
+
+  function submitPerms(){
+    var live = validatePerm(true);
+    var batch = permQueue.slice();
+    var app = APPS[current.app];
+    if (live) {
+      // record the icon chosen for the live resource (new only) so addPermToApp
+      // applies it consistently across all its actions in this batch.
+      var liveRes = live.split(':')[0];
+      if (!lookupResIcon(app, liveRes) && !resIconMap[liveRes]) resIconMap[liveRes] = iconChoice;
+      batch.push(live);
+    }
+    if (!batch.length) { document.getElementById('perm-err').classList.add('show'); return; }
+
+    justAdded = {};
+    batch.forEach(function(f){ addPermToApp(app, f); });
+    permQueue = [];
+
+    closePermModal();
+    // re-render the affected views; the new rows flash green
+    renderRoles(current.app);
+    renderMatrix(current.app);
+    renderCatalog(current.app);
+    document.getElementById('rail-count').textContent = app.roles.length;
+
+    showToast(batch.length === 1
+      ? batch[0] + ' added to ' + app.label
+      : batch.length + ' permissions added to ' + app.label, batch[batch.length-1]);
+
+    // flash only fires on this render; clear so later re-renders don't repeat it
+    setTimeout(function(){ justAdded = {}; }, 1800);
+  }
+
+  function openPermModal(){
+    var app = APPS[current.app];
+    if (app.readOnly) return; // safety — isme is locked
+    permQueue = [];
+    resIconMap = {};             // fresh per-resource icon choices each open
+    iconChoice = DEFAULT_ICON;   // neutral default pre-selected
+    document.getElementById('perm-queue').innerHTML = '';
+    document.getElementById('perm-res').value = '';
+    document.getElementById('perm-act').value = '';
+    document.getElementById('perm-err').classList.remove('show');
+    document.getElementById('perm-modal-app').textContent = app.label;
+    document.getElementById('perm-modal-app-field').value = app.label + ' · ' + app.appId;
+    buildIconGrid();
+    renderIconState();           // show picker with the default icon selected
+    validatePerm(false);
+    document.getElementById('perm-modal').classList.remove('hidden');
+    setTimeout(function(){ document.getElementById('perm-res').focus(); }, 30);
+  }
+  function closePermModal(){ document.getElementById('perm-modal').classList.add('hidden'); }
+
+  // flash rows whose data-perm / data-res matches a perm added this session
+  function flashNewRows(scope){
+    var keys = Object.keys(justAdded);
+    if (!keys.length) return;
+    var resSet = {}; keys.forEach(function(k){ resSet[k.split(':')[0]] = true; });
+    document.querySelectorAll(scope + ' tr.perm-row').forEach(function(tr){
+      var perm = tr.getAttribute('data-perm');
+      var res = tr.getAttribute('data-res');
+      if ((perm && justAdded[perm]) || (res && resSet[res])) tr.classList.add('row-new');
+    });
+  }
+
+  var toastTimer;
+  function showToast(text){
+    var t = document.getElementById('toast');
+    document.getElementById('toast-text').textContent = text;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ t.classList.remove('show'); }, 3500);
   }
 
   function selectRole(i){
@@ -821,6 +1480,7 @@
 
   function selectApp(appKey){
     current.app = appKey; current.roleIndex = 0;
+    justAdded = {}; // don't re-flash add rows when switching apps
     var app = APPS[appKey];
     // tab highlight
     document.querySelectorAll('.app-tab').forEach(function(t){ t.classList.toggle('on', t.getAttribute('data-app')===appKey); });
@@ -851,10 +1511,14 @@
     ['permissions','catalog'].forEach(function(t){
       var panel = document.getElementById('panel-'+t);
       var tab = document.getElementById('tab-'+t);
-      panel.style.display = (t===name) ? '' : 'none';
-      tab.classList.toggle('tab-active', t===name);
-      tab.setAttribute('aria-selected', t===name ? 'true' : 'false');
+      var active = (t===name);
+      panel.classList.toggle('hidden', !active); // .hidden is display:none !important — must toggle the class, not just inline style
+      panel.style.display = active ? '' : 'none';
+      tab.classList.toggle('tab-active', active);
+      tab.setAttribute('aria-selected', active ? 'true' : 'false');
     });
+    if (name === 'catalog') renderCatalog(current.app);
+    else renderMatrix(current.app);
   }
 
   // init → isme (read-only) selected

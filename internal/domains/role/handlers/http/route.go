@@ -26,4 +26,6 @@ func SetupRoleRoutes(router fiber.Router) {
 	rRole.Delete(constants.ROLE_ENDPOINT_MEMBER_DETAIL, rbac.RequirePermission(roleConstants.PERM_ROLE_ASSIGN), RemoveRoleMember)
 
 	router.Get(constants.PERMISSION_ENDPOINT_CATALOG, middleware.AuthMiddleware, rbac.RequirePermission(roleConstants.PERM_ROLE_READ), ListPermissions)
+	router.Post(constants.PERMISSION_ENDPOINT_CATALOG, middleware.AuthMiddleware, rbac.RequirePermission(roleConstants.PERM_ROLE_CREATE), CreatePermissions)
+	router.Delete(constants.PERMISSION_ENDPOINT_DETAIL, middleware.AuthMiddleware, rbac.RequirePermission(roleConstants.PERM_ROLE_DELETE), DeletePermission)
 }

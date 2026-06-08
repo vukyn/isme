@@ -8,6 +8,7 @@ import (
 
 	sqliteHistory "github.com/vukyn/isme/db/history/sqlite"
 	roleConstants "github.com/vukyn/isme/internal/domains/role/constants"
+	"github.com/vukyn/isme/internal/domains/role/models"
 
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/sqlitedialect"
@@ -231,6 +232,45 @@ func TestGetAppCodesByUserID(t *testing.T) {
 	for _, want := range []string{"isme", "medioa2"} {
 		if !slices.Contains(appCodes, want) {
 			t.Errorf("expected app codes to contain %q, got %v", want, appCodes)
+		}
+	}
+}
+
+// CreatePermissions stores the icon on a brand-new resource and reuses it for
+// later rows of the same resource (never overwriting), so a resource keeps one
+// consistent icon and ListPermissions reports it on every row.
+func TestCreatePermissionsIconPerResource(t *testing.T) {
+	db := newTestDB(t)
+	ctx := context.Background()
+	roleRepository := NewRepository(db)
+
+	insertApp(t, db, "app_medioa2", "medioa2", nil)
+
+	// new resource takes the requested icon
+	if _, err := roleRepository.CreatePermissions(ctx, "app_medioa2", []models.PermissionItem{
+		{Resource: "report", Action: "read", Icon: "file"},
+	}); err != nil {
+		t.Fatalf("CreatePermissions() error = %v", err)
+	}
+
+	// a later row of the same resource requests a different icon — the stored
+	// icon must win (existing-resource lock)
+	if _, err := roleRepository.CreatePermissions(ctx, "app_medioa2", []models.PermissionItem{
+		{Resource: "report", Action: "export", Icon: "database"},
+	}); err != nil {
+		t.Fatalf("CreatePermissions() error = %v", err)
+	}
+
+	permissions, err := roleRepository.ListPermissions(ctx, models.ListPermissionsRequest{AppID: "app_medioa2"})
+	if err != nil {
+		t.Fatalf("ListPermissions() error = %v", err)
+	}
+	if len(permissions) != 2 {
+		t.Fatalf("expected 2 permissions, got %d", len(permissions))
+	}
+	for _, permission := range permissions {
+		if permission.Icon != "file" {
+			t.Errorf("expected icon %q for %s:%s, got %q", "file", permission.Resource, permission.Action, permission.Icon)
 		}
 	}
 }

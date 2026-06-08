@@ -24,6 +24,11 @@ type IRepository interface {
 	ListPermissions(ctx context.Context, req models.ListPermissionsRequest) ([]entity.Permission, error)
 	// Create permissions for an app (idempotent); returns the resulting permission IDs keyed by code
 	CreatePermissions(ctx context.Context, appID string, perms []models.PermissionItem) (map[string]int64, error)
+	// Get a single permission by ID
+	GetPermissionByID(ctx context.Context, permissionID int64) (entity.Permission, error)
+	// Delete a permission from the catalog; first clears any role_permissions
+	// grants referencing it, then deletes the permissions row (one transaction)
+	DeletePermission(ctx context.Context, permissionID int64) error
 	// Get permissions assigned to a role
 	GetPermissionsByRoleID(ctx context.Context, roleID string) ([]entity.Permission, error)
 	// Get the resource:action permission codes granted by each role, keyed by

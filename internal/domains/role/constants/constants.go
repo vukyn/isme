@@ -50,3 +50,40 @@ const (
 	ROLE_ID_MEMBER = "rol_member"
 	ROLE_ID_VIEWER = "rol_viewer"
 )
+
+// PERMISSION_ICON_KEYS is the allowlist of per-resource icon keys a caller may
+// store on a permission. Shared intent with the frontend icon registry
+// (ui/src/consts/permissionIcons.ts). An empty icon is always allowed and
+// resolves to a neutral default in the UI.
+var PERMISSION_ICON_KEYS = map[string]struct{}{
+	"file":     {},
+	"folder":   {},
+	"database": {},
+	"box":      {},
+	"image":    {},
+	"music":    {},
+	"video":    {},
+	"shield":   {},
+	"key":      {},
+	"user":     {},
+	"users":    {},
+	"globe":    {},
+	"tag":      {},
+	"lock":     {},
+	"bell":     {},
+	"star":     {},
+	"settings": {},
+	"server":   {},
+	"cloud":    {},
+	"code":     {},
+}
+
+// IsValidPermissionIcon reports whether the icon key is allowed. The empty
+// string (neutral default) is valid; any other value must be in the allowlist.
+func IsValidPermissionIcon(icon string) bool {
+	if icon == "" {
+		return true
+	}
+	_, ok := PERMISSION_ICON_KEYS[icon]
+	return ok
+}

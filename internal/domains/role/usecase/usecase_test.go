@@ -9,6 +9,7 @@ import (
 	appServiceEntity "github.com/vukyn/isme/internal/domains/app_service/entity"
 	appServiceModels "github.com/vukyn/isme/internal/domains/app_service/models"
 	appServiceRepo "github.com/vukyn/isme/internal/domains/app_service/repository"
+	roleConstants "github.com/vukyn/isme/internal/domains/role/constants"
 	"github.com/vukyn/isme/internal/domains/role/entity"
 	"github.com/vukyn/isme/internal/domains/role/models"
 	roleRepo "github.com/vukyn/isme/internal/domains/role/repository"
@@ -20,13 +21,16 @@ import (
 // === Fakes ===
 
 type fakeRoleRepository struct {
-	rolesByID           map[string]entity.Role
-	permissionsByRole   map[string][]entity.Permission
-	membersCount        map[string]int
-	createID            string
-	updatedIDs          []string
-	deletedIDs          []string
-	replacedPermissions map[string][]int64
+	rolesByID            map[string]entity.Role
+	permissionsByID      map[int64]entity.Permission
+	permissionsByRole    map[string][]entity.Permission
+	membersCount         map[string]int
+	createID             string
+	updatedIDs           []string
+	deletedIDs           []string
+	replacedPermissions  map[string][]int64
+	createdPermissions   map[string][]models.PermissionItem
+	deletedPermissionIDs []int64
 }
 
 var _ roleRepo.IRepository = (*fakeRoleRepository)(nil)
@@ -34,9 +38,11 @@ var _ roleRepo.IRepository = (*fakeRoleRepository)(nil)
 func newFakeRoleRepository() *fakeRoleRepository {
 	return &fakeRoleRepository{
 		rolesByID:           map[string]entity.Role{},
+		permissionsByID:     map[int64]entity.Permission{},
 		permissionsByRole:   map[string][]entity.Permission{},
 		membersCount:        map[string]int{},
 		replacedPermissions: map[string][]int64{},
+		createdPermissions:  map[string][]models.PermissionItem{},
 	}
 }
 
@@ -72,15 +78,56 @@ func (f *fakeRoleRepository) SoftDelete(ctx context.Context, id string) error {
 }
 
 func (f *fakeRoleRepository) ListPermissions(ctx context.Context, req models.ListPermissionsRequest) ([]entity.Permission, error) {
-	return nil, nil
+	items := []entity.Permission{}
+	for _, perm := range f.createdPermissions[req.AppID] {
+		items = append(items, entity.Permission{
+			ID:       perm.ID,
+			AppID:    req.AppID,
+			Resource: perm.Resource,
+			Action:   perm.Action,
+			Icon:     perm.Icon,
+		})
+	}
+	return items, nil
 }
 
 func (f *fakeRoleRepository) CreatePermissions(ctx context.Context, appID string, perms []models.PermissionItem) (map[string]int64, error) {
+	// mirror the repo's per-resource icon rule: an existing resource keeps its
+	// stored icon; a new resource takes the icon on its first incoming pair.
+	iconByResource := map[string]string{}
+	for _, existing := range f.createdPermissions[appID] {
+		if _, seen := iconByResource[existing.Resource]; !seen && existing.Icon != "" {
+			iconByResource[existing.Resource] = existing.Icon
+		}
+	}
+	for _, perm := range perms {
+		if _, resolved := iconByResource[perm.Resource]; !resolved {
+			iconByResource[perm.Resource] = perm.Icon
+		}
+	}
+
 	ids := map[string]int64{}
 	for i, perm := range perms {
-		ids[perm.Resource+":"+perm.Action] = int64(i + 1)
+		id := int64(len(f.createdPermissions[appID]) + i + 1)
+		f.createdPermissions[appID] = append(f.createdPermissions[appID], models.PermissionItem{
+			ID:       id,
+			AppID:    appID,
+			Resource: perm.Resource,
+			Action:   perm.Action,
+			Icon:     iconByResource[perm.Resource],
+		})
+		ids[perm.Resource+":"+perm.Action] = id
 	}
 	return ids, nil
+}
+
+func (f *fakeRoleRepository) GetPermissionByID(ctx context.Context, permissionID int64) (entity.Permission, error) {
+	return f.permissionsByID[permissionID], nil
+}
+
+func (f *fakeRoleRepository) DeletePermission(ctx context.Context, permissionID int64) error {
+	f.deletedPermissionIDs = append(f.deletedPermissionIDs, permissionID)
+	return nil
 }
 
 func (f *fakeRoleRepository) GetPermissionsByRoleID(ctx context.Context, roleID string) ([]entity.Permission, error) {
@@ -339,7 +386,7 @@ func TestCreateRejectsCrossAppClone(t *testing.T) {
 	}
 }
 
-func TestProvisionDefaultRolesSeedsAdminRole(t *testing.T) {
+func TestProvisionDefaultRolesSeedsEmptyAdminRole(t *testing.T) {
 	fakeRole := newFakeRoleRepository()
 	fakeRole.createID = "rol_admin_new"
 
@@ -348,13 +395,12 @@ func TestProvisionDefaultRolesSeedsAdminRole(t *testing.T) {
 		t.Fatalf("ProvisionDefaultRoles() error = %v", err)
 	}
 
-	// the admin role must have received a non-empty CRUD permission set
-	granted, ok := fakeRole.replacedPermissions["rol_admin_new"]
-	if !ok {
-		t.Fatal("expected the admin role to be granted permissions")
+	// the admin role is created with ZERO permissions — none are seeded on app create
+	if len(fakeRole.replacedPermissions) != 0 {
+		t.Error("expected no permissions to be seeded for the admin role")
 	}
-	if len(granted) == 0 {
-		t.Error("expected a non-empty CRUD permission seed for the admin role")
+	if len(fakeRole.createdPermissions) != 0 {
+		t.Error("expected no permissions to be created on app provisioning")
 	}
 }
 
@@ -369,6 +415,208 @@ func TestProvisionDefaultRolesIsIdempotent(t *testing.T) {
 	}
 	if len(fakeRole.replacedPermissions) != 0 {
 		t.Error("expected no provisioning when the admin role already exists")
+	}
+}
+
+func TestCreatePermissionsForNormalApp(t *testing.T) {
+	fakeRole := newFakeRoleRepository()
+
+	items, err := newTestUsecase(fakeRole).CreatePermissions(context.Background(), models.CreatePermissionsRequest{
+		AppID: testAppID,
+		Permissions: []models.PermissionPair{
+			{Resource: "report", Action: "read"},
+			{Resource: "report", Action: "export"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreatePermissions() error = %v", err)
+	}
+	if len(items) != 2 {
+		t.Fatalf("expected 2 created permission items, got %d", len(items))
+	}
+	for _, item := range items {
+		if item.ID == 0 {
+			t.Errorf("expected created permission %s:%s to have an id", item.Resource, item.Action)
+		}
+		if item.AppID != testAppID {
+			t.Errorf("expected app_id %q, got %q", testAppID, item.AppID)
+		}
+	}
+	if got := fakeRole.createdPermissions[testAppID]; len(got) != 2 {
+		t.Errorf("expected 2 permissions persisted, got %d", len(got))
+	}
+}
+
+// A brand-new resource takes the icon supplied on its first pair, and every
+// returned row of that resource reports it.
+func TestCreatePermissionsStoresIconForNewResource(t *testing.T) {
+	fakeRole := newFakeRoleRepository()
+
+	items, err := newTestUsecase(fakeRole).CreatePermissions(context.Background(), models.CreatePermissionsRequest{
+		AppID: testAppID,
+		Permissions: []models.PermissionPair{
+			{Resource: "report", Action: "read", Icon: "file"},
+			{Resource: "report", Action: "export", Icon: "file"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreatePermissions() error = %v", err)
+	}
+	for _, item := range items {
+		if item.Icon != "file" {
+			t.Errorf("expected icon %q for %s:%s, got %q", "file", item.Resource, item.Action, item.Icon)
+		}
+	}
+}
+
+// When a resource already exists, new pairs reuse that resource's stored icon
+// and ignore any icon supplied on the request (existing-resource lock).
+func TestCreatePermissionsReusesExistingResourceIcon(t *testing.T) {
+	fakeRole := newFakeRoleRepository()
+	usecase := newTestUsecase(fakeRole)
+
+	if _, err := usecase.CreatePermissions(context.Background(), models.CreatePermissionsRequest{
+		AppID:       testAppID,
+		Permissions: []models.PermissionPair{{Resource: "report", Action: "read", Icon: "file"}},
+	}); err != nil {
+		t.Fatalf("seed CreatePermissions() error = %v", err)
+	}
+
+	// add another action to the same resource but request a DIFFERENT icon
+	items, err := usecase.CreatePermissions(context.Background(), models.CreatePermissionsRequest{
+		AppID:       testAppID,
+		Permissions: []models.PermissionPair{{Resource: "report", Action: "export", Icon: "database"}},
+	})
+	if err != nil {
+		t.Fatalf("CreatePermissions() error = %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("expected 1 returned item, got %d", len(items))
+	}
+	if items[0].Icon != "file" {
+		t.Errorf("expected the existing resource icon %q to be reused, got %q", "file", items[0].Icon)
+	}
+}
+
+// An unknown icon key is rejected by validation; the empty icon is allowed.
+func TestCreatePermissionsIconValidation(t *testing.T) {
+	tests := []struct {
+		name    string
+		icon    string
+		wantErr bool
+	}{
+		{"known key", "database", false},
+		{"empty allowed", "", false},
+		{"unknown key rejected", "rocket", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fakeRole := newFakeRoleRepository()
+			_, err := newTestUsecase(fakeRole).CreatePermissions(context.Background(), models.CreatePermissionsRequest{
+				AppID:       testAppID,
+				Permissions: []models.PermissionPair{{Resource: "report", Action: "read", Icon: tt.icon}},
+			})
+			if tt.wantErr && err == nil {
+				t.Errorf("CreatePermissions(icon=%q) expected error, got nil", tt.icon)
+			}
+			if !tt.wantErr && err != nil {
+				t.Errorf("CreatePermissions(icon=%q) unexpected error: %v", tt.icon, err)
+			}
+		})
+	}
+}
+
+func TestCreatePermissionsRejectsIsmeSystemApp(t *testing.T) {
+	fakeRole := newFakeRoleRepository()
+
+	_, err := newTestUsecase(fakeRole).CreatePermissions(context.Background(), models.CreatePermissionsRequest{
+		AppID:       roleConstants.APP_ID_ISME,
+		Permissions: []models.PermissionPair{{Resource: "report", Action: "read"}},
+	})
+	if err == nil {
+		t.Fatal("expected error creating permissions for the isme system app, got nil")
+	}
+	if !strings.Contains(err.Error(), "read-only") {
+		t.Errorf("error = %q, want it to mention read-only", err.Error())
+	}
+	if len(fakeRole.createdPermissions) != 0 {
+		t.Error("permissions were created for the isme system app despite the guard")
+	}
+}
+
+func TestDeletePermissionForNormalApp(t *testing.T) {
+	fakeRole := newFakeRoleRepository()
+	fakeRole.permissionsByID[42] = entity.Permission{ID: 42, AppID: testAppID, Resource: "report", Action: "read"}
+
+	err := newTestUsecase(fakeRole).DeletePermission(context.Background(), 42)
+	if err != nil {
+		t.Fatalf("DeletePermission() error = %v", err)
+	}
+	if got := fakeRole.deletedPermissionIDs; len(got) != 1 || got[0] != 42 {
+		t.Errorf("deleted permission ids = %v, want [42] (delete + grant cleanup runs in the repo)", got)
+	}
+}
+
+func TestDeletePermissionRejectsIsmeSystemApp(t *testing.T) {
+	fakeRole := newFakeRoleRepository()
+	fakeRole.permissionsByID[7] = entity.Permission{ID: 7, AppID: roleConstants.APP_ID_ISME, Resource: "user", Action: "read"}
+
+	err := newTestUsecase(fakeRole).DeletePermission(context.Background(), 7)
+	if err == nil {
+		t.Fatal("expected error deleting an isme system-app permission, got nil")
+	}
+	if !strings.Contains(err.Error(), "read-only") {
+		t.Errorf("error = %q, want it to mention read-only", err.Error())
+	}
+	if len(fakeRole.deletedPermissionIDs) != 0 {
+		t.Error("permission was deleted for the isme system app despite the guard")
+	}
+}
+
+func TestDeletePermissionNotFound(t *testing.T) {
+	fakeRole := newFakeRoleRepository()
+
+	err := newTestUsecase(fakeRole).DeletePermission(context.Background(), 999)
+	if err == nil {
+		t.Fatal("expected not-found error, got nil")
+	}
+	if !strings.Contains(err.Error(), "not found") {
+		t.Errorf("error = %q, want it to mention not found", err.Error())
+	}
+	if len(fakeRole.deletedPermissionIDs) != 0 {
+		t.Error("a missing permission was deleted")
+	}
+}
+
+func TestCreatePermissionsValidation(t *testing.T) {
+	tests := []struct {
+		name     string
+		resource string
+		action   string
+		wantErr  bool
+	}{
+		{"valid", "report", "read", false},
+		{"underscore allowed", "audit_log", "read", false},
+		{"empty resource", "", "read", true},
+		{"empty action", "report", "", true},
+		{"colon in resource rejected", "report:thing", "read", true},
+		{"colon in action rejected", "report", "read:all", true},
+		{"uppercase rejected", "Report", "read", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fakeRole := newFakeRoleRepository()
+			_, err := newTestUsecase(fakeRole).CreatePermissions(context.Background(), models.CreatePermissionsRequest{
+				AppID:       testAppID,
+				Permissions: []models.PermissionPair{{Resource: tt.resource, Action: tt.action}},
+			})
+			if tt.wantErr && err == nil {
+				t.Errorf("CreatePermissions(%q:%q) expected error, got nil", tt.resource, tt.action)
+			}
+			if !tt.wantErr && err != nil {
+				t.Errorf("CreatePermissions(%q:%q) unexpected error: %v", tt.resource, tt.action, err)
+			}
+		})
 	}
 }
 
