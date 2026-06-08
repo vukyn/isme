@@ -13,17 +13,29 @@ export interface User {
  */
 export type UserStatus = 1 | 2 | 3;
 
-/** Maps to internal/domains/user/models.UserListItem. */
+/** One app-scoped role a user holds — rendered as an `app_code:role_code` chip.
+ *  Maps to internal/domains/user/models.AppRole. */
+export interface AppRole {
+	app_code: string;
+	app_name: string;
+	role_code: string;
+	role_name: string;
+}
+
+/** Maps to internal/domains/user/models.UserListItem.
+ *  is_admin is GONE (app-owned RBAC): platform admin = the `admin` role on the
+ *  isme app, surfaced via `roles` below. */
 export interface UserListItem {
 	id: string;
 	name: string;
 	email: string;
 	status: UserStatus;
-	is_admin: boolean;
 	/** One-way verification flag — false blocks login ("account pending verification"). */
 	is_verified: boolean;
-	/** Global RBAC role code; omitted when the user has no global role. */
-	role?: string;
+	/** Full set of app-scoped roles the user holds (models.UserListItem.Roles).
+	 *  Empty = the user holds no roles. The "Roles (by app)" column renders one
+	 *  chip per entry. */
+	roles: AppRole[];
 	sessions_count: number;
 	/** RFC3339; empty / zero time = never logged in. */
 	last_login_at: string;
@@ -57,10 +69,18 @@ export interface UserSessionItem {
 	status: number;
 }
 
-/** Maps to internal/domains/user_invitation/models.CreateRequest. */
+/** One app-scoped role assignment carried by an invitation — pairs a role with
+ *  the app it is scoped to. Maps to models.RoleAssignment. */
+export interface InvitationRoleAssignment {
+	role_id: string;
+	app_service_id: string;
+}
+
+/** Maps to internal/domains/user_invitation/models.CreateRequest — email plus
+ *  one or more app-scoped role assignments. */
 export interface CreateInvitationRequest {
 	email: string;
-	role_id: string;
+	assignments: InvitationRoleAssignment[];
 }
 
 /** One-time invite link — the raw token is never re-displayable after creation. */
@@ -84,12 +104,22 @@ export const INVITATION_STATUS_LABELS: Record<InvitationStatus, InvitationDispla
 	3: "revoked",
 };
 
+/** One assigned role on a listed invitation. Maps to models.AssignmentItem. */
+export interface InvitationAssignmentItem {
+	role_id: string;
+	role_name: string;
+	role_code: string;
+	app_service_id: string;
+	app_code: string;
+	app_name: string;
+}
+
 /** Maps to internal/domains/user_invitation/models.InvitationListItem. */
 export interface InvitationListItem {
 	id: string;
 	email: string;
-	role_id: string;
-	role_name: string;
+	/** Full set of app-scoped roles this invitation grants on accept. */
+	assignments: InvitationAssignmentItem[];
 	status: InvitationStatus;
 	expires_at: string;
 	/** RFC3339; empty when not accepted. */

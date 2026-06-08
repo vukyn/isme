@@ -126,7 +126,7 @@ func (u *usecase) Login(ctx context.Context, req models.LoginRequest) (models.Lo
 	}
 
 	// check if session ID is valid
-	var redirectURL, appServiceID string
+	var redirectURL, appServiceID, appCode string
 	if req.SessionID != "" {
 		cacheAppServiceID, ok := u.cache.Get(req.SessionID)
 		if !ok {
@@ -142,6 +142,7 @@ func (u *usecase) Login(ctx context.Context, req models.LoginRequest) (models.Lo
 			return models.LoginResponse{}, pkgErr.InvalidRequest("invalid session_id")
 		}
 		redirectURL = appService.RedirectURL
+		appCode = appService.AppCode
 	}
 
 	// check if user exists
@@ -173,14 +174,20 @@ func (u *usecase) Login(ctx context.Context, req models.LoginRequest) (models.Lo
 		_ = u.userRepo.SetPassword(ctx, user.ID, req.Password)
 	}
 
-	// load authorization data for the access token claims
-	permissionCodes, err := u.roleRepo.GetPermissionCodesByUserID(ctx, user.ID, "")
+	// load authorization data grouped by owning app for the access token claims
+	groupedPerms, err := u.roleRepo.GetPermissionCodesGroupedByApp(ctx, user.ID)
 	if err != nil {
 		return models.LoginResponse{}, err
 	}
 
+	// build the resource_access + audience for this token:
+	//   - SSO login (appServiceID set): aud-restricted to the requesting app only
+	//   - first-party isme login: full multi-app token (all apps the user has roles
+	//     in, plus isme itself)
+	resourceAccess, audience := buildTokenScope(groupedPerms, appCode)
+
 	// generate access tokens
-	accessToken, accessTokenClaims, err := u.generateAccessTokens(user.ID, user.Email, user.IsAdmin, permissionCodes)
+	accessToken, accessTokenClaims, err := u.generateAccessTokens(user.ID, user.Email, resourceAccess, audience)
 	if err != nil {
 		return models.LoginResponse{}, err
 	}
@@ -192,8 +199,8 @@ func (u *usecase) Login(ctx context.Context, req models.LoginRequest) (models.Lo
 		return models.LoginResponse{}, err
 	}
 
-	// create user session
-	_, err = u.createUserSession(ctx, user.ID, accessTokenClaims.GetTokenID(), user.Email, refreshToken, accessTokenClaims.GetExpiredAt())
+	// create user session (records the requesting app for SSO refresh scoping)
+	_, err = u.createUserSession(ctx, user.ID, accessTokenClaims.GetTokenID(), user.Email, refreshToken, appServiceID, accessTokenClaims.GetExpiredAt())
 	if err != nil {
 		return models.LoginResponse{}, err
 	}
@@ -276,13 +283,25 @@ func (u *usecase) RefreshToken(ctx context.Context, req models.RefreshTokenReque
 	}
 
 	// re-load authorization data from the database so revoked rights never survive a refresh
-	permissionCodes, err := u.roleRepo.GetPermissionCodesByUserID(ctx, user.ID, "")
+	groupedPerms, err := u.roleRepo.GetPermissionCodesGroupedByApp(ctx, user.ID)
 	if err != nil {
 		return models.RefreshTokenResponse{}, err
 	}
 
+	// preserve the original token scope: SSO sessions (with a recorded app) refresh
+	// aud-restricted to that app; first-party sessions refresh as a full token
+	appCode := ""
+	if userSession.AppServiceID != "" {
+		appService, err := u.appServiceRepo.GetByID(ctx, userSession.AppServiceID)
+		if err != nil {
+			return models.RefreshTokenResponse{}, err
+		}
+		appCode = appService.AppCode
+	}
+	resourceAccess, audience := buildTokenScope(groupedPerms, appCode)
+
 	// generate new access tokens
-	newAccessToken, accessTokenClaims, err := u.generateAccessTokens(user.ID, user.Email, user.IsAdmin, permissionCodes)
+	newAccessToken, accessTokenClaims, err := u.generateAccessTokens(user.ID, user.Email, resourceAccess, audience)
 	if err != nil {
 		return models.RefreshTokenResponse{}, err
 	}

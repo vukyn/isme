@@ -78,9 +78,13 @@ func defineAppServiceUsecase() *di.Def {
 			if err != nil {
 				return nil, err
 			}
+			roleUsecase, err := GetRoleUsecase(ctn)
+			if err != nil {
+				return nil, err
+			}
 			cfg := ctn.Get(constants.CONTAINER_NAME_CONFIG).(*config.Config)
 			log.New().Debug("App service usecase initialized")
-			return appServiceUsecase.NewUsecase(appServiceRepo, userRepo, cfg), nil
+			return appServiceUsecase.NewUsecase(appServiceRepo, userRepo, roleUsecase, cfg), nil
 		},
 		Close: func(obj any) error {
 			log.New().Debug("App service usecase destroyed")
@@ -188,8 +192,12 @@ func defineUserInvitationUsecase() *di.Def {
 			if err != nil {
 				return nil, err
 			}
+			appServiceRepo, err := GetAppServiceRepository(ctn)
+			if err != nil {
+				return nil, err
+			}
 			log.New().Debug("User invitation usecase initialized")
-			return userInvitationUsecase.NewUsecase(cfg, userInvitationRepo, userRepo, roleRepo), nil
+			return userInvitationUsecase.NewUsecase(cfg, userInvitationRepo, userRepo, roleRepo, appServiceRepo), nil
 		},
 		Close: func(obj any) error {
 			log.New().Debug("User invitation usecase destroyed")

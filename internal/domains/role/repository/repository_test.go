@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	sqliteHistory "github.com/vukyn/isme/db/history/sqlite"
+	roleConstants "github.com/vukyn/isme/internal/domains/role/constants"
 
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/sqlitedialect"
@@ -15,7 +16,7 @@ import (
 )
 
 // newTestDB opens an in-memory SQLite database and applies every migration
-// from db/history/sqlite, including the RBAC seed.
+// from db/history/sqlite, including the RBAC seed and the app-owned migrations.
 func newTestDB(t *testing.T) *bun.DB {
 	t.Helper()
 
@@ -58,100 +59,115 @@ func assignRole(t *testing.T, db *bun.DB, userID, roleID string, appServiceID an
 	}
 }
 
+// insertApp seeds an additional app_service plus an admin role + perm catalog for it.
+func insertApp(t *testing.T, db *bun.DB, appID, appCode string, resources []string) {
+	t.Helper()
+	_, err := db.Exec(`
+		INSERT INTO app_services (id, app_code, app_name, app_secret, redirect_url, ctx_info, status)
+		VALUES (?, ?, ?, '', '', 'authen', 1)
+	`, appID, appCode, appCode)
+	if err != nil {
+		t.Fatalf("insert app %s: %v", appID, err)
+	}
+	roleID := "rol_" + appCode + "_admin"
+	if _, err := db.Exec(`
+		INSERT INTO roles (id, app_id, code, name, is_system) VALUES (?, ?, 'admin', 'Admin', 0)
+	`, roleID, appID); err != nil {
+		t.Fatalf("insert app admin role: %v", err)
+	}
+	for _, resource := range resources {
+		if _, err := db.Exec(`
+			INSERT INTO permissions (app_id, resource, action) VALUES (?, ?, 'read')
+		`, appID, resource); err != nil {
+			t.Fatalf("insert app perm: %v", err)
+		}
+		if _, err := db.Exec(`
+			INSERT INTO role_permissions (role_id, permission_id)
+			SELECT ?, id FROM permissions WHERE app_id = ? AND resource = ? AND action = 'read'
+		`, roleID, appID, resource); err != nil {
+			t.Fatalf("grant app perm: %v", err)
+		}
+	}
+}
+
 func TestGetPermissionCodesByUserID(t *testing.T) {
 	db := newTestDB(t)
 	ctx := context.Background()
 	roleRepository := NewRepository(db)
 
 	memberReadCodes := []string{"user:read", "user_session:read", "app_service:read", "role:read"}
+	isme := roleConstants.APP_ID_ISME
 
-	// user with a global member role
-	insertUser(t, db, "user-global")
-	assignRole(t, db, "user-global", "rol_member", nil)
+	// user with an isme-app member role (scoped to app_isme)
+	insertUser(t, db, "user-isme")
+	assignRole(t, db, "user-isme", "rol_member", isme)
 
-	// user with an app-scoped member role only
-	insertUser(t, db, "user-scoped")
-	assignRole(t, db, "user-scoped", "rol_member", "app-1")
-
-	// user holding a custom role that gets soft-deleted
+	// user with a custom role that gets soft-deleted
 	insertUser(t, db, "user-deleted-role")
 	if _, err := db.Exec(`
-		INSERT INTO roles (id, code, name, is_system) VALUES ('rol_custom', 'custom', 'Custom', 0)
-	`); err != nil {
+		INSERT INTO roles (id, app_id, code, name, is_system) VALUES ('rol_custom', ?, 'custom', 'Custom', 0)
+	`, isme); err != nil {
 		t.Fatalf("insert custom role: %v", err)
 	}
 	if _, err := db.Exec(`
 		INSERT INTO role_permissions (role_id, permission_id)
-		SELECT 'rol_custom', id FROM permissions WHERE resource = 'user' AND action = 'read'
-	`); err != nil {
+		SELECT 'rol_custom', id FROM permissions WHERE app_id = ? AND resource = 'user' AND action = 'read'
+	`, isme); err != nil {
 		t.Fatalf("grant permission to custom role: %v", err)
 	}
-	assignRole(t, db, "user-deleted-role", "rol_custom", nil)
+	assignRole(t, db, "user-deleted-role", "rol_custom", isme)
 	if _, err := db.Exec(`UPDATE roles SET deleted_at = CURRENT_TIMESTAMP WHERE id = 'rol_custom'`); err != nil {
 		t.Fatalf("soft delete custom role: %v", err)
 	}
 
-	// user with the global admin role
+	// user with the isme admin role
 	insertUser(t, db, "user-admin")
-	assignRole(t, db, "user-admin", "rol_admin", nil)
+	assignRole(t, db, "user-admin", "rol_admin", isme)
 
 	tests := []struct {
-		name         string
-		userID       string
-		appServiceID string
-		wantCount    int
-		wantCodes    []string
+		name      string
+		userID    string
+		appID     string
+		wantCount int
+		wantCodes []string
 	}{
 		{
-			name:         "global role resolves with empty app service ID",
-			userID:       "user-global",
-			appServiceID: "",
-			wantCount:    4,
-			wantCodes:    memberReadCodes,
+			name:      "isme member role resolves with empty app filter",
+			userID:    "user-isme",
+			appID:     "",
+			wantCount: 4,
+			wantCodes: memberReadCodes,
 		},
 		{
-			name:         "global role also resolves within an app scope",
-			userID:       "user-global",
-			appServiceID: "app-1",
-			wantCount:    4,
-			wantCodes:    memberReadCodes,
+			name:      "isme member role resolves with matching app id",
+			userID:    "user-isme",
+			appID:     isme,
+			wantCount: 4,
+			wantCodes: memberReadCodes,
 		},
 		{
-			name:         "app-scoped role does not resolve globally",
-			userID:       "user-scoped",
-			appServiceID: "",
-			wantCount:    0,
+			name:      "isme role does not resolve for another app",
+			userID:    "user-isme",
+			appID:     "app_other",
+			wantCount: 0,
 		},
 		{
-			name:         "app-scoped role resolves with matching app service ID",
-			userID:       "user-scoped",
-			appServiceID: "app-1",
-			wantCount:    4,
-			wantCodes:    memberReadCodes,
+			name:      "soft-deleted role is excluded",
+			userID:    "user-deleted-role",
+			appID:     "",
+			wantCount: 0,
 		},
 		{
-			name:         "app-scoped role does not resolve for another app",
-			userID:       "user-scoped",
-			appServiceID: "app-2",
-			wantCount:    0,
-		},
-		{
-			name:         "soft-deleted role is excluded",
-			userID:       "user-deleted-role",
-			appServiceID: "",
-			wantCount:    0,
-		},
-		{
-			name:         "admin holds the full catalog",
-			userID:       "user-admin",
-			appServiceID: "",
-			wantCount:    19,
-			wantCodes:    []string{"user:read", "user:delete", "user:verify", "role:assign", "app_service:rotate_secret", "user_session:revoke"},
+			name:      "admin holds the full isme catalog",
+			userID:    "user-admin",
+			appID:     isme,
+			wantCount: 19,
+			wantCodes: []string{"user:read", "user:delete", "user:verify", "role:assign", "app_service:rotate_secret", "user_session:revoke"},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			codes, err := roleRepository.GetPermissionCodesByUserID(ctx, tt.userID, tt.appServiceID)
+			codes, err := roleRepository.GetPermissionCodesByUserID(ctx, tt.userID, tt.appID)
 			if err != nil {
 				t.Fatalf("GetPermissionCodesByUserID() error = %v", err)
 			}
@@ -165,4 +181,64 @@ func TestGetPermissionCodesByUserID(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetPermissionCodesGroupedByApp(t *testing.T) {
+	db := newTestDB(t)
+	ctx := context.Background()
+	roleRepository := NewRepository(db)
+
+	isme := roleConstants.APP_ID_ISME
+	insertApp(t, db, "app_medioa2", "medioa2", []string{"object", "bucket"})
+
+	insertUser(t, db, "user-multi")
+	assignRole(t, db, "user-multi", "rol_member", isme)            // isme: read perms
+	assignRole(t, db, "user-multi", "rol_medioa2_admin", "app_medioa2") // medioa2: object/bucket read
+
+	grouped, err := roleRepository.GetPermissionCodesGroupedByApp(ctx, "user-multi")
+	if err != nil {
+		t.Fatalf("GetPermissionCodesGroupedByApp() error = %v", err)
+	}
+
+	if _, ok := grouped["isme"]; !ok {
+		t.Errorf("expected an isme group, got keys %v", keysOf(grouped))
+	}
+	if !slices.Contains(grouped["isme"], "user:read") {
+		t.Errorf("expected isme group to contain user:read, got %v", grouped["isme"])
+	}
+	medioa2 := grouped["medioa2"]
+	if !slices.Contains(medioa2, "object:read") || !slices.Contains(medioa2, "bucket:read") {
+		t.Errorf("expected medioa2 group to contain object:read + bucket:read, got %v", medioa2)
+	}
+}
+
+func TestGetAppCodesByUserID(t *testing.T) {
+	db := newTestDB(t)
+	ctx := context.Background()
+	roleRepository := NewRepository(db)
+
+	isme := roleConstants.APP_ID_ISME
+	insertApp(t, db, "app_medioa2", "medioa2", []string{"object"})
+
+	insertUser(t, db, "user-multi")
+	assignRole(t, db, "user-multi", "rol_member", isme)
+	assignRole(t, db, "user-multi", "rol_medioa2_admin", "app_medioa2")
+
+	appCodes, err := roleRepository.GetAppCodesByUserID(ctx, "user-multi")
+	if err != nil {
+		t.Fatalf("GetAppCodesByUserID() error = %v", err)
+	}
+	for _, want := range []string{"isme", "medioa2"} {
+		if !slices.Contains(appCodes, want) {
+			t.Errorf("expected app codes to contain %q, got %v", want, appCodes)
+		}
+	}
+}
+
+func keysOf(m map[string][]string) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
 }

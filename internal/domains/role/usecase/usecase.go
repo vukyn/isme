@@ -4,6 +4,7 @@ import (
 	"context"
 
 	appServiceRepo "github.com/vukyn/isme/internal/domains/app_service/repository"
+	roleConstants "github.com/vukyn/isme/internal/domains/role/constants"
 	"github.com/vukyn/isme/internal/domains/role/entity"
 	"github.com/vukyn/isme/internal/domains/role/models"
 	roleRepo "github.com/vukyn/isme/internal/domains/role/repository"
@@ -30,8 +31,8 @@ func NewUsecase(
 	}
 }
 
-func (u *usecase) List(ctx context.Context) ([]models.RoleListItem, error) {
-	return u.roleRepo.List(ctx)
+func (u *usecase) List(ctx context.Context, req models.ListRequest) ([]models.RoleListItem, error) {
+	return u.roleRepo.List(ctx, req)
 }
 
 func (u *usecase) Create(ctx context.Context, req models.CreateRequest) (models.CreateResponse, error) {
@@ -40,8 +41,17 @@ func (u *usecase) Create(ctx context.Context, req models.CreateRequest) (models.
 		return models.CreateResponse{}, pkgErr.InvalidRequest(err.Error())
 	}
 
-	// check code uniqueness
-	existingRole, err := u.roleRepo.GetByCode(ctx, req.Code)
+	// the owning app must exist
+	app, err := u.appServiceRepo.GetByID(ctx, req.AppID)
+	if err != nil {
+		return models.CreateResponse{}, err
+	}
+	if app.ID == "" {
+		return models.CreateResponse{}, pkgErr.InvalidRequest("app service not found")
+	}
+
+	// check code uniqueness within the app
+	existingRole, err := u.roleRepo.GetByAppAndCode(ctx, req.AppID, req.Code)
 	if err != nil {
 		return models.CreateResponse{}, err
 	}
@@ -58,6 +68,11 @@ func (u *usecase) Create(ctx context.Context, req models.CreateRequest) (models.
 		}
 		if sourceRole.ID == "" {
 			return models.CreateResponse{}, pkgErr.InvalidRequest("clone source role not found")
+		}
+		// cross-app clone is rejected — a role can only inherit permissions
+		// from another role owned by the same app (decision 3)
+		if sourceRole.AppID != req.AppID {
+			return models.CreateResponse{}, pkgErr.InvalidRequest("clone source role must belong to the same app")
 		}
 		clonedPermissions, err = u.roleRepo.GetPermissionsByRoleID(ctx, sourceRole.ID)
 		if err != nil {
@@ -105,13 +120,26 @@ func (u *usecase) GetDetail(ctx context.Context, id string) (models.RoleDetailRe
 	for _, permission := range permissions {
 		permissionItems = append(permissionItems, models.PermissionItem{
 			ID:       permission.ID,
+			AppID:    permission.AppID,
 			Resource: permission.Resource,
 			Action:   permission.Action,
 		})
 	}
 
+	// resolve the owning app_code for the response
+	appCode := ""
+	if role.AppID != "" {
+		app, err := u.appServiceRepo.GetByID(ctx, role.AppID)
+		if err != nil {
+			return models.RoleDetailResponse{}, err
+		}
+		appCode = app.AppCode
+	}
+
 	return models.RoleDetailResponse{
 		ID:          role.ID,
+		AppID:       role.AppID,
+		AppCode:     appCode,
 		Code:        role.Code,
 		Name:        role.Name,
 		Description: role.Description,
@@ -187,8 +215,8 @@ func (u *usecase) SetPermissions(ctx context.Context, id string, req models.SetP
 	return u.roleRepo.ReplaceRolePermissions(ctx, id, req.PermissionIDs)
 }
 
-func (u *usecase) ListPermissions(ctx context.Context) ([]models.PermissionItem, error) {
-	permissions, err := u.roleRepo.ListPermissions(ctx)
+func (u *usecase) ListPermissions(ctx context.Context, req models.ListPermissionsRequest) ([]models.PermissionItem, error) {
+	permissions, err := u.roleRepo.ListPermissions(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -197,11 +225,62 @@ func (u *usecase) ListPermissions(ctx context.Context) ([]models.PermissionItem,
 	for _, permission := range permissions {
 		items = append(items, models.PermissionItem{
 			ID:       permission.ID,
+			AppID:    permission.AppID,
 			Resource: permission.Resource,
 			Action:   permission.Action,
 		})
 	}
 	return items, nil
+}
+
+// ProvisionDefaultRoles seeds an "admin" role holding the app's full CRUD
+// permission catalog (decision 4). Idempotent: re-running for an app that
+// already has the admin role is a no-op.
+func (u *usecase) ProvisionDefaultRoles(ctx context.Context, appID string) error {
+	if appID == "" {
+		return pkgErr.InvalidRequest("app_id is required")
+	}
+
+	// idempotency: skip when the admin role already exists for this app
+	existing, err := u.roleRepo.GetByAppAndCode(ctx, appID, roleConstants.ROLE_CODE_ADMIN)
+	if err != nil {
+		return err
+	}
+	if existing.ID != "" {
+		return nil
+	}
+
+	// full CRUD seed for the app's own resources
+	defaultResources := []string{"object", "bucket", "storage", "playlist", "station", "track"}
+	defaultActions := []string{"read", "create", "update", "delete"}
+	perms := make([]models.PermissionItem, 0, len(defaultResources)*len(defaultActions))
+	for _, resource := range defaultResources {
+		for _, action := range defaultActions {
+			perms = append(perms, models.PermissionItem{Resource: resource, Action: action})
+		}
+	}
+
+	permissionIDsByCode, err := u.roleRepo.CreatePermissions(ctx, appID, perms)
+	if err != nil {
+		return err
+	}
+
+	// create the admin role and grant it the full catalog
+	roleID, err := u.roleRepo.Create(ctx, models.CreateRequest{
+		AppID:       appID,
+		Code:        roleConstants.ROLE_CODE_ADMIN,
+		Name:        "Admin",
+		Description: "Full access to every resource",
+	})
+	if err != nil {
+		return err
+	}
+
+	permissionIDs := make([]int64, 0, len(permissionIDsByCode))
+	for _, permissionID := range permissionIDsByCode {
+		permissionIDs = append(permissionIDs, permissionID)
+	}
+	return u.roleRepo.ReplaceRolePermissions(ctx, roleID, permissionIDs)
 }
 
 func (u *usecase) ListMembers(ctx context.Context, id string, req models.ListMembersRequest) (models.ListMembersResponse, error) {

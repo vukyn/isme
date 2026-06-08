@@ -55,14 +55,6 @@ func (f *fakeUserRepository) UpdateLastLogin(ctx context.Context, id string) err
 	return nil
 }
 
-func (f *fakeUserRepository) PromoteAdmin(ctx context.Context, id string) error {
-	return nil
-}
-
-func (f *fakeUserRepository) IsAdmin(ctx context.Context, id string) (bool, error) {
-	return false, nil
-}
-
 func (f *fakeUserRepository) Verify(ctx context.Context, id string) error {
 	return nil
 }
@@ -122,7 +114,8 @@ func (f *fakeUserSessionRepository) CountActiveByUserIDs(ctx context.Context, us
 }
 
 type fakeRoleRepository struct {
-	permissionCodes []string
+	permissionCodes        []string
+	groupedPermissionCodes map[string][]string
 }
 
 func (f *fakeRoleRepository) Create(ctx context.Context, req roleModels.CreateRequest) (string, error) {
@@ -133,11 +126,11 @@ func (f *fakeRoleRepository) GetByID(ctx context.Context, id string) (roleEntity
 	return roleEntity.Role{}, nil
 }
 
-func (f *fakeRoleRepository) GetByCode(ctx context.Context, code string) (roleEntity.Role, error) {
+func (f *fakeRoleRepository) GetByAppAndCode(ctx context.Context, appID string, code string) (roleEntity.Role, error) {
 	return roleEntity.Role{}, nil
 }
 
-func (f *fakeRoleRepository) List(ctx context.Context) ([]roleModels.RoleListItem, error) {
+func (f *fakeRoleRepository) List(ctx context.Context, req roleModels.ListRequest) ([]roleModels.RoleListItem, error) {
 	return nil, nil
 }
 
@@ -149,7 +142,11 @@ func (f *fakeRoleRepository) SoftDelete(ctx context.Context, id string) error {
 	return nil
 }
 
-func (f *fakeRoleRepository) ListPermissions(ctx context.Context) ([]roleEntity.Permission, error) {
+func (f *fakeRoleRepository) ListPermissions(ctx context.Context, req roleModels.ListPermissionsRequest) ([]roleEntity.Permission, error) {
+	return nil, nil
+}
+
+func (f *fakeRoleRepository) CreatePermissions(ctx context.Context, appID string, perms []roleModels.PermissionItem) (map[string]int64, error) {
 	return nil, nil
 }
 
@@ -177,15 +174,31 @@ func (f *fakeRoleRepository) RemoveMember(ctx context.Context, roleID string, us
 	return nil
 }
 
-func (f *fakeRoleRepository) GetPermissionCodesByUserID(ctx context.Context, userID string, appServiceID string) ([]string, error) {
+func (f *fakeRoleRepository) GetPermissionCodesByUserID(ctx context.Context, userID string, appID string) ([]string, error) {
 	return f.permissionCodes, nil
+}
+
+func (f *fakeRoleRepository) GetPermissionCodesGroupedByApp(ctx context.Context, userID string) (map[string][]string, error) {
+	return f.groupedPermissionCodes, nil
+}
+
+func (f *fakeRoleRepository) GetAppCodesByUserID(ctx context.Context, userID string) ([]string, error) {
+	codes := make([]string, 0, len(f.groupedPermissionCodes))
+	for code := range f.groupedPermissionCodes {
+		codes = append(codes, code)
+	}
+	return codes, nil
 }
 
 func (f *fakeRoleRepository) GetRoleCodesByUserID(ctx context.Context, userID string, appServiceID string) ([]string, error) {
 	return nil, nil
 }
 
-func (f *fakeRoleRepository) GetGlobalRoleCodesByUserIDs(ctx context.Context, userIDs []string) (map[string]string, error) {
+func (f *fakeRoleRepository) GetPermissionCodesByRoleIDs(ctx context.Context, roleIDs []string) (map[string][]string, error) {
+	return nil, nil
+}
+
+func (f *fakeRoleRepository) GetRoleCodesGroupedByAppByUserIDs(ctx context.Context, userIDs []string) (map[string][]roleModels.UserAppRole, error) {
 	return nil, nil
 }
 

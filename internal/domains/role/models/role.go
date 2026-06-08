@@ -10,6 +10,7 @@ import (
 var roleCodePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
 
 type CreateRequest struct {
+	AppID           string `json:"app_id"`
 	Code            string `json:"code"`
 	Name            string `json:"name"`
 	Description     string `json:"description"`
@@ -17,6 +18,9 @@ type CreateRequest struct {
 }
 
 func (r CreateRequest) Validate() error {
+	if r.AppID == "" {
+		return errors.New("app_id is required")
+	}
 	if r.Code == "" {
 		return errors.New("code is required")
 	}
@@ -26,6 +30,26 @@ func (r CreateRequest) Validate() error {
 	if r.Name == "" {
 		return errors.New("name is required")
 	}
+	return nil
+}
+
+// ListRequest filters the role catalog by owning app (empty = all apps).
+type ListRequest struct {
+	AppID   string `json:"app_id" query:"app_id"`
+	AppCode string `json:"app_code" query:"app_code"`
+}
+
+func (r ListRequest) Validate() error {
+	return nil
+}
+
+// ListPermissionsRequest filters the permission catalog by owning app (empty = all apps).
+type ListPermissionsRequest struct {
+	AppID   string `json:"app_id" query:"app_id"`
+	AppCode string `json:"app_code" query:"app_code"`
+}
+
+func (r ListPermissionsRequest) Validate() error {
 	return nil
 }
 
@@ -89,6 +113,8 @@ func (r ListMembersRequest) Validate() error {
 
 type RoleListItem struct {
 	ID           string `json:"id"`
+	AppID        string `json:"app_id"`
+	AppCode      string `json:"app_code"`
 	Code         string `json:"code"`
 	Name         string `json:"name"`
 	Description  string `json:"description"`
@@ -98,17 +124,29 @@ type RoleListItem struct {
 
 type PermissionItem struct {
 	ID       int64  `json:"id"`
+	AppID    string `json:"app_id"`
 	Resource string `json:"resource"`
 	Action   string `json:"action"`
 }
 
 type RoleDetailResponse struct {
 	ID          string           `json:"id"`
+	AppID       string           `json:"app_id"`
+	AppCode     string           `json:"app_code"`
 	Code        string           `json:"code"`
 	Name        string           `json:"name"`
 	Description string           `json:"description"`
 	IsSystem    bool             `json:"is_system"`
 	Permissions []PermissionItem `json:"permissions"`
+}
+
+// UserAppRole is one app-scoped role a user holds, used by the user list to
+// render app:role chips. It carries both codes and display names.
+type UserAppRole struct {
+	AppCode  string `json:"app_code"`
+	AppName  string `json:"app_name"`
+	RoleCode string `json:"role_code"`
+	RoleName string `json:"role_name"`
 }
 
 type MemberItem struct {

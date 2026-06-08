@@ -42,6 +42,7 @@ func (r *repository) Create(ctx context.Context, req models.CreateRequest) (enti
 		ClientIP:     req.ClientIP,
 		UserAgent:    req.UserAgent,
 		TokenID:      req.TokenID,
+		AppServiceID: req.AppServiceID,
 	}
 
 	_, err := r.db.NewInsert().

@@ -6,6 +6,7 @@ import type {
 	ListRoleMembersResponse,
 	PermissionItem,
 	RoleDetailResponse,
+	RoleListFilter,
 	RoleListItem,
 	UpdateRoleRequest,
 } from "@/types";
@@ -19,8 +20,12 @@ interface Envelope<T> {
 	data: T;
 }
 
-export const listRoles = async (): Promise<RoleListItem[]> => {
-	const response = await apiClient.get<Envelope<RoleListItem[]>>(API_ENDPOINTS.ROLES);
+/** Lists roles, optionally scoped to one owning app (app_id/app_code).
+ *  Empty filter returns roles across all apps. */
+export const listRoles = async (filter?: RoleListFilter): Promise<RoleListItem[]> => {
+	const response = await apiClient.get<Envelope<RoleListItem[]>>(API_ENDPOINTS.ROLES, {
+		params: filter?.app_id || filter?.app_code ? { app_id: filter.app_id, app_code: filter.app_code } : undefined,
+	});
 	return response.data.data ?? [];
 };
 
@@ -42,8 +47,11 @@ export const deleteRole = async (roleId: string): Promise<void> => {
 	await apiClient.delete(API_ENDPOINTS.ROLE_DETAIL(roleId));
 };
 
-export const listPermissions = async (): Promise<PermissionItem[]> => {
-	const response = await apiClient.get<Envelope<PermissionItem[]>>(API_ENDPOINTS.PERMISSIONS);
+/** Lists the permission catalog, optionally scoped to one owning app. */
+export const listPermissions = async (filter?: RoleListFilter): Promise<PermissionItem[]> => {
+	const response = await apiClient.get<Envelope<PermissionItem[]>>(API_ENDPOINTS.PERMISSIONS, {
+		params: filter?.app_id || filter?.app_code ? { app_id: filter.app_id, app_code: filter.app_code } : undefined,
+	});
 	return response.data.data ?? [];
 };
 
@@ -76,11 +84,12 @@ export const removeRoleMember = async (
 };
 
 /**
- * Bulk-assign a role (by code) to users — resolves the role id via the roles
- * list, then adds members globally. Used by the Users screen bulk bar.
+ * Bulk-assign an isme-app role (by code) to users — resolves the role id via
+ * the isme-scoped roles list, then adds members globally. Used by the Users
+ * screen bulk bar (platform roles live on the isme app).
  */
 export const assignUserRole = async (userIds: string[], roleCode: string): Promise<void> => {
-	const roles = await listRoles();
+	const roles = await listRoles({ app_code: "isme" });
 	const role = roles.find((item) => item.code === roleCode);
 	if (!role) {
 		throw new Error(`role "${roleCode}" not found`);

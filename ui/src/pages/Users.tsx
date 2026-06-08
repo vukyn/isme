@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
 	Box,
 	Button,
@@ -35,7 +36,6 @@ import {
 	LuPencil,
 	LuRefreshCw,
 	LuSearch,
-	LuShieldCheck,
 	LuShieldQuestion,
 	LuTrash2,
 	LuUserPlus,
@@ -53,6 +53,7 @@ import {
 	softDeleteUser,
 	updateUserStatus,
 } from "@/apis";
+import { AppRoleChip } from "@/components/AppRoleChip";
 import { InviteUserDialog } from "@/components/InviteUserDialog";
 import { VerifyUserDialog } from "@/components/VerifyUserDialog";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -71,8 +72,10 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { AppShell } from "@/layouts/AppShell";
 import { INVITATION_STATUS_LABELS } from "@/types";
 import type {
+	AppRole,
 	InvitationDisplayStatus,
 	InvitationListItem,
+	InvitationRoleAssignment,
 	RoleListItem,
 	UserListItem,
 	UserSessionItem,
@@ -232,33 +235,49 @@ const VerifiedPill = ({ verified }: { verified: boolean }) => {
 	);
 };
 
-const RolePill = ({ role }: { role?: string }) => {
-	const value = role || "member";
-	if (value === "admin") {
+const ROLES_PREVIEW_COUNT = 3;
+
+/**
+ * "Roles (by app)" cell. Renders one app_code:role_code chip per app-scoped role
+ * the user holds (UserListItem.roles), overflowing to "+N" past
+ * ROLES_PREVIEW_COUNT. Empty roles → "no roles". admin on isme = platform
+ * administrator (no separate is_admin badge anymore).
+ */
+const RolesByAppCell = ({ roles }: { roles: AppRole[] }) => {
+	if (roles.length === 0) {
 		return (
-			<Box {...PILL_BASE} color="aurora.violet" borderColor="rgba(139,92,246,0.40)" bg="rgba(139,92,246,0.12)">
-				{value}
-			</Box>
+			<Text fontSize="12px" color="fg.muted" fontStyle="italic">
+				no roles
+			</Text>
 		);
 	}
-	if (value === "content-ops") {
-		return (
-			<Box {...PILL_BASE} color="aurora.amber" borderColor="rgba(245,158,11,0.35)" bg="rgba(245,158,11,0.10)">
-				{value}
-			</Box>
-		);
-	}
-	if (value === "viewer") {
-		return (
-			<Box {...PILL_BASE} color="aurora.mint" borderColor="rgba(52,211,153,0.35)" bg="rgba(52,211,153,0.10)">
-				{value}
-			</Box>
-		);
-	}
+	const visible = roles.slice(0, ROLES_PREVIEW_COUNT);
+	const hidden = roles.length - visible.length;
 	return (
-		<Box {...PILL_BASE} color="aurora.cyan" borderColor="rgba(34,211,238,0.40)" bg="rgba(34,211,238,0.10)">
-			{value}
-		</Box>
+		<HStack gap="1.5" wrap="wrap" maxW="320px">
+			{visible.map((role) => (
+				<AppRoleChip
+					key={`${role.app_code}:${role.role_code}`}
+					appCode={role.app_code}
+					role={role.role_code}
+					title={`${role.app_name} · ${role.role_name}`}
+				/>
+			))}
+			{hidden > 0 && (
+				<Box
+					{...PILL_BASE}
+					px="9px"
+					py="3px"
+					color="fg.subtle"
+					title={roles
+						.slice(ROLES_PREVIEW_COUNT)
+						.map((role) => `${role.app_code}:${role.role_code}`)
+						.join(", ")}
+				>
+					+{hidden} more
+				</Box>
+			)}
+		</HStack>
 	);
 };
 
@@ -524,6 +543,7 @@ const SessionsPanel = ({
 export const Users = () => {
 	const { user: currentUser } = useUser();
 	const { can } = usePermissions();
+	const navigate = useNavigate();
 
 	const canAssignRole = can("role:assign") && can("role:read");
 	const canVerify = can("user:verify");
@@ -564,8 +584,12 @@ export const Users = () => {
 	const [pageSize, setPageSize] = useState(USERS_PAGE_SIZE_OPTIONS[0].value);
 
 	const [inviteOpen, setInviteOpen] = useState(false);
-	// Prefill for the "New invite" re-issue action on revoked/expired invitations.
-	const [invitePrefill, setInvitePrefill] = useState<{ email: string; roleId: string } | null>(null);
+	// Prefill for the "New invite" re-issue action on revoked/expired invitations
+	// — carries the original email + app-scoped assignments.
+	const [invitePrefill, setInvitePrefill] = useState<{
+		email: string;
+		assignments: InvitationRoleAssignment[];
+	} | null>(null);
 
 	// Users | Invitations sub-tab (mock frame 02).
 	const [activeTab, setActiveTab] = useState<"users" | "invitations">("users");
@@ -664,10 +688,12 @@ export const Users = () => {
 	}, [reloadKey]);
 
 	// Role options for the filter select + bulk assign (needs role:read).
+	// Scoped to the isme app — the user list only carries isme-app roles, so the
+	// role filter + bulk-assign operate on isme roles (platform roles).
 	useEffect(() => {
 		if (!can("role:read")) return;
 		let active = true;
-		listRoles()
+		listRoles({ app_code: "isme" })
 			.then((items) => {
 				if (active) setRoleOptions(items);
 			})
@@ -781,7 +807,13 @@ export const Users = () => {
 
 	// Re-issue: opens the invite dialog prefilled — accepting creates a NEW row.
 	const handleReissueInvite = (invitation: InvitationListItem) => {
-		setInvitePrefill({ email: invitation.email, roleId: invitation.role_id });
+		setInvitePrefill({
+			email: invitation.email,
+			assignments: invitation.assignments.map((assignment) => ({
+				role_id: assignment.role_id,
+				app_service_id: assignment.app_service_id,
+			})),
+		});
 		setInviteOpen(true);
 	};
 
@@ -899,9 +931,19 @@ export const Users = () => {
 	};
 
 	const handleExportCsv = () => {
-		const header = "id,name,email,status,is_verified,role,is_admin,sessions,last_login_at,created_at";
+		const header = "id,name,email,status,is_verified,roles,sessions,last_login_at,created_at";
 		const rows = paged.map((user) =>
-			[user.id, user.name, user.email, user.status, user.is_verified, user.role || "member", user.is_admin, user.sessions_count, user.last_login_at, user.created_at]
+			[
+				user.id,
+				user.name,
+				user.email,
+				user.status,
+				user.is_verified,
+				(user.roles ?? []).map((role) => `${role.app_code}:${role.role_code}`).join(" "),
+				user.sessions_count,
+				user.last_login_at,
+				user.created_at,
+			]
 				.map((value) => `"${String(value).replace(/"/g, '""')}"`)
 				.join(",")
 		);
@@ -1039,7 +1081,7 @@ export const Users = () => {
 						boxShadow="ctaGlow"
 						_hover={{ boxShadow: "ctaGlowHi", backgroundPosition: "100% 100%" }}
 						_focusVisible={{ boxShadow: "focusRing" }}
-						onClick={() => setInviteOpen(true)}
+						onClick={() => navigate("/users/invite")}
 					>
 						<LuUserPlus size={16} /> Invite user
 					</Button>
@@ -1328,7 +1370,7 @@ export const Users = () => {
 										onCheckedChange={toggleSelectAll}
 									/>
 								</Table.ColumnHeader>
-								{["User", "Status", "Verified", "Role", "Sessions", "Last login", "Created"].map((label) => (
+								{["User", "Status", "Verified", "Roles (by app)", "Sessions", "Last login", "Created"].map((label) => (
 									<Table.ColumnHeader key={label} px="3.5" py="3" bg="transparent" {...LABEL_PROPS}>
 										{label}
 									</Table.ColumnHeader>
@@ -1377,27 +1419,15 @@ export const Users = () => {
 												<HStack gap="3" minW="0" maxW="300px">
 													<UserAvatar user={user} />
 													<Box minW="0" lineHeight="1.25">
-														<HStack gap="1.5">
-															<Text
-																fontSize="sm"
-																fontWeight="semibold"
-																truncate
-																color={pending ? "fg.muted" : "fg"}
-																title={user.name || undefined}
-															>
-																{user.name || "—"}
-															</Text>
-															{user.is_admin && (
-																<Box
-																	color="aurora.violet"
-																	flex="none"
-																	title="Administrator"
-																	css={{ filter: "drop-shadow(0 0 6px rgba(139,92,246,0.45))" }}
-																>
-																	<LuShieldCheck size={14} />
-																</Box>
-															)}
-														</HStack>
+														<Text
+															fontSize="sm"
+															fontWeight="semibold"
+															truncate
+															color={pending ? "fg.muted" : "fg"}
+															title={user.name || undefined}
+														>
+															{user.name || "—"}
+														</Text>
 														<Text fontSize="12px" color="fg.muted" truncate>
 															{user.email}
 														</Text>
@@ -1411,7 +1441,7 @@ export const Users = () => {
 												<VerifiedPill verified={user.is_verified} />
 											</Table.Cell>
 											<Table.Cell px="3.5" py="13px">
-												<RolePill role={user.role} />
+												<RolesByAppCell roles={user.roles ?? []} />
 											</Table.Cell>
 											<Table.Cell
 												px="3.5"
@@ -1835,7 +1865,38 @@ export const Users = () => {
 												</HStack>
 											</Table.Cell>
 											<Table.Cell px="3.5" py="13px">
-												<RolePill role={invitation.role_name || invitation.role_id} />
+												{/* Invitations carry one or more app-scoped role assignments —
+												    one app_code:role_code chip each, overflowing past 3. */}
+												{invitation.assignments.length === 0 ? (
+													<Text fontSize="12px" color="fg.muted" fontStyle="italic">
+														no roles
+													</Text>
+												) : (
+													<HStack gap="1.5" wrap="wrap" maxW="280px">
+														{invitation.assignments.slice(0, ROLES_PREVIEW_COUNT).map((assignment) => (
+															<AppRoleChip
+																key={`${assignment.app_code}:${assignment.role_code}`}
+																appCode={assignment.app_code}
+																role={assignment.role_code}
+																title={`${assignment.app_name} · ${assignment.role_name}`}
+															/>
+														))}
+														{invitation.assignments.length > ROLES_PREVIEW_COUNT && (
+															<Box
+																{...PILL_BASE}
+																px="9px"
+																py="3px"
+																color="fg.subtle"
+																title={invitation.assignments
+																	.slice(ROLES_PREVIEW_COUNT)
+																	.map((assignment) => `${assignment.app_code}:${assignment.role_code}`)
+																	.join(", ")}
+															>
+																+{invitation.assignments.length - ROLES_PREVIEW_COUNT} more
+															</Box>
+														)}
+													</HStack>
+												)}
 											</Table.Cell>
 											<Table.Cell px="3.5" py="13px">
 												<InvitationStatusPill status={displayStatus} />

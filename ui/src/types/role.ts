@@ -2,9 +2,12 @@
  * RBAC types — mirror internal/domains/role/models/role.go JSON tags.
  */
 
-/** Maps to models.RoleListItem (GET /api/v1/roles). */
+/** Maps to models.RoleListItem (GET /api/v1/roles). RBAC is app-owned: every
+ *  role belongs to one app_service (app_id/app_code). */
 export interface RoleListItem {
 	id: string;
+	app_id: string;
+	app_code: string;
 	code: string;
 	name: string;
 	description: string;
@@ -12,9 +15,12 @@ export interface RoleListItem {
 	members_count: number;
 }
 
-/** Maps to models.PermissionItem (GET /api/v1/permissions + role detail). */
+/** Maps to models.PermissionItem (GET /api/v1/permissions + role detail).
+ *  app_id ties the permission to its owning app; resource:action is the claim
+ *  (never app-prefixed). */
 export interface PermissionItem {
 	id: number;
+	app_id: string;
 	resource: string;
 	action: string;
 }
@@ -22,6 +28,8 @@ export interface PermissionItem {
 /** Maps to models.RoleDetailResponse (GET /api/v1/roles/:id). */
 export interface RoleDetailResponse {
 	id: string;
+	app_id: string;
+	app_code: string;
 	code: string;
 	name: string;
 	description: string;
@@ -29,8 +37,16 @@ export interface RoleDetailResponse {
 	permissions: PermissionItem[];
 }
 
-/** Maps to models.CreateRequest (POST /api/v1/roles). */
+/** Optional app filter for the role + permission list endpoints (empty = all apps). */
+export interface RoleListFilter {
+	app_id?: string;
+	app_code?: string;
+}
+
+/** Maps to models.CreateRequest (POST /api/v1/roles). The new role belongs to
+ *  the selected app (app_id is required and immutable). */
 export interface CreateRoleRequest {
+	app_id: string;
 	code: string;
 	name: string;
 	description: string;

@@ -11,6 +11,8 @@ type IRepository interface {
 	// Create app service
 	Create(ctx context.Context, req entity.CreateRequest) (string, error)
 	GetByID(ctx context.Context, id string) (entity.AppService, error)
+	// Get app services for a set of ids, keyed by id (batched lookup)
+	GetByIDs(ctx context.Context, ids []string) (map[string]entity.AppService, error)
 	// Get app service by code
 	GetByCode(ctx context.Context, code string) (entity.AppService, error)
 	// Update app service

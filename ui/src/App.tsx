@@ -7,6 +7,7 @@ import { Welcome } from "./pages/Welcome";
 import { Sessions } from "./pages/Sessions";
 import { Team } from "./pages/Team";
 import { Users } from "./pages/Users";
+import { InviteUser } from "./pages/InviteUser";
 import { Roles } from "./pages/Roles";
 import { AppServices } from "./pages/AppServices";
 import { Settings } from "./pages/Settings";
@@ -53,6 +54,14 @@ function App() {
 						element={
 							<ProtectedRoute>
 								<Users />
+							</ProtectedRoute>
+						}
+					/>
+					<Route
+						path="/users/invite"
+						element={
+							<ProtectedRoute>
+								<InviteUser />
 							</ProtectedRoute>
 						}
 					/>

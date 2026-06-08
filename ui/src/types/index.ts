@@ -2,14 +2,17 @@ export type { BasePaginationResponse, PageSizeOption } from "./base";
 export type {
 	User,
 	UserStatus,
+	AppRole,
 	UserListItem,
 	ListUsersRequest,
 	ListUsersResponse,
 	UserSessionItem,
+	InvitationRoleAssignment,
 	CreateInvitationRequest,
 	CreateInvitationResponse,
 	InvitationStatus,
 	InvitationDisplayStatus,
+	InvitationAssignmentItem,
 	InvitationListItem,
 } from "./user";
 export { INVITATION_STATUS_LABELS } from "./user";
@@ -22,6 +25,8 @@ export type {
 	RefreshTokenResponse,
 	GetMeResponse,
 	LogoutResponse,
+	InviteAssignmentDetail,
+	InviteDisplayStatus,
 	InviteDetailResponse,
 	AcceptInviteRequest,
 } from "./auth";
@@ -40,6 +45,7 @@ export type {
 } from "./appService";
 export type {
 	RoleListItem,
+	RoleListFilter,
 	PermissionItem,
 	RoleDetailResponse,
 	CreateRoleRequest,

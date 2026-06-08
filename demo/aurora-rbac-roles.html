@@ -1,0 +1,865 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>isme — Roles &amp; Permissions (app-owned) · Aurora UI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  /* ====== Aurora design tokens — extracted from demo/auth-mockup.html ====== */
+  :root {
+    --bg-0: #07071A; --bg-1: #0B0B23; --bg-2: #12122E;
+    --fg: #F4F5FF; --fg-soft: #C7CAE8; --fg-mute: #8A8FB5;
+    --border: rgba(255,255,255,0.10); --border-strong: rgba(255,255,255,0.18);
+    --glass: rgba(255,255,255,0.06); --glass-strong: rgba(255,255,255,0.10);
+    --c-cyan: #22D3EE; --c-blue: #6366F1; --c-violet: #8B5CF6;
+    --c-magenta: #EC4899; --c-amber: #F59E0B; --c-mint: #34D399;
+    --accent: var(--c-violet); --accent-glow: rgba(139,92,246,0.45);
+    --radius: 16px; --radius-sm: 12px; --easing: cubic-bezier(.2,.8,.2,1);
+    --shadow-glass: 0 1px 0 rgba(255,255,255,0.06) inset, 0 8px 32px rgba(0,0,0,0.45);
+    --shadow-pop: 0 20px 60px rgba(99,102,241,0.25), 0 4px 12px rgba(0,0,0,0.35);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter','DM Sans',system-ui,-apple-system,sans-serif;
+    color: var(--fg); background: var(--bg-0);
+    -webkit-font-smoothing: antialiased; line-height: 1.5; overflow-x: hidden;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+  body::before {
+    content: ""; position: fixed; inset: 0; z-index: -2;
+    background:
+      radial-gradient(60% 50% at 12% 10%, rgba(99,102,241,0.45), transparent 60%),
+      radial-gradient(45% 40% at 88% 18%, rgba(34,211,238,0.35), transparent 60%),
+      radial-gradient(55% 45% at 75% 92%, rgba(236,72,153,0.32), transparent 60%),
+      radial-gradient(50% 40% at 18% 80%, rgba(139,92,246,0.32), transparent 60%),
+      linear-gradient(180deg, #07071A 0%, #0B0B23 60%, #04040E 100%);
+    background-size: 200% 200%; animation: auroraFlow 14s ease-in-out infinite alternate; filter: saturate(1.15);
+  }
+  body::after {
+    content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 3px 3px; mix-blend-mode: overlay; opacity: 0.45;
+  }
+  @keyframes auroraFlow {
+    0%   { background-position: 0% 0%, 100% 0%, 100% 100%, 0% 100%, 0 0; }
+    50%  { background-position: 30% 20%, 60% 30%, 70% 70%, 30% 60%, 0 0; }
+    100% { background-position: 100% 100%, 0% 100%, 0% 0%, 100% 0%, 0 0; }
+  }
+
+  /* ====== Topbar shell ====== */
+  .app-bar {
+    position: sticky; top: 0; z-index: 50; height: 64px;
+    display: flex; align-items: center; justify-content: space-between; padding: 0 28px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(7,7,26,0.62); backdrop-filter: blur(20px) saturate(1.2);
+  }
+  .bar-left { display: flex; align-items: center; gap: 24px; }
+  .bar-right { display: flex; align-items: center; gap: 10px; }
+  .brand-row { display: flex; align-items: center; gap: 12px; }
+  .brand-mark {
+    width: 34px; height: 34px; border-radius: 10px;
+    background: conic-gradient(from 180deg at 50% 50%, var(--c-cyan), var(--c-blue), var(--c-violet), var(--c-magenta), var(--c-cyan));
+    display: grid; place-items: center; box-shadow: 0 8px 24px rgba(99,102,241,0.45);
+  }
+  .brand-mark > span { width: 26px; height: 26px; border-radius: 7px; background: var(--bg-0); display: grid; place-items: center; }
+  .brand-name { font-weight: 700; font-size: 17px; letter-spacing: -0.01em; }
+  .nav { display: flex; gap: 4px; }
+  .nav a {
+    font-size: 14px; padding: 8px 14px; border-radius: 10px;
+    color: var(--fg-mute); text-decoration: none; font-weight: 500;
+    transition: all .15s var(--easing); border: 1px solid transparent;
+  }
+  .nav a.active { color: var(--fg); background: var(--glass); border-color: var(--border-strong); box-shadow: 0 0 20px rgba(99,102,241,0.20); }
+  .nav a:hover { color: var(--fg); }
+  .icon-btn {
+    width: 40px; height: 40px; background: var(--glass); border: 1px solid var(--border-strong);
+    border-radius: 10px; display: grid; place-items: center; color: var(--fg-soft); cursor: pointer;
+    backdrop-filter: blur(12px); transition: all .15s var(--easing); position: relative;
+  }
+  .icon-btn:hover { color: var(--fg); border-color: rgba(255,255,255,0.28); }
+  .icon-btn .badge { position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--c-magenta); box-shadow: 0 0 8px var(--c-magenta); }
+  .user-chip {
+    display: inline-flex; align-items: center; gap: 10px; padding: 4px 10px 4px 4px;
+    border: 1px solid var(--border-strong); border-radius: 999px; background: var(--glass);
+    backdrop-filter: blur(12px); cursor: pointer; transition: all .15s var(--easing);
+  }
+  .user-chip:hover { background: var(--glass-strong); }
+  .avatar-lg {
+    width: 32px; height: 32px; border-radius: 999px;
+    background: conic-gradient(from 200deg, var(--c-cyan), var(--c-blue), var(--c-violet), var(--c-magenta), var(--c-cyan));
+    color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 13px; box-shadow: 0 0 16px var(--accent-glow);
+  }
+  .user-chip .meta { font-size: 13px; line-height: 1.15; }
+  .user-chip .meta b { display: block; font-weight: 600; color: var(--fg); }
+  .user-chip .meta span { color: var(--fg-mute); font-size: 12px; }
+
+  /* ====== Main layout ====== */
+  .app-main { max-width: 1280px; margin: 0 auto; padding: 32px 28px 72px; display: grid; gap: 20px; }
+  .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .page-head h1 { margin: 0; font-size: 32px; font-weight: 700; letter-spacing: -0.025em; line-height: 1.1; }
+  .page-sub { margin: 6px 0 0; color: var(--fg-mute); font-size: 14px; }
+  .page-sub .num { color: var(--c-cyan); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .page-sub code { color: var(--fg-soft); font-family: inherit; }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+    height: 44px; padding: 0 18px; border-radius: var(--radius-sm); border: 1px solid transparent;
+    font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+    transition: transform .15s var(--easing), box-shadow .2s var(--easing), background .2s var(--easing);
+  }
+  .btn:active { transform: translateY(1px) scale(0.995); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--c-blue) 0%, var(--c-violet) 50%, var(--c-magenta) 100%);
+    background-repeat: no-repeat; background-position: 0% 0%; color: #fff;
+    box-shadow: 0 10px 30px rgba(99,102,241,0.45), 0 0 0 1px rgba(255,255,255,0.10) inset; background-size: 200% 200%;
+  }
+  .btn-primary:hover:not(:disabled) { background-position: 100% 100%; box-shadow: 0 14px 40px rgba(139,92,246,0.55); }
+  .btn-ghost { background: var(--glass); color: var(--fg); border-color: var(--border-strong); backdrop-filter: blur(12px); }
+  .btn-ghost:hover:not(:disabled) { background: var(--glass-strong); border-color: rgba(255,255,255,0.28); }
+  .btn-sm { height: 34px; padding: 0 12px; font-size: 13px; border-radius: 10px; }
+  .btn-danger { background: rgba(236,72,153,0.08); color: var(--c-magenta); border-color: rgba(236,72,153,0.35); }
+  .btn-danger:hover:not(:disabled) { background: rgba(236,72,153,0.16); }
+
+  .panel { background: var(--glass); border: 1px solid var(--border); border-radius: 20px; backdrop-filter: blur(20px) saturate(1.15); box-shadow: var(--shadow-glass); overflow: hidden; }
+
+  /* ====== App switcher (segmented tabs) ====== */
+  .app-switch {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 14px 16px; border-bottom: 1px solid var(--border); background: rgba(7,7,26,0.35);
+  }
+  .app-switch .swlabel { font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--fg-mute); margin-right: 4px; }
+  .app-tab {
+    display: inline-flex; align-items: center; gap: 10px;
+    height: 46px; padding: 0 16px; cursor: pointer;
+    border-radius: var(--radius-sm); border: 1px solid var(--border-strong);
+    background: var(--glass); color: var(--fg-soft); font: inherit; font-size: 14px; font-weight: 600;
+    transition: all .15s var(--easing); backdrop-filter: blur(12px);
+  }
+  .app-tab:hover { color: var(--fg); border-color: rgba(255,255,255,0.30); }
+  .app-tab.on {
+    color: var(--fg);
+    background: linear-gradient(135deg, rgba(99,102,241,0.30), rgba(139,92,246,0.22));
+    border-color: var(--c-violet); box-shadow: 0 0 20px rgba(139,92,246,0.25);
+  }
+  .app-tab .app-tile { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; flex: 0 0 auto; }
+  .tile-isme { background: conic-gradient(from 180deg, var(--c-cyan), var(--c-blue), var(--c-violet), var(--c-magenta), var(--c-cyan)); color: #fff; }
+  .tile-medioa { background: rgba(139,92,246,0.18); border: 1px solid rgba(139,92,246,0.40); color: var(--c-violet); }
+  .tile-rainy { background: rgba(34,211,238,0.14); border: 1px solid rgba(34,211,238,0.40); color: var(--c-cyan); }
+  .app-tab .tab-sub { display: block; font-size: 11px; font-weight: 400; color: var(--fg-mute); margin-top: 1px; }
+  .app-tab .tab-name { line-height: 1.1; text-align: left; }
+  .app-tab .syslock { color: var(--c-amber); flex: 0 0 auto; margin-left: 2px; }
+
+  /* ====== System banner (isme read-only notice) ====== */
+  .sys-banner {
+    display: flex; align-items: center; gap: 12px; padding: 14px 18px;
+    background: linear-gradient(90deg, rgba(245,158,11,0.16), rgba(245,158,11,0.04));
+    border-bottom: 1px solid rgba(245,158,11,0.30); font-size: 13px; color: var(--fg-soft);
+  }
+  .sys-banner .ico { width: 34px; height: 34px; border-radius: 10px; flex: 0 0 auto; display: grid; place-items: center; background: rgba(245,158,11,0.14); border: 1px solid rgba(245,158,11,0.35); color: var(--c-amber); }
+  .sys-banner b { color: var(--c-amber); }
+  .sys-banner code { color: var(--fg-soft); font-family: inherit; }
+
+  /* ====== Roles rail + detail layout ====== */
+  .rbac-grid { display: grid; grid-template-columns: 320px 1fr; gap: 20px; align-items: start; }
+  @media (max-width: 980px) { .rbac-grid { grid-template-columns: 1fr; } }
+
+  .rail-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 13px 18px; font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--fg-mute); border-bottom: 1px solid var(--border);
+  }
+  .rail-foot {
+    padding: 13px 18px; border-top: 1px solid var(--border);
+    font-size: 12px; color: var(--fg-mute); display: flex; align-items: center; gap: 8px;
+  }
+
+  .role-item {
+    display: flex; align-items: center; gap: 13px; padding: 14px 18px; cursor: pointer;
+    border-bottom: 1px solid var(--border); border-left: 2px solid transparent;
+    transition: background .15s var(--easing), border-color .15s var(--easing);
+  }
+  .role-item:hover { background: rgba(255,255,255,0.04); }
+  .role-item.is-selected {
+    background: linear-gradient(90deg, rgba(139,92,246,0.18), rgba(139,92,246,0.04));
+    border-left-color: var(--c-violet); box-shadow: 0 0 20px rgba(139,92,246,0.15) inset;
+  }
+  .role-item:last-of-type { border-bottom: 0; }
+  .role-icon { width: 36px; height: 36px; border-radius: 11px; flex: 0 0 auto; display: grid; place-items: center; border: 1px solid var(--border-strong); }
+  .role-icon.violet { background: rgba(139,92,246,0.15); color: var(--c-violet); }
+  .role-icon.cyan { background: rgba(34,211,238,0.12); color: var(--c-cyan); }
+  .role-icon.mint { background: rgba(52,211,153,0.12); color: var(--c-mint); }
+  .role-icon.amber { background: rgba(245,158,11,0.12); color: var(--c-amber); }
+  .role-icon.plain { background: var(--glass); color: var(--fg-mute); }
+  .role-meta { flex: 1; min-width: 0; line-height: 1.3; }
+  .role-name { font-size: 14px; font-weight: 600; color: var(--fg); display: flex; align-items: center; gap: 7px; }
+  .role-name .lock { color: var(--c-amber); flex: 0 0 auto; }
+  .role-desc { font-size: 12px; color: var(--fg-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .count-pill { flex: 0 0 auto; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; padding: 3px 10px; border-radius: 999px; background: var(--glass); border: 1px solid var(--border-strong); color: var(--fg-soft); }
+
+  /* detail header */
+  .detail-head { display: flex; align-items: center; gap: 14px; padding: 18px 20px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .detail-icon { width: 44px; height: 44px; border-radius: 13px; display: grid; place-items: center; flex: 0 0 auto; }
+  .detail-icon.amber { background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.35); color: var(--c-amber); box-shadow: 0 0 18px rgba(245,158,11,0.18); }
+  .detail-icon.violet { background: rgba(139,92,246,0.14); border: 1px solid rgba(139,92,246,0.35); color: var(--c-violet); box-shadow: 0 0 18px rgba(139,92,246,0.18); }
+  .detail-meta { flex: 1; min-width: 0; line-height: 1.3; }
+  .detail-title { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .detail-sub { font-size: 12px; color: var(--fg-mute); margin-top: 3px; font-variant-numeric: tabular-nums; }
+  .detail-sub code { color: var(--fg-soft); font-family: inherit; }
+
+  .pill { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 500; padding: 3px 11px; border-radius: 999px; background: var(--glass); border: 1px solid var(--border-strong); color: var(--fg-soft); white-space: nowrap; }
+  .pill .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .pill.custom { color: var(--c-amber); border-color: rgba(245,158,11,0.35); background: rgba(245,158,11,0.10); }
+  .pill.system { color: var(--c-amber); border-color: rgba(245,158,11,0.40); background: rgba(245,158,11,0.12); }
+  .pill.ok { color: var(--c-mint); border-color: rgba(52,211,153,0.35); background: rgba(52,211,153,0.10); }
+  .pill.ok .dot { background: var(--c-mint); box-shadow: 0 0 10px var(--c-mint); }
+  .pill.off { color: var(--fg-mute); }
+  .pill.off .dot { background: var(--fg-mute); }
+
+  /* tabs */
+  .tabs { display: flex; align-items: center; gap: 4px; padding: 0 14px; border-bottom: 1px solid var(--border); }
+  .tab { display: inline-flex; align-items: center; gap: 8px; padding: 13px 14px; cursor: pointer; border: 0; background: transparent; font: inherit; font-size: 14px; font-weight: 500; color: var(--fg-mute); border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color .15s var(--easing); }
+  .tab:hover { color: var(--fg); }
+  .tab.tab-active { color: var(--fg); border-image: linear-gradient(90deg, var(--c-cyan), var(--c-violet)) 1; border-bottom: 2px solid var(--c-violet); }
+  .tab .count-pill { padding: 1px 8px; font-size: 11px; }
+
+  /* ====== Permission matrix ====== */
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  thead th { text-align: left; padding: 12px 18px; font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--fg-mute); border-bottom: 1px solid var(--border); }
+  thead th.c { text-align: center; width: 84px; padding: 12px 8px; }
+  tbody td { padding: 13px 18px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tbody td.c { text-align: center; padding: 13px 8px; }
+  tr.group-row td { padding: 8px 18px; font-size: 11px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-mute); background: rgba(7,7,26,0.35); }
+  tr.perm-row { transition: background .15s var(--easing); }
+  tr.perm-row:hover { background: rgba(255,255,255,0.03); }
+  .res-cell { display: flex; align-items: center; gap: 12px; }
+  .res-icon { width: 32px; height: 32px; border-radius: 10px; flex: 0 0 auto; display: grid; place-items: center; border: 1px solid var(--border-strong); }
+  .res-icon.violet { background: rgba(139,92,246,0.15); color: var(--c-violet); }
+  .res-icon.cyan { background: rgba(34,211,238,0.12); color: var(--c-cyan); }
+  .res-icon.mint { background: rgba(52,211,153,0.12); color: var(--c-mint); }
+  .res-icon.amber { background: rgba(245,158,11,0.12); color: var(--c-amber); }
+  .res-name { font-size: 14px; font-weight: 500; color: var(--fg); line-height: 1.25; }
+  .res-code { font-size: 11px; color: var(--fg-mute); }
+  .na { color: var(--fg-mute); opacity: 0.6; font-size: 13px; }
+
+  /* aurora checkbox */
+  .check { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; color: var(--fg-soft); font-size: 13px; }
+  .check input, .special-chip input {
+    appearance: none; -webkit-appearance: none; width: 18px; height: 18px; border-radius: 5px;
+    border: 1.5px solid var(--border-strong); background: var(--glass); display: grid; place-items: center; cursor: pointer;
+    transition: all .15s var(--easing); margin: 0;
+  }
+  .check input:checked, .special-chip input:checked { background: linear-gradient(135deg, var(--c-blue), var(--c-violet)); border-color: var(--c-violet); box-shadow: 0 0 12px var(--accent-glow); }
+  .check input:checked::after, .special-chip input:checked::after {
+    content: ""; width: 10px; height: 10px;
+    background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='3,8.5 7,12 13,4'/></svg>") center/contain no-repeat;
+  }
+  /* READ-ONLY (system / isme) checkbox — locked, no pointer, amber check */
+  .check input:disabled, .special-chip input:disabled { cursor: not-allowed; opacity: 0.85; }
+  .check input:disabled:checked, .special-chip input:disabled:checked {
+    background: rgba(245,158,11,0.18); border-color: rgba(245,158,11,0.55); box-shadow: none;
+  }
+  .check input:disabled:checked::after, .special-chip input:disabled:checked::after {
+    background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23F59E0B' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='3,8.5 7,12 13,4'/></svg>") center/contain no-repeat;
+  }
+  .check input:disabled:not(:checked) { background: rgba(255,255,255,0.02); border-style: dashed; }
+  .special-chip { display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px; border-radius: 999px; cursor: pointer; font-size: 12px; font-weight: 500; color: var(--fg-soft); background: var(--glass); border: 1px solid var(--border-strong); transition: border-color .15s var(--easing), background .15s var(--easing); }
+  .special-chip:hover { border-color: rgba(255,255,255,0.30); background: var(--glass-strong); }
+  .special-chip.locked { cursor: not-allowed; }
+  .special-chip.locked:hover { border-color: var(--border-strong); background: var(--glass); }
+  .special-chip input { width: 14px; height: 14px; border-radius: 4px; }
+  .special-chip input:checked::after { width: 8px; height: 8px; }
+
+  /* read-only matrix wrapper — adds a faint amber wash + corner badge */
+  .matrix-readonly { position: relative; }
+  .matrix-readonly::before { content: ""; position: absolute; inset: 0; background: rgba(245,158,11,0.025); pointer-events: none; z-index: 1; }
+
+  /* unsaved-changes bar */
+  .unsaved-bar { display: flex; align-items: center; gap: 12px; padding: 12px 18px; background: linear-gradient(90deg, rgba(139,92,246,0.16), rgba(99,102,241,0.08)); border-top: 1px solid rgba(139,92,246,0.30); font-size: 13px; flex-wrap: wrap; }
+  .unsaved-bar .chg { color: var(--c-violet); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .unsaved-bar .vline { width: 1px; height: 18px; background: var(--border-strong); }
+  .unsaved-bar .note { margin-left: auto; display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: var(--fg-mute); }
+
+  /* locked notice (replaces unsaved bar for read-only/system roles) */
+  .lock-notice { display: flex; align-items: center; gap: 10px; padding: 13px 18px; background: linear-gradient(90deg, rgba(245,158,11,0.14), rgba(245,158,11,0.03)); border-top: 1px solid rgba(245,158,11,0.30); font-size: 13px; color: var(--fg-soft); }
+  .lock-notice svg { color: var(--c-amber); flex: 0 0 auto; }
+  .lock-notice b { color: var(--c-amber); }
+
+  /* empty state (no custom roles yet for an app) */
+  .empty { display: grid; place-items: center; gap: 14px; padding: 56px 24px; text-align: center; }
+  .empty .ico { width: 56px; height: 56px; border-radius: 16px; display: grid; place-items: center; background: var(--glass); border: 1px solid var(--border-strong); color: var(--fg-mute); }
+  .empty h3 { margin: 0; font-size: 16px; font-weight: 600; }
+  .empty p { margin: 0; font-size: 13px; color: var(--fg-mute); max-width: 340px; }
+
+  /* ====== Modal ====== */
+  .overlay { position: fixed; inset: 0; z-index: 100; background: rgba(4,4,14,0.70); backdrop-filter: blur(10px); display: grid; place-items: center; }
+  .overlay.hidden { display: none; }
+  .modal { width: 480px; max-width: calc(100vw - 32px); border-radius: 20px; border: 1px solid var(--border-strong); background: linear-gradient(180deg, rgba(18,18,46,0.92), rgba(11,11,35,0.94)); box-shadow: var(--shadow-pop); overflow: hidden; }
+  .modal-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+  .modal-title { display: flex; align-items: center; gap: 12px; font-size: 15px; font-weight: 600; }
+  .modal-icon { width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center; background: linear-gradient(135deg, rgba(99,102,241,0.25), rgba(236,72,153,0.20)); border: 1px solid var(--border-strong); color: var(--c-cyan); }
+  .modal-x { width: 32px; height: 32px; border-radius: 9px; cursor: pointer; display: grid; place-items: center; background: transparent; border: 0; color: var(--fg-mute); transition: all .15s var(--easing); }
+  .modal-x:hover { background: var(--glass); color: var(--fg); }
+  .modal-body { padding: 20px; display: grid; gap: 16px; }
+  .field-label { display: block; font-size: 13px; font-weight: 500; color: var(--fg-soft); margin-bottom: 8px; }
+  .field-label .opt { color: var(--fg-mute); font-weight: 400; font-size: 12px; }
+  .helper { font-size: 12px; color: var(--fg-mute); margin-top: 8px; }
+  .input-wrap { display: flex; align-items: center; gap: 10px; background: var(--glass); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 0 14px; height: 44px; backdrop-filter: blur(12px); }
+  .input-wrap:focus-within { border-color: var(--c-violet); box-shadow: 0 0 0 4px rgba(139,92,246,0.18); }
+  .input-wrap svg { color: var(--fg-mute); flex: 0 0 auto; }
+  .input-wrap input { flex: 1; border: 0; outline: 0; background: transparent; font: inherit; font-size: 14px; color: var(--fg); height: 100%; }
+  .input-wrap input::placeholder { color: var(--fg-mute); }
+  .sel { appearance: none; -webkit-appearance: none; width: 100%; height: 44px; padding: 0 36px 0 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-strong); background: var(--glass) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238A8FB5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>") right 12px center/14px no-repeat; color: var(--fg); font: inherit; font-size: 14px; cursor: pointer; backdrop-filter: blur(12px); }
+  .sel:focus { outline: 0; border-color: var(--c-violet); box-shadow: 0 0 0 4px rgba(139,92,246,0.18); }
+  .sel option { background: var(--bg-2); color: var(--fg); }
+  .modal-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 20px; border-top: 1px solid var(--border); }
+  .modal-note { display: flex; align-items: center; gap: 9px; padding: 11px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--glass); font-size: 12px; color: var(--fg-mute); }
+  .modal-note .hl { color: var(--c-amber); font-weight: 600; }
+  .slug { letter-spacing: 0.02em; font-variant-numeric: tabular-nums; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+
+<!--
+  ===========================================================================
+  SCREEN 1 of 4 — Per-app Role & Permission management (APP-OWNED RBAC)
+  Implements: docs/rbac-app-owned-plan.md §2.13 (isme UI) + locked decisions
+              1 (app-owned), 2 (isme is itself an app, system/read-only),
+              4 (claim shape — no app prefix on perm strings),
+              and the CRITICAL read-only constraint for the isme app.
+  ===========================================================================
+
+  MODEL (post-migration):
+    app_service     { id, app_code, app_name, status }          // owns roles+perms
+    role            { id, app_id, code, name, description, is_system }
+    permission      { id, app_id, resource, action }            // resource:action
+    role_permission { role_id, permission_id }
+    user_role       { user_id, role_id, app_service_id }        // scope = denormalized
+
+  APP SWITCHER drives EVERYTHING below. Selecting an app re-loads that app's
+  roles + permission catalog. Three demo states are pre-built and toggled with
+  light JS (no data fetch):
+    • isme    → READ-ONLY (is_system roles + 19 seeded perms; locked).
+    • medioa2 → full CRUD (auto-provisioned admin role + a custom role).
+    • rainy   → full CRUD, EMPTY custom-role state (only the seeded admin role).
+
+  READ-ONLY RENDERING for the isme app (the whole review point):
+    - "New role" button DISABLED + amber lock glyph.
+    - Amber "System-managed" banner above the rail.
+    - Role rows show amber lock glyph + "System-managed" pill; NO Rename/Delete.
+    - Every matrix checkbox + special-chip is `disabled`; checked ones render
+      amber instead of violet; the matrix gets a faint amber wash.
+    - The unsaved-changes bar is replaced by a lock-notice.
+  For medioa2 / rainy (and any future app) → everything is editable: violet
+  checkboxes, New role / Rename / Delete visible, unsaved bar active.
+
+  Note (decision 4): perm strings are NOT app-prefixed — `object:read`, not
+  `medioa2:object:read`. The app namespace is the resource_access JSON key.
+-->
+
+<!-- ====== Topbar shell ====== -->
+<header class="app-bar">
+  <div class="bar-left">
+    <div class="brand-row">
+      <div class="brand-mark"><span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 7l8 5 8-5-8-5Z"/><path d="m4 17 8 5 8-5"/><path d="m4 12 8 5 8-5"/></svg></span></div>
+      <div class="brand-name">isme</div>
+    </div>
+    <nav class="nav" aria-label="Primary">
+      <a href="#">Overview</a>
+      <a href="#">Users</a>
+      <a href="#" class="active">Roles &amp; Permissions</a>
+      <a href="#">App Services</a>
+      <a href="#">Sessions</a>
+    </nav>
+  </div>
+  <div class="bar-right">
+    <button class="icon-btn" aria-label="Notifications">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+      <span class="badge"></span>
+    </button>
+    <div class="user-chip" tabindex="0">
+      <div class="avatar-lg">VK</div>
+      <div class="meta"><b>Vu Ky</b><span>kyndv@hasaki.vn</span></div>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--fg-mute);margin-left:4px;"><path d="m6 9 6 6 6-6"/></svg>
+    </div>
+  </div>
+</header>
+
+<main class="app-main">
+
+  <!-- Page head -->
+  <div class="page-head">
+    <div>
+      <h1>Roles &amp; Permissions</h1>
+      <p class="page-sub">App-owned RBAC · roles &amp; permissions belong to an <code>app_service</code> · managing <span class="num" id="head-app">isme</span></p>
+    </div>
+    <!-- "New role" — DISABLED when isme app selected (system-managed); enabled for other apps -->
+    <button class="btn btn-primary" id="new-role-btn" disabled title="isme roles are system-managed — read-only">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+      <span id="new-role-label">New role</span>
+      <svg id="new-role-lock" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+    </button>
+  </div>
+
+  <!-- ============ APP SWITCHER ============
+       on click an app: load that app's roles + perm catalog into the panel
+       below. isme switches the entire panel to read-only. -->
+  <section class="panel">
+    <div class="app-switch">
+      <span class="swlabel">App</span>
+
+      <button class="app-tab on" data-app="isme" onclick="selectApp('isme')">
+        <span class="app-tile tile-isme"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 7l8 5 8-5-8-5Z"/><path d="m4 17 8 5 8-5"/><path d="m4 12 8 5 8-5"/></svg></span>
+        <span class="tab-name">isme<span class="tab-sub">SSO · self</span></span>
+        <svg class="syslock" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-label="System-managed"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+      </button>
+
+      <button class="app-tab" data-app="medioa2" onclick="selectApp('medioa2')">
+        <span class="app-tile tile-medioa"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg></span>
+        <span class="tab-name">medioa2<span class="tab-sub">cloud storage</span></span>
+      </button>
+
+      <button class="app-tab" data-app="rainy" onclick="selectApp('rainy')">
+        <span class="app-tile tile-rainy"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span>
+        <span class="tab-name">rainy<span class="tab-sub">music streaming</span></span>
+      </button>
+
+      <span class="pill" style="margin-left:auto;" id="app-status"><span class="dot" style="background:var(--c-mint);box-shadow:0 0 10px var(--c-mint);"></span>active · <span style="color:var(--fg-soft);">app_isme</span></span>
+    </div>
+
+    <!-- ===== isme system banner — only shown for the isme app ===== -->
+    <div class="sys-banner" id="sys-banner">
+      <div class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></div>
+      <div>
+        <b>System-managed app.</b> isme's own roles (admin / member / viewer) and its 19 permissions are seeded and <b>read-only</b> here (<code>is_system = true</code>). You can still assign these roles to users — only the role &amp; permission <em>definitions</em> are locked. Platform admin = the <code>admin</code> role on this app.
+      </div>
+    </div>
+  </section>
+
+  <div class="rbac-grid">
+
+    <!-- ============ ROLES LIST (left rail) ============ -->
+    <section class="panel">
+      <div class="rail-head">
+        <span>Roles · <span id="rail-app-name">isme</span></span>
+        <span class="count-pill" id="rail-count">4</span>
+      </div>
+      <div id="roles-list"><!-- populated per app by JS; default = isme --></div>
+      <div class="rail-foot" id="rail-foot">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+        <span id="rail-foot-text">system roles seeded · immutable</span>
+      </div>
+    </section>
+
+    <!-- ============ DETAIL PANEL ============ -->
+    <section class="panel">
+
+      <!-- Role header — Rename/Delete shown only for custom roles on editable apps -->
+      <div class="detail-head">
+        <div class="detail-icon amber" id="detail-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V6l-8-4-8 4v6c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg>
+        </div>
+        <div class="detail-meta">
+          <div class="detail-title">
+            <span id="detail-name">admin</span>
+            <span class="pill system" id="detail-badge"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>System-managed</span>
+          </div>
+          <div class="detail-sub" id="detail-sub">role_id · <code>rol_admin</code> · app <code>isme</code> · seeded · is_system = true</div>
+        </div>
+        <!-- Rename + Delete — HIDDEN for system/isme roles; shown for editable custom roles -->
+        <button class="btn btn-ghost btn-sm role-edit hidden" id="btn-rename">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3Z"/></svg>
+          Rename
+        </button>
+        <button class="btn btn-danger btn-sm role-edit hidden" id="btn-delete">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          Delete
+        </button>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tabs" role="tablist">
+        <button onclick="showTab('permissions')" id="tab-permissions" class="tab tab-active" role="tab" aria-selected="true">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg>
+          Permissions
+        </button>
+        <button onclick="showTab('catalog')" id="tab-catalog" class="tab" role="tab" aria-selected="false">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          Permission catalog <span class="count-pill" id="catalog-count">19</span>
+        </button>
+      </div>
+
+      <!-- ===== TAB 1 · PERMISSION MATRIX (role × permission grid) =====
+           Rows = the selected APP's permission catalog grouped by resource.
+           Checkbox = whether the SELECTED role grants that permission.
+           isme app → every checkbox disabled (amber); editable apps → violet. -->
+      <div id="panel-permissions" role="tabpanel">
+        <div id="matrix-wrap" class="matrix-readonly">
+          <table id="matrix"><!-- populated per app/role --></table>
+        </div>
+
+        <!-- editable apps: unsaved bar; isme: replaced by lock-notice -->
+        <div class="lock-notice" id="lock-notice">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+          <span><b>System-managed</b> — isme permissions are seeded and immutable. To grant or revoke access, assign a different isme role to the user from the Users screen.</span>
+        </div>
+        <div class="unsaved-bar hidden" id="unsaved-bar">
+          <span class="chg">2 unsaved changes</span>
+          <span class="vline"></span>
+          <button class="btn btn-ghost btn-sm">Discard</button>
+          <button class="btn btn-primary btn-sm">Save changes</button>
+          <span class="note">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+            takes effect on next token refresh (≤15 min)
+          </span>
+        </div>
+      </div>
+
+      <!-- ===== TAB 2 · PERMISSION CATALOG (flat list of the app's perms) =====
+           Read reference of the app's full resource:action catalog. For isme
+           every row is locked; editable apps could add/remove perms here later. -->
+      <div id="panel-catalog" class="hidden" role="tabpanel" style="display:none;">
+        <table id="catalog"><!-- populated per app --></table>
+        <div class="lock-notice" id="catalog-foot">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+          <span id="catalog-foot-text">Permission strings are <code>resource:action</code> — not app-prefixed. The app namespace lives in the token's <code>resource_access</code> key.</span>
+        </div>
+      </div>
+
+    </section>
+  </div>
+
+</main>
+
+<!-- ================= CREATE ROLE MODAL =================
+     Reachable only on editable apps (isme's New role is disabled). The new
+     role belongs to the CURRENTLY SELECTED app (app_id pre-bound, shown read-only).
+     Clone source is same-app only (decision 3). -->
+<div id="role-modal" class="overlay hidden" onclick="if(event.target===this)this.classList.add('hidden')">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="role-title">
+    <div class="modal-head">
+      <div class="modal-title" id="role-title">
+        <div class="modal-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg></div>
+        New role in <span id="modal-app-name" style="color:var(--c-violet);">medioa2</span>
+      </div>
+      <button class="modal-x" onclick="document.getElementById('role-modal').classList.add('hidden')" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <label class="field">
+        <span class="field-label">App <span class="opt">· bound to the selected app, not editable</span></span>
+        <span class="input-wrap" style="opacity:0.7;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
+          <input type="text" value="medioa2 · app_medioa2" readonly id="modal-app-field" />
+        </span>
+      </label>
+      <label class="field">
+        <span class="field-label">Code <span class="opt">· unique within this app, immutable after create</span></span>
+        <span class="input-wrap">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg>
+          <input type="text" class="slug" placeholder="editor" />
+        </span>
+      </label>
+      <label class="field">
+        <span class="field-label">Name</span>
+        <span class="input-wrap"><input type="text" placeholder="Editor" /></span>
+      </label>
+      <label class="field">
+        <span class="field-label">Description</span>
+        <span class="input-wrap"><input type="text" placeholder="What this role is for…" /></span>
+      </label>
+      <label class="field">
+        <span class="field-label">Clone permissions from <span class="opt">· same app only</span></span>
+        <select class="sel">
+          <option selected>— start empty —</option>
+          <option>admin (this app)</option>
+        </select>
+        <div class="helper">Cross-app clone is rejected — source must share this app's <code>app_id</code>.</div>
+      </label>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="document.getElementById('role-modal').classList.add('hidden')">Cancel</button>
+      <button class="btn btn-primary">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+        Create role
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  /* ---------------------------------------------------------------------
+     Demo data — three apps. Each: readOnly flag, role list, and a resource
+     catalog. role.perms = set of "resource:action" the role grants (used to
+     pre-check the matrix). This is mock state only; React fetches per app.
+  --------------------------------------------------------------------- */
+  var ICONS = {
+    users:  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+    session:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>',
+    app:    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 8h20"/><path d="M6 4v4"/><path d="M10 4v4"/></svg>',
+    role:   '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg>',
+    object: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><path d="M14 2v6h6"/></svg>',
+    bucket: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7l1 13a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1l1-13"/><path d="M3 7h18"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
+    storage:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>',
+    playlist:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15V6"/><path d="M19 18a2 2 0 1 0-4 0 2 2 0 0 0 4 0z"/><path d="M3 6h13"/><path d="M3 12h10"/><path d="M3 18h6"/></svg>',
+    station:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"/><path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5"/><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5"/><path d="M19.1 4.9C23 8.8 23 15.2 19.1 19.1"/></svg>',
+    track:  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>'
+  };
+  var RC = ['violet','cyan','mint','amber']; // res-icon color rotation
+
+  var APPS = {
+    isme: {
+      label: 'isme', appId: 'app_isme', readOnly: true, statusOk: true,
+      groups: [
+        { name: 'Identity', resources: [
+          { res:'user', name:'Users', icon:'users', actions:['read','create','update','delete'], special:['reset_password','verify'] },
+          { res:'user_session', name:'Sessions', icon:'session', actions:['read',null,null,'delete'], special:['revoke'] }
+        ]},
+        { name: 'Platform', resources: [
+          { res:'app_service', name:'App Services', icon:'app', actions:['read','create','update','delete'], special:['rotate_secret'] },
+          { res:'role', name:'Roles', icon:'role', actions:['read','create','update','delete'], special:['assign'] }
+        ]}
+      ],
+      catalogCount: 19,
+      roles: [
+        { code:'admin', desc:'full access · all isme resources', icon:'violet', system:true, users:3,  rid:'rol_admin',  perms:'ALL' },
+        { code:'member', desc:'default on signup', icon:'cyan', system:true, users:1156, rid:'rol_member', perms:['user:read','user_session:read'] },
+        { code:'viewer', desc:'read-only', icon:'mint', system:true, users:97, rid:'rol_viewer', perms:['user:read','app_service:read','role:read'] }
+      ]
+    },
+    medioa2: {
+      label: 'medioa2', appId: 'app_medioa2', readOnly: false, statusOk: true,
+      groups: [
+        { name: 'Storage', resources: [
+          { res:'object', name:'Objects', icon:'object', actions:['read','create','update','delete'], special:[] },
+          { res:'bucket', name:'Buckets', icon:'bucket', actions:['read','create','update','delete'], special:[] },
+          { res:'storage', name:'Storage', icon:'storage', actions:['read','create','update','delete'], special:[] }
+        ]}
+      ],
+      catalogCount: 12,
+      roles: [
+        { code:'admin', desc:'auto-provisioned · full CRUD', icon:'violet', system:false, autoAdmin:true, users:2, rid:'rol_med_admin', perms:'ALL' },
+        { code:'editor', desc:'custom · upload + edit, no delete', icon:'amber', system:false, users:14, rid:'rol_med_editor',
+          perms:['object:read','object:create','object:update','bucket:read','storage:read'] }
+      ]
+    },
+    rainy: {
+      label: 'rainy', appId: 'app_rainy', readOnly: false, statusOk: true,
+      groups: [
+        { name: 'Catalog', resources: [
+          { res:'playlist', name:'Playlists', icon:'playlist', actions:['read','create','update','delete'], special:[] },
+          { res:'station', name:'Stations', icon:'station', actions:['read','create','update','delete'], special:[] },
+          { res:'track', name:'Tracks', icon:'track', actions:['read','create','update','delete'], special:[] }
+        ]}
+      ],
+      catalogCount: 12,
+      roles: [
+        { code:'admin', desc:'auto-provisioned · full CRUD', icon:'violet', system:false, autoAdmin:true, users:1, rid:'rol_rny_admin', perms:'ALL' }
+      ],
+      empty: true /* only the seeded admin role — show empty-custom-role hint */
+    }
+  };
+
+  var current = { app:'isme', roleIndex:0 };
+  var ACTION_LABELS = ['Read','Create','Update','Delete'];
+
+  function roleGrants(role, perm){
+    return role.perms === 'ALL' || (role.perms && role.perms.indexOf(perm) !== -1);
+  }
+
+  function renderRoles(appKey){
+    var app = APPS[appKey];
+    var html = '';
+    app.roles.forEach(function(r, i){
+      var sel = i === current.roleIndex ? ' is-selected' : '';
+      var lock = (app.readOnly || r.system)
+        ? '<svg class="lock" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-label="System role — immutable"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>'
+        : '';
+      var permCount = r.perms === 'ALL' ? app.catalogCount : (r.perms ? r.perms.length : 0);
+      html += '<div class="role-item'+sel+'" onclick="selectRole('+i+')"'+(sel?' aria-current="true"':'')+'>'
+        + '<div class="role-icon '+r.icon+'">'+ICONS.role+'</div>'
+        + '<div class="role-meta"><div class="role-name">'+r.code+lock+'</div>'
+        + '<div class="role-desc">'+r.desc+'</div></div>'
+        + '<span class="count-pill" title="'+permCount+' perms · '+r.users+' users">'+r.users+'</span></div>';
+    });
+    document.getElementById('roles-list').innerHTML = html;
+    document.getElementById('rail-count').textContent = app.roles.length;
+    document.getElementById('rail-app-name').textContent = app.label;
+  }
+
+  function renderMatrix(appKey){
+    var app = APPS[appKey];
+    var role = app.roles[current.roleIndex];
+    var ro = app.readOnly;
+    var html = '<thead><tr><th>Resource</th>'
+      + '<th class="c">Read</th><th class="c">Create</th><th class="c">Update</th><th class="c">Delete</th>'
+      + '<th style="width:230px;">Special</th></tr></thead><tbody>';
+    var ci = 0;
+    app.groups.forEach(function(g){
+      html += '<tr class="group-row"><td colspan="6">'+g.name+'</td></tr>';
+      g.resources.forEach(function(rsrc){
+        var color = RC[ci % RC.length]; ci++;
+        html += '<tr class="perm-row"><td><div class="res-cell">'
+          + '<div class="res-icon '+color+'">'+ICONS[rsrc.icon]+'</div>'
+          + '<div><div class="res-name">'+rsrc.name+'</div><div class="res-code">'+rsrc.res+'</div></div></div></td>';
+        rsrc.actions.forEach(function(act){
+          if (act === null) { html += '<td class="c"><span class="na">—</span></td>'; return; }
+          var perm = rsrc.res+':'+act;
+          var checked = roleGrants(role, perm) ? ' checked' : '';
+          var dis = ro ? ' disabled' : '';
+          html += '<td class="c"><label class="check"><input type="checkbox"'+checked+dis+' aria-label="'+perm+'" /></label></td>';
+        });
+        // special column
+        if (!rsrc.special || rsrc.special.length === 0) {
+          html += '<td><span class="na">—</span></td>';
+        } else {
+          html += '<td><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">';
+          rsrc.special.forEach(function(sp){
+            var perm = rsrc.res+':'+sp;
+            var checked = roleGrants(role, perm) ? ' checked' : '';
+            var dis = ro ? ' disabled' : '';
+            var locked = ro ? ' locked' : '';
+            html += '<label class="special-chip'+locked+'"><input type="checkbox"'+checked+dis+' aria-label="'+perm+'" />'+sp+'</label>';
+          });
+          html += '</div></td>';
+        }
+        html += '</tr>';
+      });
+    });
+    html += '</tbody>';
+    document.getElementById('matrix').innerHTML = html;
+    document.getElementById('matrix-wrap').classList.toggle('matrix-readonly', ro);
+  }
+
+  function renderCatalog(appKey){
+    var app = APPS[appKey];
+    var ro = app.readOnly;
+    var html = '<thead><tr><th>Resource</th><th>Action</th><th>Permission</th><th style="width:120px;"></th></tr></thead><tbody>';
+    var ci = 0;
+    app.groups.forEach(function(g){
+      html += '<tr class="group-row"><td colspan="4">'+g.name+'</td></tr>';
+      g.resources.forEach(function(rsrc){
+        var color = RC[ci % RC.length]; ci++;
+        var acts = [];
+        rsrc.actions.forEach(function(a){ if(a) acts.push(a); });
+        (rsrc.special||[]).forEach(function(s){ acts.push(s); });
+        acts.forEach(function(act, idx){
+          var perm = rsrc.res+':'+act;
+          var resCell = idx === 0
+            ? '<div class="res-cell"><div class="res-icon '+color+'">'+ICONS[rsrc.icon]+'</div><div><div class="res-name">'+rsrc.name+'</div><div class="res-code">'+rsrc.res+'</div></div></div>'
+            : '';
+          var actionBtn = ro
+            ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--c-amber)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>'
+            : '<button class="qa danger" title="Remove permission" style="width:30px;height:30px;border-radius:8px;display:inline-grid;place-items:center;background:rgba(236,72,153,0.08);border:1px solid rgba(236,72,153,0.30);color:var(--c-magenta);cursor:pointer;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg></button>';
+          html += '<tr class="perm-row"><td>'+resCell+'</td>'
+            + '<td><span style="font-size:13px;color:var(--fg-soft);">'+act+'</span></td>'
+            + '<td><code style="font-size:13px;color:var(--c-cyan);font-family:inherit;">'+perm+'</code></td>'
+            + '<td style="text-align:right;">'+actionBtn+'</td></tr>';
+        });
+      });
+    });
+    html += '</tbody>';
+    document.getElementById('catalog').innerHTML = html;
+    document.getElementById('catalog-count').textContent = app.catalogCount;
+    // catalog foot: lock-notice (isme) vs neutral hint (editable). Rebuilt
+    // fully each render so switching apps never leaves a stale icon/colour.
+    var foot = document.getElementById('catalog-foot');
+    if (ro) {
+      foot.className = 'lock-notice';
+      foot.removeAttribute('style');
+      foot.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>'
+        + '<span id="catalog-foot-text"><b>System-managed</b> — isme\'s 19 permissions are seeded and cannot be added or removed. Perm strings are <code>resource:action</code>, never app-prefixed.</span>';
+    } else {
+      foot.className = 'lock-notice';
+      foot.setAttribute('style', 'background:rgba(7,7,26,0.35);border-top-color:var(--border);');
+      foot.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--fg-mute)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>'
+        + '<span id="catalog-foot-text" style="color:var(--fg-mute);">Perm strings are <code>resource:action</code> — not app-prefixed. The app namespace lives in the token\'s <code>resource_access</code> key. Use "New role" to bundle these into a role.</span>';
+    }
+  }
+
+  function selectRole(i){
+    current.roleIndex = i;
+    var app = APPS[current.app];
+    var role = app.roles[i];
+    var ro = app.readOnly;
+    var systemRole = ro || role.system;
+
+    // header
+    document.getElementById('detail-name').textContent = role.code;
+    document.getElementById('detail-icon').className = 'detail-icon ' + (systemRole ? 'amber' : 'violet');
+    var badge = document.getElementById('detail-badge');
+    if (systemRole) {
+      badge.className = 'pill system';
+      badge.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>System-managed';
+    } else if (role.autoAdmin) {
+      badge.className = 'pill ok'; badge.innerHTML = '<span class="dot"></span>auto-provisioned';
+    } else {
+      badge.className = 'pill custom'; badge.textContent = 'custom';
+    }
+    document.getElementById('detail-sub').innerHTML = 'role_id · <code>'+role.rid+'</code> · app <code>'+app.label+'</code> · '
+      + (systemRole ? 'seeded · is_system = true' : 'custom · is_system = false') + ' · ' + role.users + ' users';
+
+    // rename/delete — only editable custom (non-system, non-autoAdmin-on-readonly) roles
+    var showEdit = !systemRole;
+    document.getElementById('btn-rename').classList.toggle('hidden', !showEdit);
+    document.getElementById('btn-delete').classList.toggle('hidden', !showEdit);
+
+    // unsaved bar vs lock notice
+    document.getElementById('lock-notice').classList.toggle('hidden', !ro);
+    document.getElementById('unsaved-bar').classList.toggle('hidden', ro);
+
+    renderRoles(current.app);
+    renderMatrix(current.app);
+    renderCatalog(current.app);
+  }
+
+  function selectApp(appKey){
+    current.app = appKey; current.roleIndex = 0;
+    var app = APPS[appKey];
+    // tab highlight
+    document.querySelectorAll('.app-tab').forEach(function(t){ t.classList.toggle('on', t.getAttribute('data-app')===appKey); });
+    // head + status
+    document.getElementById('head-app').textContent = app.label;
+    document.getElementById('app-status').innerHTML = '<span class="dot" style="background:var(--c-mint);box-shadow:0 0 10px var(--c-mint);"></span>active · <span style="color:var(--fg-soft);">'+app.appId+'</span>';
+    // system banner only for isme
+    document.getElementById('sys-banner').style.display = app.readOnly ? '' : 'none';
+    // New role button: disabled for read-only app
+    var btn = document.getElementById('new-role-btn');
+    btn.disabled = app.readOnly;
+    document.getElementById('new-role-lock').style.display = app.readOnly ? '' : 'none';
+    btn.title = app.readOnly ? 'isme roles are system-managed — read-only' : 'Create a new role in '+app.label;
+    btn.onclick = app.readOnly ? null : function(){
+      document.getElementById('modal-app-name').textContent = app.label;
+      document.getElementById('modal-app-field').value = app.label + ' · ' + app.appId;
+      document.getElementById('role-modal').classList.remove('hidden');
+    };
+    // rail foot text
+    document.getElementById('rail-foot-text').textContent = app.readOnly
+      ? 'system roles seeded · immutable'
+      : 'admin role auto-provisioned on app create · add custom roles freely';
+
+    selectRole(0);
+  }
+
+  function showTab(name){
+    ['permissions','catalog'].forEach(function(t){
+      var panel = document.getElementById('panel-'+t);
+      var tab = document.getElementById('tab-'+t);
+      panel.style.display = (t===name) ? '' : 'none';
+      tab.classList.toggle('tab-active', t===name);
+      tab.setAttribute('aria-selected', t===name ? 'true' : 'false');
+    });
+  }
+
+  // init → isme (read-only) selected
+  selectApp('isme');
+</script>
+
+</body>
+</html>

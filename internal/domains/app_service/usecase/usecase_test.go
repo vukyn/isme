@@ -10,6 +10,8 @@ import (
 	"github.com/vukyn/isme/internal/domains/app_service/entity"
 	"github.com/vukyn/isme/internal/domains/app_service/models"
 	appServiceRepo "github.com/vukyn/isme/internal/domains/app_service/repository"
+	roleModels "github.com/vukyn/isme/internal/domains/role/models"
+	roleUsecase "github.com/vukyn/isme/internal/domains/role/usecase"
 	userEntity "github.com/vukyn/isme/internal/domains/user/entity"
 	userModels "github.com/vukyn/isme/internal/domains/user/models"
 	userRepo "github.com/vukyn/isme/internal/domains/user/repository"
@@ -51,6 +53,16 @@ func (f *fakeAppServiceRepository) GetByID(ctx context.Context, id string) (enti
 	return f.appServicesByID[id], nil
 }
 
+func (f *fakeAppServiceRepository) GetByIDs(ctx context.Context, ids []string) (map[string]entity.AppService, error) {
+	result := map[string]entity.AppService{}
+	for _, id := range ids {
+		if app, ok := f.appServicesByID[id]; ok {
+			result[id] = app
+		}
+	}
+	return result, nil
+}
+
 func (f *fakeAppServiceRepository) GetByCode(ctx context.Context, code string) (entity.AppService, error) {
 	return f.appServicesByCode[code], nil
 }
@@ -72,9 +84,7 @@ func (f *fakeAppServiceRepository) UpdateStatus(ctx context.Context, id string, 
 	return nil
 }
 
-type fakeUserRepository struct {
-	isAdmin bool
-}
+type fakeUserRepository struct{}
 
 var _ userRepo.IRepository = (*fakeUserRepository)(nil)
 
@@ -98,14 +108,6 @@ func (f *fakeUserRepository) UpdateLastLogin(ctx context.Context, id string) err
 	return nil
 }
 
-func (f *fakeUserRepository) PromoteAdmin(ctx context.Context, id string) error {
-	return nil
-}
-
-func (f *fakeUserRepository) IsAdmin(ctx context.Context, id string) (bool, error) {
-	return f.isAdmin, nil
-}
-
 func (f *fakeUserRepository) Verify(ctx context.Context, id string) error {
 	return nil
 }
@@ -124,10 +126,61 @@ func (f *fakeUserRepository) SoftDelete(ctx context.Context, id string) error {
 
 // === Helpers ===
 
+type fakeRoleUsecase struct {
+	provisionedAppIDs []string
+}
+
+var _ roleUsecase.IUseCase = (*fakeRoleUsecase)(nil)
+
+func (f *fakeRoleUsecase) List(ctx context.Context, req roleModels.ListRequest) ([]roleModels.RoleListItem, error) {
+	return nil, nil
+}
+
+func (f *fakeRoleUsecase) Create(ctx context.Context, req roleModels.CreateRequest) (roleModels.CreateResponse, error) {
+	return roleModels.CreateResponse{}, nil
+}
+
+func (f *fakeRoleUsecase) GetDetail(ctx context.Context, id string) (roleModels.RoleDetailResponse, error) {
+	return roleModels.RoleDetailResponse{}, nil
+}
+
+func (f *fakeRoleUsecase) Update(ctx context.Context, id string, req roleModels.UpdateRequest) error {
+	return nil
+}
+
+func (f *fakeRoleUsecase) Delete(ctx context.Context, id string) error {
+	return nil
+}
+
+func (f *fakeRoleUsecase) SetPermissions(ctx context.Context, id string, req roleModels.SetPermissionsRequest) error {
+	return nil
+}
+
+func (f *fakeRoleUsecase) ListPermissions(ctx context.Context, req roleModels.ListPermissionsRequest) ([]roleModels.PermissionItem, error) {
+	return nil, nil
+}
+
+func (f *fakeRoleUsecase) ProvisionDefaultRoles(ctx context.Context, appID string) error {
+	f.provisionedAppIDs = append(f.provisionedAppIDs, appID)
+	return nil
+}
+
+func (f *fakeRoleUsecase) ListMembers(ctx context.Context, id string, req roleModels.ListMembersRequest) (roleModels.ListMembersResponse, error) {
+	return roleModels.ListMembersResponse{}, nil
+}
+
+func (f *fakeRoleUsecase) AddMembers(ctx context.Context, id string, req roleModels.AddMembersRequest) error {
+	return nil
+}
+
+func (f *fakeRoleUsecase) RemoveMember(ctx context.Context, id string, userID string, appServiceID *string) error {
+	return nil
+}
+
 func newTestUsecase(fakeAppService *fakeAppServiceRepository) IUseCase {
 	cfg := &config.Config{}
 	cfg.AES.Secret = testAESSecret
-	return NewUsecase(fakeAppService, &fakeUserRepository{isAdmin: true}, cfg)
+	return NewUsecase(fakeAppService, &fakeUserRepository{}, &fakeRoleUsecase{}, cfg)
 }
 
 func encryptTestSecret(t *testing.T, plainSecret string, ctxInfo string) string {

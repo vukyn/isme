@@ -19,6 +19,7 @@ type UserSession struct {
 	ClientIP      string    `bun:"client_ip,notnull"`
 	UserAgent     string    `bun:"user_agent"`
 	TokenID       string    `bun:"token_id,notnull"`
+	AppServiceID  string    `bun:"app_service_id"`
 	CreatedAt     time.Time `bun:"created_at,default:current_timestamp,notnull"`
 }
 

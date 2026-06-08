@@ -125,46 +125,6 @@ func (r *repository) UpdateLastLogin(ctx context.Context, id string) error {
 	return nil
 }
 
-func (r *repository) PromoteAdmin(ctx context.Context, id string) error {
-	if id == "" {
-		return pkgErr.InvalidRequest("id is required")
-	}
-
-	user := &entity.User{
-		ID:      id,
-		IsAdmin: true,
-	}
-	_, err := r.db.NewUpdate().
-		Model(user).
-		Column("is_admin").
-		Where("id = ?", id).
-		Exec(ctx)
-	if err != nil {
-		return pkgErr.DatabaseError(err.Error())
-	}
-	return nil
-}
-
-func (r *repository) IsAdmin(ctx context.Context, id string) (bool, error) {
-	if id == "" {
-		return false, pkgErr.InvalidRequest("id is required")
-	}
-
-	user := entity.User{}
-	err := r.db.NewSelect().
-		Model(&user).
-		Where("id = ?", id).
-		Scan(ctx)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return false, pkgErr.InvalidRequest("user not found")
-		}
-		return false, pkgErr.DatabaseError(err.Error())
-	}
-
-	return user.IsAdmin, nil
-}
-
 func (r *repository) List(ctx context.Context, req models.ListRequest) ([]entity.User, int64, error) {
 	// validation
 	if err := req.Validate(); err != nil {
@@ -183,11 +143,6 @@ func (r *repository) List(ctx context.Context, req models.ListRequest) ([]entity
 	// Apply status filter (only if status is set and non-zero)
 	if req.Status != 0 {
 		query = query.Where("status = ?", req.Status)
-	}
-
-	// Apply isAdmin filter
-	if req.IsAdmin != nil {
-		query = query.Where("is_admin = ?", *req.IsAdmin)
 	}
 
 	// Apply verified filter

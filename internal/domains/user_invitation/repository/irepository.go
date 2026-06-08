@@ -8,15 +8,18 @@ import (
 )
 
 type IRepository interface {
-	// Create invitation (token hash, expiry and audit fields set by caller)
-	Create(ctx context.Context, invitation entity.UserInvitation) (string, error)
+	// Create invitation with its app-scoped role assignments in one transaction
+	// (token hash, expiry and audit fields set by caller). Returns the new id.
+	Create(ctx context.Context, invitation entity.UserInvitation, assignments []entity.UserInvitationRole) (string, error)
 	// Get invitation by ID
 	GetByID(ctx context.Context, id string) (entity.UserInvitation, error)
 	// Get invitation by token hash
 	GetByTokenHash(ctx context.Context, tokenHash string) (entity.UserInvitation, error)
 	// Get pending invitation for an email
 	GetPendingByEmail(ctx context.Context, email string) (entity.UserInvitation, error)
-	// List invitations with role names
+	// Get the role assignments carried by an invitation
+	GetAssignmentsByInvitationID(ctx context.Context, invitationID string) ([]entity.UserInvitationRole, error)
+	// List invitations with their role assignments
 	List(ctx context.Context) ([]models.InvitationListItem, error)
 	// Atomically claim a pending invitation as accepted; false when it was not pending
 	MarkAccepted(ctx context.Context, id string) (bool, error)

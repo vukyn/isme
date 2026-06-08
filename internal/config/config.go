@@ -16,6 +16,7 @@ type Config struct {
 		Level string `envconfig:"LOGGER_LEVEL"`
 	}
 	Auth struct {
+		AppCode                 string `envconfig:"AUTH_APP_CODE" default:"isme"`
 		EndpointWebSSOLogin     string `envconfig:"AUTH_ENDPOINT_WEB_SSO_LOGIN"`
 		EndpointWebAcceptInvite string `envconfig:"AUTH_ENDPOINT_WEB_ACCEPT_INVITE"`
 		AccessTokenPrivateKey   string `envconfig:"AUTH_ACCESS_TOKEN_PRIVATE_KEY"`

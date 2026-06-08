@@ -40,25 +40,39 @@ export type SignupFormData = z.infer<typeof signupSchema>;
 
 /**
  * Invite user form schema (Users management)
- * Mirrors user_invitation models.CreateRequest — email + role only; the
- * invitee picks their own name and password on the accept page.
+ * Mirrors user_invitation models.CreateRequest — email + one or more app-scoped
+ * role assignments. The invitee picks their own name and password on the accept
+ * page, so only email + assignments are captured here.
  */
+const invitationAssignmentSchema = z.object({
+	role_id: z.string().min(1, "Role is required for each assignment"),
+	app_service_id: z.string().min(1, "App is required for each assignment"),
+});
+
 export const inviteUserSchema = z.object({
 	email: z.email("Invalid email address"),
-	role_id: z.string().min(1, "Role is required"),
+	assignments: z.array(invitationAssignmentSchema).min(1, "Add at least one app → role assignment"),
 });
 
 export type InviteUserFormData = z.infer<typeof inviteUserSchema>;
 
 /**
- * Accept invite form schema (public /accept-invite page)
- * Mirrors user_invitation models.AcceptRequest — password min 6, no
- * complexity rules beyond the backend's.
+ * Accept invite form schema (public /accept-invite page).
+ * Mirrors user_invitation models.AcceptRequest (token + name + password), but
+ * the UI gate is stricter than the backend (decision: password ≥ 8, confirm
+ * must match, terms must be accepted) before the CTA enables.
  */
-export const acceptInviteSchema = z.object({
-	name: z.string().min(1, "Name is required"),
-	password: z.string().min(6, "Password must be at least 6 characters"),
-});
+export const acceptInviteSchema = z
+	.object({
+		name: z.string().min(1, "Name is required"),
+		password: z.string().min(8, "Password must be at least 8 characters"),
+		confirmPassword: z.string().min(1, "Please confirm your password"),
+		acceptTerms: z.literal(true, { message: "You must accept the terms to continue" }),
+	})
+	.refine((data) => data.password === data.confirmPassword, {
+		message: "Passwords don't match",
+		path: ["confirmPassword"],
+	});
 
 export type AcceptInviteFormData = z.infer<typeof acceptInviteSchema>;
 

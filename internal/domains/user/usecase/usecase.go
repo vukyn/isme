@@ -42,7 +42,7 @@ func (u *usecase) List(ctx context.Context, req models.ListRequest) (models.List
 		return models.ListResponse{}, err
 	}
 
-	// enrich the page with session counts and global role codes
+	// enrich the page with session counts and each user's app-scoped roles
 	userIDs := make([]string, 0, len(users))
 	for _, user := range users {
 		userIDs = append(userIDs, user.ID)
@@ -51,7 +51,7 @@ func (u *usecase) List(ctx context.Context, req models.ListRequest) (models.List
 	if err != nil {
 		return models.ListResponse{}, err
 	}
-	roleCodes, err := u.roleRepo.GetGlobalRoleCodesByUserIDs(ctx, userIDs)
+	rolesByUser, err := u.roleRepo.GetRoleCodesGroupedByAppByUserIDs(ctx, userIDs)
 	if err != nil {
 		return models.ListResponse{}, err
 	}
@@ -62,14 +62,22 @@ func (u *usecase) List(ctx context.Context, req models.ListRequest) (models.List
 		if !user.LastLoginAt.IsZero() {
 			lastLoginAt = user.LastLoginAt.Format(time.RFC3339)
 		}
+		roles := make([]models.AppRole, 0, len(rolesByUser[user.ID]))
+		for _, role := range rolesByUser[user.ID] {
+			roles = append(roles, models.AppRole{
+				AppCode:  role.AppCode,
+				AppName:  role.AppName,
+				RoleCode: role.RoleCode,
+				RoleName: role.RoleName,
+			})
+		}
 		items = append(items, models.UserListItem{
 			ID:            user.ID,
 			Name:          user.Name,
 			Email:         user.Email,
 			Status:        user.Status,
-			IsAdmin:       user.IsAdmin,
 			IsVerified:    user.IsVerified,
-			Role:          roleCodes[user.ID],
+			Roles:         roles,
 			SessionsCount: sessionCounts[user.ID],
 			LastLoginAt:   lastLoginAt,
 			CreatedAt:     user.CreatedAt.Format(time.RFC3339),

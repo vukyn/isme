@@ -10,7 +10,8 @@ import (
 type Role struct {
 	bun.BaseModel `bun:"table:roles,alias:rol"`
 	ID            string    `bun:"id,pk,notnull"`
-	Code          string    `bun:"code,unique,notnull"`
+	AppID         string    `bun:"app_id,notnull"`
+	Code          string    `bun:"code,notnull"`
 	Name          string    `bun:"name,notnull"`
 	Description   string    `bun:"description"`
 	IsSystem      bool      `bun:"is_system,default:false"`

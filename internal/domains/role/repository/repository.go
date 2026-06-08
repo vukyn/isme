@@ -34,6 +34,7 @@ func (r *repository) Create(ctx context.Context, req models.CreateRequest) (stri
 
 	role := &entity.Role{
 		ID:          cryp.ULID(),
+		AppID:       req.AppID,
 		Code:        req.Code,
 		Name:        req.Name,
 		Description: req.Description,
@@ -67,7 +68,10 @@ func (r *repository) GetByID(ctx context.Context, id string) (entity.Role, error
 	return role, nil
 }
 
-func (r *repository) GetByCode(ctx context.Context, code string) (entity.Role, error) {
+func (r *repository) GetByAppAndCode(ctx context.Context, appID string, code string) (entity.Role, error) {
+	if appID == "" {
+		return entity.Role{}, pkgErr.InvalidRequest("app_id is required")
+	}
 	if code == "" {
 		return entity.Role{}, pkgErr.InvalidRequest("code is required")
 	}
@@ -75,6 +79,7 @@ func (r *repository) GetByCode(ctx context.Context, code string) (entity.Role, e
 	role := entity.Role{}
 	err := r.db.NewSelect().
 		Model(&role).
+		Where("app_id = ?", appID).
 		Where("code = ?", code).
 		Scan(ctx)
 	if err != nil {
@@ -86,20 +91,28 @@ func (r *repository) GetByCode(ctx context.Context, code string) (entity.Role, e
 	return role, nil
 }
 
-func (r *repository) List(ctx context.Context) ([]models.RoleListItem, error) {
+func (r *repository) List(ctx context.Context, req models.ListRequest) ([]models.RoleListItem, error) {
 	type roleListRow struct {
 		entity.Role  `bun:",extend"`
-		MembersCount int `bun:"members_count,scanonly"`
+		AppCode      string `bun:"app_code,scanonly"`
+		MembersCount int    `bun:"members_count,scanonly"`
 	}
 
 	rows := []roleListRow{}
-	err := r.db.NewSelect().
+	query := r.db.NewSelect().
 		Model(&rows).
 		ColumnExpr("rol.*").
+		ColumnExpr("app.app_code AS app_code").
 		ColumnExpr("(SELECT COUNT(*) FROM user_roles ur WHERE ur.role_id = rol.id) AS members_count").
-		Order("rol.created_at ASC").
-		Scan(ctx)
-	if err != nil {
+		Join("LEFT JOIN app_services AS app ON app.id = rol.app_id").
+		Order("rol.created_at ASC")
+	if req.AppID != "" {
+		query = query.Where("rol.app_id = ?", req.AppID)
+	}
+	if req.AppCode != "" {
+		query = query.Where("app.app_code = ?", req.AppCode)
+	}
+	if err := query.Scan(ctx); err != nil {
 		return nil, pkgErr.DatabaseError(err.Error())
 	}
 
@@ -107,6 +120,8 @@ func (r *repository) List(ctx context.Context) ([]models.RoleListItem, error) {
 	for _, row := range rows {
 		items = append(items, models.RoleListItem{
 			ID:           row.ID,
+			AppID:        row.AppID,
+			AppCode:      row.AppCode,
 			Code:         row.Code,
 			Name:         row.Name,
 			Description:  row.Description,
@@ -163,16 +178,59 @@ func (r *repository) SoftDelete(ctx context.Context, id string) error {
 	return nil
 }
 
-func (r *repository) ListPermissions(ctx context.Context) ([]entity.Permission, error) {
+func (r *repository) ListPermissions(ctx context.Context, req models.ListPermissionsRequest) ([]entity.Permission, error) {
 	permissions := []entity.Permission{}
-	err := r.db.NewSelect().
+	query := r.db.NewSelect().
 		Model(&permissions).
-		Order("id ASC").
-		Scan(ctx)
-	if err != nil {
+		Order("perm.id ASC")
+	if req.AppID != "" {
+		query = query.Where("perm.app_id = ?", req.AppID)
+	}
+	if req.AppCode != "" {
+		query = query.
+			Join("JOIN app_services AS app ON app.id = perm.app_id").
+			Where("app.app_code = ?", req.AppCode)
+	}
+	if err := query.Scan(ctx); err != nil {
 		return nil, pkgErr.DatabaseError(err.Error())
 	}
 	return permissions, nil
+}
+
+// CreatePermissions idempotently inserts the given resource:action permissions for
+// an app and returns their permission IDs keyed by "resource:action".
+func (r *repository) CreatePermissions(ctx context.Context, appID string, perms []models.PermissionItem) (map[string]int64, error) {
+	if appID == "" {
+		return nil, pkgErr.InvalidRequest("app_id is required")
+	}
+
+	permissionIDs := map[string]int64{}
+	for _, perm := range perms {
+		if _, err := r.db.NewInsert().
+			Model(&entity.Permission{
+				AppID:    appID,
+				Resource: perm.Resource,
+				Action:   perm.Action,
+			}).
+			Ignore().
+			Exec(ctx); err != nil {
+			return nil, pkgErr.DatabaseError(err.Error())
+		}
+
+		var permissionID int64
+		err := r.db.NewSelect().
+			Model((*entity.Permission)(nil)).
+			Column("id").
+			Where("app_id = ?", appID).
+			Where("resource = ?", perm.Resource).
+			Where("action = ?", perm.Action).
+			Scan(ctx, &permissionID)
+		if err != nil {
+			return nil, pkgErr.DatabaseError(err.Error())
+		}
+		permissionIDs[perm.Resource+":"+perm.Action] = permissionID
+	}
+	return permissionIDs, nil
 }
 
 func (r *repository) GetPermissionsByRoleID(ctx context.Context, roleID string) ([]entity.Permission, error) {
@@ -191,6 +249,96 @@ func (r *repository) GetPermissionsByRoleID(ctx context.Context, roleID string) 
 		return nil, pkgErr.DatabaseError(err.Error())
 	}
 	return permissions, nil
+}
+
+// GetPermissionCodesByRoleIDs returns the resource:action permission codes
+// granted by each role, keyed by role_id. Used pre-auth to preview what an
+// invited role grants — scoped strictly to the given role ids.
+func (r *repository) GetPermissionCodesByRoleIDs(ctx context.Context, roleIDs []string) (map[string][]string, error) {
+	codesByRole := map[string][]string{}
+	if len(roleIDs) == 0 {
+		return codesByRole, nil
+	}
+
+	type roleCodeRow struct {
+		RoleID string `bun:"role_id"`
+		Code   string `bun:"code"`
+	}
+
+	rows := []roleCodeRow{}
+	err := r.db.NewSelect().
+		TableExpr("role_permissions AS rp").
+		ColumnExpr("rp.role_id").
+		ColumnExpr("perm.resource || ':' || perm.action AS code").
+		Join("JOIN permissions AS perm ON perm.id = rp.permission_id").
+		Where("rp.role_id IN (?)", bun.In(roleIDs)).
+		Order("perm.id ASC").
+		Scan(ctx, &rows)
+	if err != nil {
+		return nil, pkgErr.DatabaseError(err.Error())
+	}
+
+	for _, row := range rows {
+		codesByRole[row.RoleID] = append(codesByRole[row.RoleID], row.Code)
+	}
+	return codesByRole, nil
+}
+
+// GetPermissionCodesGroupedByApp returns the user's permission codes grouped by the
+// owning app's app_code. The owning role's app_id is authoritative and the
+// assignment scope (user_roles.app_service_id) must match it.
+func (r *repository) GetPermissionCodesGroupedByApp(ctx context.Context, userID string) (map[string][]string, error) {
+	if userID == "" {
+		return nil, pkgErr.InvalidRequest("user_id is required")
+	}
+
+	type groupedRow struct {
+		AppCode string `bun:"app_code"`
+		Code    string `bun:"code"`
+	}
+
+	rows := []groupedRow{}
+	err := r.db.NewSelect().
+		TableExpr("user_roles AS ur").
+		ColumnExpr("DISTINCT app.app_code AS app_code").
+		ColumnExpr("perm.resource || ':' || perm.action AS code").
+		Join("JOIN roles AS rol ON rol.id = ur.role_id AND rol.deleted_at IS NULL").
+		Join("JOIN app_services AS app ON app.id = rol.app_id").
+		Join("JOIN role_permissions AS rp ON rp.role_id = ur.role_id").
+		Join("JOIN permissions AS perm ON perm.id = rp.permission_id").
+		Where("ur.user_id = ?", userID).
+		Where("ur.app_service_id = rol.app_id").
+		Scan(ctx, &rows)
+	if err != nil {
+		return nil, pkgErr.DatabaseError(err.Error())
+	}
+
+	grouped := map[string][]string{}
+	for _, row := range rows {
+		grouped[row.AppCode] = append(grouped[row.AppCode], row.Code)
+	}
+	return grouped, nil
+}
+
+// GetAppCodesByUserID returns the distinct app_codes the user holds any role in.
+func (r *repository) GetAppCodesByUserID(ctx context.Context, userID string) ([]string, error) {
+	if userID == "" {
+		return nil, pkgErr.InvalidRequest("user_id is required")
+	}
+
+	appCodes := []string{}
+	err := r.db.NewSelect().
+		TableExpr("user_roles AS ur").
+		ColumnExpr("DISTINCT app.app_code").
+		Join("JOIN roles AS rol ON rol.id = ur.role_id AND rol.deleted_at IS NULL").
+		Join("JOIN app_services AS app ON app.id = rol.app_id").
+		Where("ur.user_id = ?", userID).
+		Where("ur.app_service_id = rol.app_id").
+		Scan(ctx, &appCodes)
+	if err != nil {
+		return nil, pkgErr.DatabaseError(err.Error())
+	}
+	return appCodes, nil
 }
 
 func (r *repository) ReplaceRolePermissions(ctx context.Context, roleID string, permissionIDs []int64) error {
@@ -354,7 +502,7 @@ func (r *repository) RemoveMember(ctx context.Context, roleID string, userID str
 	return nil
 }
 
-func (r *repository) GetPermissionCodesByUserID(ctx context.Context, userID string, appServiceID string) ([]string, error) {
+func (r *repository) GetPermissionCodesByUserID(ctx context.Context, userID string, appID string) ([]string, error) {
 	if userID == "" {
 		return nil, pkgErr.InvalidRequest("user_id is required")
 	}
@@ -365,11 +513,11 @@ func (r *repository) GetPermissionCodesByUserID(ctx context.Context, userID stri
 		Join("JOIN role_permissions AS rp ON rp.role_id = ur.role_id").
 		Join("JOIN permissions AS perm ON perm.id = rp.permission_id").
 		Join("JOIN roles AS rol ON rol.id = ur.role_id AND rol.deleted_at IS NULL").
-		Where("ur.user_id = ?", userID)
-	if appServiceID == "" {
-		query = query.Where("ur.app_service_id IS NULL")
-	} else {
-		query = query.Where("(ur.app_service_id IS NULL OR ur.app_service_id = ?)", appServiceID)
+		Where("ur.user_id = ?", userID).
+		// the assignment scope must match the owning role's app
+		Where("ur.app_service_id = rol.app_id")
+	if appID != "" {
+		query = query.Where("rol.app_id = ?", appID)
 	}
 
 	codes := []string{}
@@ -388,11 +536,10 @@ func (r *repository) GetRoleCodesByUserID(ctx context.Context, userID string, ap
 		TableExpr("user_roles AS ur").
 		ColumnExpr("DISTINCT rol.code").
 		Join("JOIN roles AS rol ON rol.id = ur.role_id AND rol.deleted_at IS NULL").
-		Where("ur.user_id = ?", userID)
-	if appServiceID == "" {
-		query = query.Where("ur.app_service_id IS NULL")
-	} else {
-		query = query.Where("(ur.app_service_id IS NULL OR ur.app_service_id = ?)", appServiceID)
+		Where("ur.user_id = ?", userID).
+		Where("ur.app_service_id = rol.app_id")
+	if appServiceID != "" {
+		query = query.Where("rol.app_id = ?", appServiceID)
 	}
 
 	codes := []string{}
@@ -402,35 +549,50 @@ func (r *repository) GetRoleCodesByUserID(ctx context.Context, userID string, ap
 	return codes, nil
 }
 
-func (r *repository) GetGlobalRoleCodesByUserIDs(ctx context.Context, userIDs []string) (map[string]string, error) {
-	codes := map[string]string{}
+// GetRoleCodesGroupedByAppByUserIDs returns every app-scoped role each user
+// holds, keyed by user_id. The owning role's app_id is authoritative and the
+// assignment scope (user_roles.app_service_id) must match it. Batched over the
+// whole page to avoid an N+1.
+func (r *repository) GetRoleCodesGroupedByAppByUserIDs(ctx context.Context, userIDs []string) (map[string][]models.UserAppRole, error) {
+	rolesByUser := map[string][]models.UserAppRole{}
 	if len(userIDs) == 0 {
-		return codes, nil
+		return rolesByUser, nil
 	}
 
-	type userRoleRow struct {
-		UserID string `bun:"user_id"`
-		Code   string `bun:"code"`
+	type rolesRow struct {
+		UserID   string `bun:"user_id"`
+		AppCode  string `bun:"app_code"`
+		AppName  string `bun:"app_name"`
+		RoleCode string `bun:"role_code"`
+		RoleName string `bun:"role_name"`
 	}
 
-	rows := []userRoleRow{}
+	rows := []rolesRow{}
 	err := r.db.NewSelect().
 		TableExpr("user_roles AS ur").
 		ColumnExpr("ur.user_id").
-		ColumnExpr("rol.code").
+		ColumnExpr("app.app_code AS app_code").
+		ColumnExpr("app.app_name AS app_name").
+		ColumnExpr("rol.code AS role_code").
+		ColumnExpr("rol.name AS role_name").
 		Join("JOIN roles AS rol ON rol.id = ur.role_id AND rol.deleted_at IS NULL").
+		Join("JOIN app_services AS app ON app.id = rol.app_id").
 		Where("ur.user_id IN (?)", bun.In(userIDs)).
-		Where("ur.app_service_id IS NULL").
-		Order("ur.created_at ASC").
+		Where("ur.app_service_id = rol.app_id").
+		Order("app.app_code ASC").
+		Order("rol.code ASC").
 		Scan(ctx, &rows)
 	if err != nil {
 		return nil, pkgErr.DatabaseError(err.Error())
 	}
 
 	for _, row := range rows {
-		if _, ok := codes[row.UserID]; !ok {
-			codes[row.UserID] = row.Code
-		}
+		rolesByUser[row.UserID] = append(rolesByUser[row.UserID], models.UserAppRole{
+			AppCode:  row.AppCode,
+			AppName:  row.AppName,
+			RoleCode: row.RoleCode,
+			RoleName: row.RoleName,
+		})
 	}
-	return codes, nil
+	return rolesByUser, nil
 }

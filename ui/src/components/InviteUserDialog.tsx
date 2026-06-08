@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Box, Button, Center, Dialog, Field, Flex, HStack, Input, NativeSelect, Text } from "@chakra-ui/react";
+import { Box, Button, Center, Dialog, Field, Flex, HStack, Input, Text } from "@chakra-ui/react";
 import { LuCheck, LuClock, LuCopy, LuInfo, LuLink, LuMail, LuTriangleAlert, LuUserPlus, LuX } from "react-icons/lu";
-import { createInvitation, listRoles } from "@/apis";
+import { createInvitation, listAppServices } from "@/apis";
+import { AppScopedRoleAssignments } from "@/components/AppScopedRoleAssignments";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toaster } from "@/components/ui/toaster";
+import { APP_SERVICE_STATUS } from "@/consts";
 import { AURORA_CTA_STYLE } from "@/consts/styles";
-import type { RoleListItem } from "@/types";
+import type { AppService, InvitationRoleAssignment } from "@/types";
 import { copyToClipboard } from "@/utils";
 import { inviteUserSchema } from "@/validators";
 
@@ -17,7 +19,7 @@ interface InviteUserDialogProps {
 	/** Fired when the admin closes the success state — refetch the invitations list. */
 	onInvited: () => void;
 	/** Prefill for the "New invite" re-issue action on revoked/expired rows. */
-	prefill?: { email: string; roleId: string } | null;
+	prefill?: { email: string; assignments: InvitationRoleAssignment[] } | null;
 }
 
 const FIELD_LABEL_PROPS = {
@@ -53,7 +55,7 @@ const CHECKBOX_CSS = {
 
 interface CreatedInvite {
 	email: string;
-	roleName: string;
+	assignmentCount: number;
 	link: string;
 	expiresAt: Date;
 }
@@ -67,29 +69,38 @@ interface CreatedInvite {
  */
 export const InviteUserDialog = ({ open, onOpenChange, onInvited, prefill }: InviteUserDialogProps) => {
 	const [email, setEmail] = useState("");
-	const [roleId, setRoleId] = useState("");
-	const [roles, setRoles] = useState<RoleListItem[]>([]);
+	const [apps, setApps] = useState<AppService[]>([]);
+	const [assignments, setAssignments] = useState<InvitationRoleAssignment[]>([]);
 	const [emailError, setEmailError] = useState<string | null>(null);
+	const [assignmentError, setAssignmentError] = useState<string | null>(null);
 	const [submitting, setSubmitting] = useState(false);
 
 	const [created, setCreated] = useState<CreatedInvite | null>(null);
 	const [acknowledged, setAcknowledged] = useState(false);
 	const [copied, setCopied] = useState(false);
 
-	// Load role options when the dialog opens; apply the re-issue prefill.
+	// Load active apps when the dialog opens; apply the re-issue prefill or seed
+	// one empty assignment row.
 	useEffect(() => {
 		if (!open) return;
 		setEmail(prefill?.email ?? "");
 		setEmailError(null);
+		setAssignmentError(null);
 		let active = true;
-		listRoles()
-			.then((items) => {
+		listAppServices({ page: 1, page_size: 100, status: APP_SERVICE_STATUS.ACTIVE })
+			.then((response) => {
 				if (!active) return;
-				setRoles(items);
-				setRoleId(prefill?.roleId || items.find((role) => role.code === "member")?.id || items[0]?.id || "");
+				const items = response.items;
+				setApps(items);
+				if (prefill?.assignments.length) {
+					setAssignments(prefill.assignments);
+				} else {
+					const first = items[0];
+					setAssignments(first ? [{ app_service_id: first.id, role_id: "" }] : []);
+				}
 			})
 			.catch(() => {
-				if (active) toaster.create({ title: "Failed to load roles", type: "error", meta: { closable: true } });
+				if (active) toaster.create({ title: "Failed to load apps", type: "error", meta: { closable: true } });
 			});
 		return () => {
 			active = false;
@@ -98,26 +109,33 @@ export const InviteUserDialog = ({ open, onOpenChange, onInvited, prefill }: Inv
 
 	const resetForm = () => {
 		setEmail("");
-		setRoleId("");
+		setAssignments([]);
 		setEmailError(null);
+		setAssignmentError(null);
 		setCreated(null);
 		setAcknowledged(false);
 		setCopied(false);
 	};
 
 	const handleSubmit = async () => {
-		const parsed = inviteUserSchema.safeParse({ email, role_id: roleId });
+		const completeAssignments = assignments.filter(
+			(assignment) => assignment.app_service_id && assignment.role_id
+		);
+		const parsed = inviteUserSchema.safeParse({ email, assignments: completeAssignments });
 		if (!parsed.success) {
-			setEmailError(parsed.error.issues[0]?.message ?? "Invalid input");
+			const issue = parsed.error.issues[0];
+			if (issue?.path[0] === "assignments") setAssignmentError(issue.message);
+			else setEmailError(issue?.message ?? "Invalid input");
 			return;
 		}
 		setEmailError(null);
+		setAssignmentError(null);
 		setSubmitting(true);
 		try {
 			const response = await createInvitation(parsed.data);
 			setCreated({
 				email: parsed.data.email,
-				roleName: roles.find((role) => role.id === parsed.data.role_id)?.name ?? "",
+				assignmentCount: parsed.data.assignments.length,
 				link: `${window.location.origin}${response.invite_link}`,
 				expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
 			});
@@ -172,7 +190,7 @@ export const InviteUserDialog = ({ open, onOpenChange, onInvited, prefill }: Inv
 			<Dialog.Backdrop bg="rgba(4,4,14,0.70)" css={{ backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)" }} />
 			<Dialog.Positioner>
 				<Dialog.Content
-					w="480px"
+					w={success ? "480px" : "560px"}
 					maxW="92vw"
 					borderRadius="20px"
 					borderWidth="1px"
@@ -201,24 +219,22 @@ export const InviteUserDialog = ({ open, onOpenChange, onInvited, prefill }: Inv
 									<Dialog.Title fontSize="15px" fontWeight="semibold">
 										Invite created
 									</Dialog.Title>
-									{created.roleName && (
-										<Box
-											display="inline-flex"
-											alignItems="center"
-											px="11px"
-											py="1"
-											borderRadius="full"
-											fontSize="12px"
-											fontWeight="medium"
-											color="aurora.cyan"
-											borderWidth="1px"
-											borderColor="rgba(34,211,238,0.40)"
-											bg="rgba(34,211,238,0.10)"
-											whiteSpace="nowrap"
-										>
-											{created.roleName}
-										</Box>
-									)}
+									<Box
+										display="inline-flex"
+										alignItems="center"
+										px="11px"
+										py="1"
+										borderRadius="full"
+										fontSize="12px"
+										fontWeight="medium"
+										color="aurora.cyan"
+										borderWidth="1px"
+										borderColor="rgba(34,211,238,0.40)"
+										bg="rgba(34,211,238,0.10)"
+										whiteSpace="nowrap"
+									>
+										{created.assignmentCount} role{created.assignmentCount === 1 ? "" : "s"}
+									</Box>
 								</HStack>
 							</Dialog.Header>
 							<Dialog.Body p="5" display="flex" flexDirection="column" gap="4">
@@ -385,23 +401,17 @@ export const InviteUserDialog = ({ open, onOpenChange, onInvited, prefill }: Inv
 									</Box>
 									{emailError && <Field.ErrorText>{emailError}</Field.ErrorText>}
 								</Field.Root>
-								<Field.Root>
-									<Field.Label {...FIELD_LABEL_PROPS}>Role</Field.Label>
-									<NativeSelect.Root size="sm" w="full">
-										<NativeSelect.Field
-											{...INPUT_PROPS}
-											css={{ "& option": { background: "#12122E", color: "#F4F5FF" } }}
-											value={roleId}
-											onChange={(event) => setRoleId(event.target.value)}
-										>
-											{roles.map((role) => (
-												<option key={role.id} value={role.id}>
-													{role.code}
-												</option>
-											))}
-										</NativeSelect.Field>
-										<NativeSelect.Indicator color="fg.muted" />
-									</NativeSelect.Root>
+								<Field.Root invalid={!!assignmentError}>
+									<Field.Label {...FIELD_LABEL_PROPS}>Roles to grant</Field.Label>
+									<AppScopedRoleAssignments
+										apps={apps}
+										value={assignments}
+										onChange={(next) => {
+											setAssignments(next);
+											if (assignmentError) setAssignmentError(null);
+										}}
+									/>
+									{assignmentError && <Field.ErrorText>{assignmentError}</Field.ErrorText>}
 								</Field.Root>
 								<HStack
 									gap="2"

@@ -11,7 +11,10 @@ import type { RoleListItem } from "@/types";
 interface CreateRoleDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	/** Existing roles — clone-from options. */
+	/** Owning app for the new role (app-owned RBAC) — bound, not editable. */
+	appId: string;
+	appCode: string;
+	/** Existing roles (same app) — clone-from options. */
 	roles: RoleListItem[];
 	/** Called with the new role id after a successful create. */
 	onCreated: (roleId: string) => void;
@@ -37,7 +40,7 @@ const INPUT_PROPS = {
 	_focus: { borderColor: "aurora.violet", boxShadow: "focusRing", outline: "none", bg: "rgba(255,255,255,0.08)" },
 } as const;
 
-export const CreateRoleDialog = ({ open, onOpenChange, roles, onCreated }: CreateRoleDialogProps) => {
+export const CreateRoleDialog = ({ open, onOpenChange, appId, appCode, roles, onCreated }: CreateRoleDialogProps) => {
 	const [code, setCode] = useState("");
 	const [name, setName] = useState("");
 	const [description, setDescription] = useState("");
@@ -79,6 +82,7 @@ export const CreateRoleDialog = ({ open, onOpenChange, roles, onCreated }: Creat
 		setSubmitting(true);
 		try {
 			const created = await createRole({
+				app_id: appId,
 				code: trimmedCode,
 				name: trimmedName,
 				description: description.trim(),
@@ -129,7 +133,10 @@ export const CreateRoleDialog = ({ open, onOpenChange, roles, onCreated }: Creat
 								<LuKeyRound size={16} />
 							</Center>
 							<Dialog.Title fontSize="15px" fontWeight="semibold">
-								New role
+								New role in{" "}
+								<Text as="span" color="aurora.violet">
+									{appCode || "—"}
+								</Text>
 							</Dialog.Title>
 						</HStack>
 						<Button variant="ghost" size="xs" p="1" minW="auto" borderRadius="9px" color="fg.muted" _hover={{ bg: "bg.glass", color: "fg" }} onClick={() => onOpenChange(false)}>
@@ -137,6 +144,15 @@ export const CreateRoleDialog = ({ open, onOpenChange, roles, onCreated }: Creat
 						</Button>
 					</Dialog.Header>
 					<Dialog.Body p="5" display="flex" flexDirection="column" gap="4">
+						<Field.Root>
+							<Field.Label {...FIELD_LABEL_PROPS}>
+								App{" "}
+								<Text as="span" color="fg.muted" fontWeight="normal" fontSize="12px">
+									· bound to the selected app, not editable
+								</Text>
+							</Field.Label>
+							<Input {...INPUT_PROPS} value={appCode} readOnly opacity={0.7} aria-label="Owning app (locked)" />
+						</Field.Root>
 						<Field.Root invalid={!!codeError}>
 							<Field.Label {...FIELD_LABEL_PROPS}>
 								Code{" "}

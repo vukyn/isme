@@ -9,6 +9,10 @@ import (
 type CreateRequest struct {
 	Name  string
 	Email string
+	// RoleID + AppServiceID assign an app-scoped role to the new user at creation.
+	// Both must be set together (or both empty for no initial role assignment).
+	RoleID       string
+	AppServiceID string
 }
 
 func (r CreateRequest) Validate() error {
@@ -21,6 +25,9 @@ func (r CreateRequest) Validate() error {
 	if !validator.IsEmail(r.Email) {
 		return errors.New("invalid email")
 	}
+	if (r.RoleID == "") != (r.AppServiceID == "") {
+		return errors.New("role_id and app_service_id must be set together")
+	}
 	return nil
 }
 
@@ -31,7 +38,6 @@ type ListRequest struct {
 	Search   string `json:"query" query:"query"`       // search by name or email
 	Status   int32  `json:"status" query:"status"`     // 1=active, 2=inactive
 	RoleID   string `json:"role" query:"role"`         // filter by role
-	IsAdmin  *bool  `json:"is_admin" query:"is_admin"` // filter by admin status
 	Verified *bool  `json:"verified" query:"verified"` // filter by verification state (nil=all)
 }
 
@@ -45,18 +51,25 @@ func (r ListRequest) Validate() error {
 	return nil
 }
 
+// AppRole is one app-scoped role a user holds, rendered as an app:role chip.
+type AppRole struct {
+	AppCode  string `json:"app_code"`
+	AppName  string `json:"app_name"`
+	RoleCode string `json:"role_code"`
+	RoleName string `json:"role_name"`
+}
+
 // UserListItem represents a user in the list response
 type UserListItem struct {
-	ID            string `json:"id"`
-	Name          string `json:"name"`
-	Email         string `json:"email"`
-	Status        int32  `json:"status"`
-	IsAdmin       bool   `json:"is_admin"`
-	IsVerified    bool   `json:"is_verified"`
-	Role          string `json:"role"` // global role code
-	SessionsCount int    `json:"sessions_count"`
-	LastLoginAt   string `json:"last_login_at"`
-	CreatedAt     string `json:"created_at"`
+	ID            string    `json:"id"`
+	Name          string    `json:"name"`
+	Email         string    `json:"email"`
+	Status        int32     `json:"status"`
+	IsVerified    bool      `json:"is_verified"`
+	Roles         []AppRole `json:"roles"` // full set of app-scoped roles
+	SessionsCount int       `json:"sessions_count"`
+	LastLoginAt   string    `json:"last_login_at"`
+	CreatedAt     string    `json:"created_at"`
 }
 
 // ListResponse for user list endpoint

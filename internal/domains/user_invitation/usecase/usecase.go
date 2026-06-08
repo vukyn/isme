@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/vukyn/isme/internal/config"
+	appServiceRepo "github.com/vukyn/isme/internal/domains/app_service/repository"
 	roleRepo "github.com/vukyn/isme/internal/domains/role/repository"
 	userModels "github.com/vukyn/isme/internal/domains/user/models"
 	userRepo "github.com/vukyn/isme/internal/domains/user/repository"
@@ -26,6 +27,7 @@ type usecase struct {
 	invitationRepo invitationRepo.IRepository
 	userRepo       userRepo.IRepository
 	roleRepo       roleRepo.IRepository
+	appServiceRepo appServiceRepo.IRepository
 }
 
 func NewUsecase(
@@ -33,12 +35,14 @@ func NewUsecase(
 	invitationRepo invitationRepo.IRepository,
 	userRepo userRepo.IRepository,
 	roleRepo roleRepo.IRepository,
+	appServiceRepo appServiceRepo.IRepository,
 ) IUseCase {
 	return &usecase{
 		cfg:            cfg,
 		invitationRepo: invitationRepo,
 		userRepo:       userRepo,
 		roleRepo:       roleRepo,
+		appServiceRepo: appServiceRepo,
 	}
 }
 
@@ -48,13 +52,24 @@ func (u *usecase) Create(ctx context.Context, req models.CreateRequest) (models.
 		return models.CreateResponse{}, pkgErr.InvalidRequest(err.Error())
 	}
 
-	// check if role exists
-	role, err := u.roleRepo.GetByID(ctx, req.RoleID)
-	if err != nil {
-		return models.CreateResponse{}, err
-	}
-	if role.ID == "" {
-		return models.CreateResponse{}, pkgErr.InvalidRequest("role not found")
+	// validate every assignment: the role must exist and its owning app must
+	// match the requested app_service_id (reject cross-app mismatches).
+	assignments := make([]entity.UserInvitationRole, 0, len(req.Assignments))
+	for _, assignment := range req.Assignments {
+		role, err := u.roleRepo.GetByID(ctx, assignment.RoleID)
+		if err != nil {
+			return models.CreateResponse{}, err
+		}
+		if role.ID == "" {
+			return models.CreateResponse{}, pkgErr.InvalidRequest("role not found")
+		}
+		if role.AppID != assignment.AppServiceID {
+			return models.CreateResponse{}, pkgErr.InvalidRequest("role does not belong to the given app_service_id")
+		}
+		assignments = append(assignments, entity.UserInvitationRole{
+			RoleID:       assignment.RoleID,
+			AppServiceID: assignment.AppServiceID,
+		})
 	}
 
 	// check if a user already holds this email
@@ -79,11 +94,10 @@ func (u *usecase) Create(ctx context.Context, req models.CreateRequest) (models.
 	rawToken := base64.RawURLEncoding.EncodeToString([]byte(rand.RandString(32)))
 	invitationID, err := u.invitationRepo.Create(ctx, entity.UserInvitation{
 		Email:     req.Email,
-		RoleID:    req.RoleID,
 		TokenHash: cryp.HashSHA256(rawToken),
 		ExpiresAt: time.Now().UTC().Add(constants.InvitationTTL),
 		CreatedBy: pkgCtx.GetUserID(ctx),
-	})
+	}, assignments)
 	if err != nil {
 		return models.CreateResponse{}, err
 	}
@@ -129,20 +143,101 @@ func (u *usecase) Revoke(ctx context.Context, id string) error {
 }
 
 func (u *usecase) GetByToken(ctx context.Context, token string) (models.InviteDetailResponse, error) {
-	invitation, err := u.resolveToken(ctx, token)
+	// Public, pre-auth endpoint. We resolve by token hash only — an unknown
+	// token is the single "invalid" case. For a known token we always return
+	// the locked email, a display status (so the page can show valid / expired
+	// / accepted / revoked), and a permission preview of the invited roles.
+	if token == "" {
+		return models.InviteDetailResponse{}, pkgErr.NotFound("invitation is invalid or expired")
+	}
+
+	invitation, err := u.invitationRepo.GetByTokenHash(ctx, cryp.HashSHA256(token))
 	if err != nil {
 		return models.InviteDetailResponse{}, err
 	}
+	if invitation.ID == "" {
+		return models.InviteDetailResponse{}, pkgErr.NotFound("invitation is invalid or expired")
+	}
 
-	role, err := u.roleRepo.GetByID(ctx, invitation.RoleID)
+	displayStatus := deriveDisplayStatus(invitation)
+
+	assignments, err := u.buildAssignmentDetails(ctx, invitation.ID)
 	if err != nil {
 		return models.InviteDetailResponse{}, err
 	}
 
 	return models.InviteDetailResponse{
-		Email:    invitation.Email,
-		RoleName: role.Name,
+		Email:         invitation.Email,
+		Status:        invitation.Status,
+		DisplayStatus: displayStatus,
+		Assignments:   assignments,
 	}, nil
+}
+
+// deriveDisplayStatus maps the stored status (+ expiry) to a stable string the
+// AcceptInvite page switches on. Pending-but-past-expiry collapses to expired.
+func deriveDisplayStatus(invitation entity.UserInvitation) string {
+	switch invitation.Status {
+	case int32(constants.InvitationStatusAccepted):
+		return constants.DisplayStatusAccepted
+	case int32(constants.InvitationStatusRevoked):
+		return constants.DisplayStatusRevoked
+	default:
+		if invitation.ExpiresAt.Before(time.Now().UTC()) {
+			return constants.DisplayStatusExpired
+		}
+		return constants.DisplayStatusValid
+	}
+}
+
+// buildAssignmentDetails loads an invitation's assignments joined to their app
+// + role, and previews the permission codes each role grants. Exposes ONLY the
+// invited roles' perms + app names — never the full catalog (pre-auth safe).
+func (u *usecase) buildAssignmentDetails(ctx context.Context, invitationID string) ([]models.InviteAssignmentDetail, error) {
+	assignments, err := u.invitationRepo.GetAssignmentsByInvitationID(ctx, invitationID)
+	if err != nil {
+		return nil, err
+	}
+	if len(assignments) == 0 {
+		return []models.InviteAssignmentDetail{}, nil
+	}
+
+	roleIDs := make([]string, 0, len(assignments))
+	appServiceIDs := make([]string, 0, len(assignments))
+	for _, assignment := range assignments {
+		roleIDs = append(roleIDs, assignment.RoleID)
+		appServiceIDs = append(appServiceIDs, assignment.AppServiceID)
+	}
+
+	permsByRole, err := u.roleRepo.GetPermissionCodesByRoleIDs(ctx, roleIDs)
+	if err != nil {
+		return nil, err
+	}
+	appsByID, err := u.appServiceRepo.GetByIDs(ctx, appServiceIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	details := make([]models.InviteAssignmentDetail, 0, len(assignments))
+	for _, assignment := range assignments {
+		role, err := u.roleRepo.GetByID(ctx, assignment.RoleID)
+		if err != nil {
+			return nil, err
+		}
+		perms := permsByRole[assignment.RoleID]
+		if perms == nil {
+			perms = []string{}
+		}
+		app := appsByID[assignment.AppServiceID]
+		details = append(details, models.InviteAssignmentDetail{
+			AppCode:     app.AppCode,
+			AppName:     app.AppName,
+			RoleName:    role.Name,
+			RoleCode:    role.Code,
+			Permissions: perms,
+		})
+	}
+	return details, nil
 }
 
 func (u *usecase) Accept(ctx context.Context, req models.AcceptRequest) error {
@@ -165,6 +260,15 @@ func (u *usecase) Accept(ctx context.Context, req models.AcceptRequest) error {
 		return pkgErr.InvalidRequest("user with this email already exists")
 	}
 
+	// load the invitation's app-scoped role assignments
+	assignments, err := u.invitationRepo.GetAssignmentsByInvitationID(ctx, invitation.ID)
+	if err != nil {
+		return err
+	}
+	if len(assignments) == 0 {
+		return pkgErr.InvalidRequest("invitation has no role assignments")
+	}
+
 	// claim the invitation atomically — a lost race means it was already used
 	accepted, err := u.invitationRepo.MarkAccepted(ctx, invitation.ID)
 	if err != nil {
@@ -174,7 +278,8 @@ func (u *usecase) Accept(ctx context.Context, req models.AcceptRequest) error {
 		return pkgErr.InvalidRequest("invitation already used")
 	}
 
-	// create the user; roll the claim back on failure so the link stays usable
+	// create the user; roll the claim back on failure so the link stays usable.
+	// Roles are assigned per-assignment below, not by user create.
 	userID, err := u.userRepo.Create(ctx, userModels.CreateRequest{
 		Name:  req.Name,
 		Email: invitation.Email,
@@ -194,9 +299,12 @@ func (u *usecase) Accept(ctx context.Context, req models.AcceptRequest) error {
 		return err
 	}
 
-	// assign the invited role globally
-	if err := u.roleRepo.AddMembers(ctx, invitation.RoleID, []string{userID}, nil); err != nil {
-		return err
+	// grant one app-scoped role per assignment (ur.app_service_id = roles.app_id)
+	for _, assignment := range assignments {
+		appServiceID := assignment.AppServiceID
+		if err := u.roleRepo.AddMembers(ctx, assignment.RoleID, []string{userID}, &appServiceID); err != nil {
+			return err
+		}
 	}
 
 	return nil
