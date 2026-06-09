@@ -36,7 +36,7 @@ function App() {
 					<Route
 						path="/sessions"
 						element={
-							<ProtectedRoute>
+							<ProtectedRoute requiredPermission="user_session:read">
 								<Sessions />
 							</ProtectedRoute>
 						}
@@ -52,7 +52,7 @@ function App() {
 					<Route
 						path="/users"
 						element={
-							<ProtectedRoute>
+							<ProtectedRoute requiredPermission="user:read">
 								<Users />
 							</ProtectedRoute>
 						}
@@ -60,7 +60,7 @@ function App() {
 					<Route
 						path="/users/invite"
 						element={
-							<ProtectedRoute>
+							<ProtectedRoute requiredPermission="user:read">
 								<InviteUser />
 							</ProtectedRoute>
 						}
@@ -68,7 +68,7 @@ function App() {
 					<Route
 						path="/roles"
 						element={
-							<ProtectedRoute>
+							<ProtectedRoute requiredPermission="role:read">
 								<Roles />
 							</ProtectedRoute>
 						}
@@ -76,7 +76,7 @@ function App() {
 					<Route
 						path="/app-services"
 						element={
-							<ProtectedRoute>
+							<ProtectedRoute requiredPermission="app_service:read">
 								<AppServices />
 							</ProtectedRoute>
 						}
