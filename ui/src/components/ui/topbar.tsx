@@ -1,6 +1,7 @@
 import { Box, Flex, HStack, IconButton } from "@chakra-ui/react";
 import { NavLink } from "react-router-dom";
 import { LuBell } from "react-icons/lu";
+import { usePermissions } from "@/hooks/usePermissions";
 import { BrandMark } from "./brand-mark";
 import { UserChip } from "./user-chip";
 
@@ -11,17 +12,21 @@ interface TopbarProps {
 	user: { name: string; email: string };
 }
 
-const NAV: { key: TopbarTab; label: string; to: string }[] = [
+// `perm` gates the nav entry — items the user can't read are hidden from the
+// menu (the backend stays the source of truth; this is UX-only).
+const NAV: { key: TopbarTab; label: string; to: string; perm?: string }[] = [
 	{ key: "overview", label: "Overview", to: "/welcome" },
-	{ key: "users", label: "Users", to: "/users" },
-	{ key: "roles", label: "Roles & Permissions", to: "/roles" },
-	{ key: "appServices", label: "App Services", to: "/app-services" },
-	{ key: "sessions", label: "Sessions", to: "/sessions" },
+	{ key: "users", label: "Users", to: "/users", perm: "user:read" },
+	{ key: "roles", label: "Roles & Permissions", to: "/roles", perm: "role:read" },
+	{ key: "appServices", label: "App Services", to: "/app-services", perm: "app_service:read" },
+	{ key: "sessions", label: "Sessions", to: "/sessions", perm: "user_session:read" },
 	{ key: "team", label: "Team", to: "/team" },
 	{ key: "settings", label: "Settings", to: "/settings" },
 ];
 
 export const Topbar = ({ active, user }: TopbarProps) => {
+	const { can } = usePermissions();
+	const visibleNav = NAV.filter((n) => !n.perm || can(n.perm));
 	return (
 		<Flex
 			as="header"
@@ -42,7 +47,7 @@ export const Topbar = ({ active, user }: TopbarProps) => {
 					</Box>
 				</HStack>
 				<HStack as="nav" gap="1" aria-label="Primary">
-					{NAV.map((n) => {
+					{visibleNav.map((n) => {
 						const isActive = n.key === active;
 						return (
 							<NavLink

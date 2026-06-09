@@ -25,9 +25,11 @@ import { RotateAppServiceSecretDialog } from "@/components/RotateAppServiceSecre
 import { TerminateAppServiceDialog } from "@/components/TerminateAppServiceDialog";
 import { VerifyAppServiceDialog } from "@/components/VerifyAppServiceDialog";
 import { toaster } from "@/components/ui/toaster";
+import { Tooltip } from "@/components/ui/tooltip";
 import { APP_SERVICE_CTX_INFO_OPTIONS, APP_SERVICE_STATUS, APP_SERVICE_STATUS_FILTER_OPTIONS, APP_SERVICES_PAGE_SIZE_OPTIONS } from "@/consts";
 import { AURORA_CTA_STYLE } from "@/consts/styles";
 import { useUser } from "@/hooks/useUser";
+import { usePermissions } from "@/hooks/usePermissions";
 import { AppShell } from "@/layouts/AppShell";
 import type { AppService, AppServiceCtxInfo, AppServiceStatus } from "@/types";
 import { copyToClipboard, formatDateOnly } from "@/utils";
@@ -182,6 +184,7 @@ const QuickActionButton = ({
 	danger,
 	onClick,
 	disabled,
+	tooltip,
 	children,
 }: {
 	label: string;
@@ -189,37 +192,52 @@ const QuickActionButton = ({
 	danger?: boolean;
 	onClick?: () => void;
 	disabled?: boolean;
+	// When set, wraps the control in the project Tooltip (used to explain a
+	// permission-disabled state). Falls back to the native `title` (label) otherwise.
+	tooltip?: string;
 	children: React.ReactNode;
-}) => (
-	<Center
-		as="button"
-		w="8"
-		h="8"
-		borderRadius="9px"
-		bg="rgba(7,7,26,0.55)"
-		borderWidth="1px"
-		borderColor="border.strong"
-		color={color}
-		cursor={disabled ? "not-allowed" : "pointer"}
-		opacity={disabled ? 0.35 : 1}
-		title={label}
-		aria-label={label}
-		css={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
-		_hover={
-			disabled
-				? undefined
-				: danger
-					? { bg: "rgba(236,72,153,0.15)", borderColor: "rgba(236,72,153,0.40)" }
-					: { bg: "bg.glassHi", color: "fg", borderColor: "rgba(255,255,255,0.30)" }
-		}
-		onClick={(event) => {
-			event.stopPropagation();
-			if (!disabled) onClick?.();
-		}}
-	>
-		{children}
-	</Center>
-);
+}) => {
+	const button = (
+		<Center
+			as="button"
+			w="8"
+			h="8"
+			borderRadius="9px"
+			bg="rgba(7,7,26,0.55)"
+			borderWidth="1px"
+			borderColor="border.strong"
+			color={color}
+			cursor={disabled ? "not-allowed" : "pointer"}
+			opacity={disabled ? 0.35 : 1}
+			title={tooltip ? undefined : label}
+			aria-label={label}
+			css={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
+			_hover={
+				disabled
+					? undefined
+					: danger
+						? { bg: "rgba(236,72,153,0.15)", borderColor: "rgba(236,72,153,0.40)" }
+						: { bg: "bg.glassHi", color: "fg", borderColor: "rgba(255,255,255,0.30)" }
+			}
+			onClick={(event) => {
+				event.stopPropagation();
+				if (!disabled) onClick?.();
+			}}
+		>
+			{children}
+		</Center>
+	);
+	if (tooltip) {
+		return (
+			<Tooltip content={tooltip} positioning={{ placement: "top" }}>
+				{button}
+			</Tooltip>
+		);
+	}
+	return button;
+};
+
+const NO_PERMISSION_TOOLTIP = "You don't have permission";
 
 /**
  * Secret column sub-line: secrets are AES-encrypted at rest and irrecoverable
@@ -233,7 +251,13 @@ const secretSubLabel = (service: AppService) => {
 
 export const AppServices = () => {
 	const { user: currentUser } = useUser();
+	const { can } = usePermissions();
 	const navigate = useNavigate();
+
+	const canCreate = can("app_service:create");
+	const canUpdate = can("app_service:update");
+	const canDelete = can("app_service:delete");
+	const canRotateSecret = can("app_service:rotate_secret");
 
 	const [services, setServices] = useState<AppService[]>([]);
 	const [total, setTotal] = useState(0);
@@ -373,21 +397,26 @@ export const AppServices = () => {
 	};
 
 	const registerButton = (
-		<Button
-			h="11"
-			px="4.5"
-			borderRadius="glassSm"
-			fontSize="sm"
-			fontWeight="semibold"
-			color="white"
-			css={AURORA_CTA_STYLE}
-			boxShadow="ctaGlow"
-			_hover={{ boxShadow: "ctaGlowHi", backgroundPosition: "100% 100%" }}
-			_focusVisible={{ boxShadow: "focusRing" }}
-			onClick={() => setRegisterOpen(true)}
-		>
-			<LuPlus size={16} /> Register app
-		</Button>
+		<Tooltip content={NO_PERMISSION_TOOLTIP} disabled={canCreate} positioning={{ placement: "top" }}>
+			<Box as="span">
+				<Button
+					h="11"
+					px="4.5"
+					borderRadius="glassSm"
+					fontSize="sm"
+					fontWeight="semibold"
+					color="white"
+					css={AURORA_CTA_STYLE}
+					boxShadow="ctaGlow"
+					_hover={{ boxShadow: "ctaGlowHi", backgroundPosition: "100% 100%" }}
+					_focusVisible={{ boxShadow: "focusRing" }}
+					disabled={!canCreate}
+					onClick={() => setRegisterOpen(true)}
+				>
+					<LuPlus size={16} /> Register app
+				</Button>
+			</Box>
+		</Tooltip>
 	);
 
 	return (
@@ -414,9 +443,13 @@ export const AppServices = () => {
 					</Text>
 				</Box>
 				<HStack gap="2.5">
-					<Button h="11" px="4.5" fontSize="sm" {...GHOST_BUTTON_PROPS} onClick={() => setVerifyOpen(true)}>
-						<LuBadgeCheck size={16} /> Verify credentials
-					</Button>
+					<Tooltip content={NO_PERMISSION_TOOLTIP} disabled={canUpdate} positioning={{ placement: "top" }}>
+						<Box as="span">
+							<Button h="11" px="4.5" fontSize="sm" {...GHOST_BUTTON_PROPS} disabled={!canUpdate} onClick={() => setVerifyOpen(true)}>
+								<LuBadgeCheck size={16} /> Verify credentials
+							</Button>
+						</Box>
+					</Tooltip>
 					{registerButton}
 				</HStack>
 			</Flex>
@@ -679,7 +712,8 @@ export const AppServices = () => {
 													<QuickActionButton
 														label={terminated ? "Terminated apps cannot rotate secrets" : "Rotate secret"}
 														color="aurora.cyan"
-														disabled={terminated}
+														disabled={terminated || !canRotateSecret}
+														tooltip={!terminated && !canRotateSecret ? NO_PERMISSION_TOOLTIP : undefined}
 														onClick={() => setRotateTarget(service)}
 													>
 														<LuRefreshCw size={14} />
@@ -688,21 +722,35 @@ export const AppServices = () => {
 														<LuCopy size={14} />
 													</QuickActionButton>
 													{service.status === APP_SERVICE_STATUS.ACTIVE ? (
-														<QuickActionButton label="Deactivate" color="aurora.amber" onClick={() => handleToggleStatus(service)}>
+														<QuickActionButton
+															label="Deactivate"
+															color="aurora.amber"
+															disabled={!canUpdate}
+															tooltip={canUpdate ? undefined : NO_PERMISSION_TOOLTIP}
+															onClick={() => handleToggleStatus(service)}
+														>
 															<LuCircleSlash size={14} />
 														</QuickActionButton>
 													) : (
 														<QuickActionButton
 															label={terminated ? "Termination is permanent" : "Activate"}
 															color="aurora.mint"
-															disabled={terminated}
+															disabled={terminated || !canUpdate}
+															tooltip={!terminated && !canUpdate ? NO_PERMISSION_TOOLTIP : undefined}
 															onClick={() => handleToggleStatus(service)}
 														>
 															<LuCircleCheck size={14} />
 														</QuickActionButton>
 													)}
 													{!terminated && (
-														<QuickActionButton label="Terminate" color="aurora.magenta" danger onClick={() => setTerminateTarget(service)}>
+														<QuickActionButton
+															label="Terminate"
+															color="aurora.magenta"
+															danger
+															disabled={!canDelete}
+															tooltip={canDelete ? undefined : NO_PERMISSION_TOOLTIP}
+															onClick={() => setTerminateTarget(service)}
+														>
 															<LuCircleX size={14} />
 														</QuickActionButton>
 													)}

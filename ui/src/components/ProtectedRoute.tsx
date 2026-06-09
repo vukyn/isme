@@ -6,13 +6,20 @@ import { Box, Spinner, Stack } from "@chakra-ui/react";
 import { getTokens, isTokenExpired, saveTokens } from "@/utils/axios";
 import { refreshToken } from "@/apis/auth";
 import { useUser } from "@/hooks/useUser";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface ProtectedRouteProps {
 	children: React.ReactNode;
+	// When set, the user must hold this permission (in `appCode`, default "isme")
+	// after auth resolves — otherwise they're redirected to /welcome. UX gating
+	// only; the backend still enforces access.
+	requiredPermission?: string;
+	appCode?: string;
 }
 
-export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
+export const ProtectedRoute = ({ children, requiredPermission, appCode = "isme" }: ProtectedRouteProps) => {
 	const { user, loading, error, refetch } = useUser();
+	const { can } = usePermissions();
 
 	// One-shot recovery guard: refresh the token at most once per mount
 	// before declaring the session unauthenticated.
@@ -64,6 +71,12 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
 
 	if (!user) {
 		return <Navigate to="/login" replace />;
+	}
+
+	// Authenticated but lacks the permission this route requires — bounce to the
+	// overview rather than letting them reach a screen that would only 403.
+	if (requiredPermission && !can(requiredPermission, appCode)) {
+		return <Navigate to="/welcome" replace />;
 	}
 
 	return <>{children}</>;

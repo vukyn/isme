@@ -41,6 +41,7 @@ import {
 import { AppTile } from "@/components/AppRoleChip";
 import { CreateRoleDialog } from "@/components/CreateRoleDialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tooltip } from "@/components/ui/tooltip";
 import {
 	APP_SERVICE_STATUS,
 	PERMISSION_ICON_KEYS,
@@ -57,6 +58,8 @@ import type { AppService, PermissionItem, PermissionPair, RoleDetailResponse, Ro
 import { formatDateOnly } from "@/utils";
 
 const MEMBERS_PAGE_SIZE = 8;
+
+const NO_PERMISSION_TOOLTIP = "You don't have permission";
 
 type RoleTab = "permissions" | "catalog" | "members";
 
@@ -895,25 +898,30 @@ export const Roles = () => {
 						</Text>
 					</Text>
 				</Box>
-				{canCreate && (
-					<Button
-						h="11"
-						px="4.5"
-						borderRadius="glassSm"
-						fontSize="sm"
-						fontWeight="semibold"
-						color="white"
-						css={AURORA_CTA_STYLE}
-						boxShadow="ctaGlow"
-						_hover={{ boxShadow: "ctaGlowHi", backgroundPosition: "100% 100%" }}
-						_focusVisible={{ boxShadow: "focusRing" }}
-						disabled={isIsmeApp}
-						title={isIsmeApp ? "isme roles are system-managed — read-only" : undefined}
-						onClick={() => setCreateOpen(true)}
-					>
-						{isIsmeApp ? <LuLock size={16} /> : <LuPlus size={16} />} New role
-					</Button>
-				)}
+				<Tooltip
+					content={canCreate ? "isme roles are system-managed — read-only" : NO_PERMISSION_TOOLTIP}
+					disabled={canCreate && !isIsmeApp}
+					positioning={{ placement: "top" }}
+				>
+					<Box as="span">
+						<Button
+							h="11"
+							px="4.5"
+							borderRadius="glassSm"
+							fontSize="sm"
+							fontWeight="semibold"
+							color="white"
+							css={AURORA_CTA_STYLE}
+							boxShadow="ctaGlow"
+							_hover={{ boxShadow: "ctaGlowHi", backgroundPosition: "100% 100%" }}
+							_focusVisible={{ boxShadow: "focusRing" }}
+							disabled={!canCreate || isIsmeApp}
+							onClick={() => setCreateOpen(true)}
+						>
+							{isIsmeApp ? <LuLock size={16} /> : <LuPlus size={16} />} New role
+						</Button>
+					</Box>
+				</Tooltip>
 			</Flex>
 
 			{/* App switcher — drives the whole panel below (roles + catalog + read-only). */}
@@ -1088,12 +1096,20 @@ export const Roles = () => {
 									{/* Rename + Delete — hidden for system/isme roles, shown for editable custom roles. */}
 									{!isReadOnly && (
 										<>
-											<Button {...GHOST_SM_BUTTON_PROPS} disabled={!canUpdate} onClick={handleOpenRename}>
-												<LuPencil size={13} /> Rename
-											</Button>
-											<Button {...DANGER_SM_BUTTON_PROPS} disabled={!canDelete} onClick={() => setDeleteOpen(true)}>
-												<LuTrash2 size={13} /> Delete
-											</Button>
+											<Tooltip content={NO_PERMISSION_TOOLTIP} disabled={canUpdate} positioning={{ placement: "top" }}>
+												<Box as="span">
+													<Button {...GHOST_SM_BUTTON_PROPS} disabled={!canUpdate} onClick={handleOpenRename}>
+														<LuPencil size={13} /> Rename
+													</Button>
+												</Box>
+											</Tooltip>
+											<Tooltip content={NO_PERMISSION_TOOLTIP} disabled={canDelete} positioning={{ placement: "top" }}>
+												<Box as="span">
+													<Button {...DANGER_SM_BUTTON_PROPS} disabled={!canDelete} onClick={() => setDeleteOpen(true)}>
+														<LuTrash2 size={13} /> Delete
+													</Button>
+												</Box>
+											</Tooltip>
 										</>
 									)}
 								</HStack>
@@ -1115,8 +1131,9 @@ export const Roles = () => {
 									<>
 										{/* Catalog toolbar — add a resource:action to the app's catalog.
 										    Hidden for the isme system app (read-only catalog) and when
-										    the catalog is empty (the empty-state CTA covers it). */}
-										{!isIsmeApp && canCreate && !catalogEmpty && (
+										    the catalog is empty (the empty-state CTA covers it). The button
+										    is disabled (with a perm tooltip) when role:create is missing. */}
+										{!isIsmeApp && !catalogEmpty && (
 											<Flex
 												align="center"
 												justify="space-between"
@@ -1134,22 +1151,27 @@ export const Roles = () => {
 													</Text>
 													's catalog · add new resource:action pairs, then grant them to a role.
 												</Text>
-												<Button
-													h="9"
-													px="3.5"
-													flex="none"
-													borderRadius="glassSm"
-													fontSize="13px"
-													fontWeight="semibold"
-													color="white"
-													css={AURORA_CTA_STYLE}
-													boxShadow="ctaGlow"
-													_hover={{ boxShadow: "ctaGlowHi", backgroundPosition: "100% 100%" }}
-													_focusVisible={{ boxShadow: "focusRing" }}
-													onClick={() => setAddPermissionOpen(true)}
-												>
-													<LuPlus size={14} /> Add permission
-												</Button>
+												<Tooltip content={NO_PERMISSION_TOOLTIP} disabled={canCreate} positioning={{ placement: "top" }}>
+													<Box as="span">
+														<Button
+															h="9"
+															px="3.5"
+															flex="none"
+															borderRadius="glassSm"
+															fontSize="13px"
+															fontWeight="semibold"
+															color="white"
+															css={AURORA_CTA_STYLE}
+															boxShadow="ctaGlow"
+															_hover={{ boxShadow: "ctaGlowHi", backgroundPosition: "100% 100%" }}
+															_focusVisible={{ boxShadow: "focusRing" }}
+															disabled={!canCreate}
+															onClick={() => setAddPermissionOpen(true)}
+														>
+															<LuPlus size={14} /> Add permission
+														</Button>
+													</Box>
+												</Tooltip>
 											</Flex>
 										)}
 										{isReadOnly && (
@@ -1380,24 +1402,27 @@ export const Roles = () => {
 													<LuPlus size={13} /> Add permission <LuLock size={12} />
 												</Button>
 											) : (
-												canCreate && (
-													<Button
-														h="9"
-														px="3.5"
-														flex="none"
-														borderRadius="glassSm"
-														fontSize="13px"
-														fontWeight="semibold"
-														color="white"
-														css={AURORA_CTA_STYLE}
-														boxShadow="ctaGlow"
-														_hover={{ boxShadow: "ctaGlowHi", backgroundPosition: "100% 100%" }}
-														_focusVisible={{ boxShadow: "focusRing" }}
-														onClick={() => setAddPermissionOpen(true)}
-													>
-														<LuPlus size={14} /> Add permission
-													</Button>
-												)
+												<Tooltip content={NO_PERMISSION_TOOLTIP} disabled={canCreate} positioning={{ placement: "top" }}>
+													<Box as="span">
+														<Button
+															h="9"
+															px="3.5"
+															flex="none"
+															borderRadius="glassSm"
+															fontSize="13px"
+															fontWeight="semibold"
+															color="white"
+															css={AURORA_CTA_STYLE}
+															boxShadow="ctaGlow"
+															_hover={{ boxShadow: "ctaGlowHi", backgroundPosition: "100% 100%" }}
+															_focusVisible={{ boxShadow: "focusRing" }}
+															disabled={!canCreate}
+															onClick={() => setAddPermissionOpen(true)}
+														>
+															<LuPlus size={14} /> Add permission
+														</Button>
+													</Box>
+												</Tooltip>
 											)}
 										</Flex>
 
@@ -1435,7 +1460,7 @@ export const Roles = () => {
 															<Table.ColumnHeader px="4.5" py="3" bg="transparent" {...LABEL_PROPS}>
 																Permission
 															</Table.ColumnHeader>
-															{!isIsmeApp && canDelete && (
+															{!isIsmeApp && (
 																<Table.ColumnHeader w="56px" px="4.5" py="3" bg="transparent" textAlign="right" {...LABEL_PROPS} />
 															)}
 														</Table.Row>
@@ -1489,12 +1514,12 @@ export const Roles = () => {
 																			{resource.resource}:{action}
 																		</Text>
 																	</Table.Cell>
-																	{!isIsmeApp && canDelete && (
+																	{!isIsmeApp && (
 																		<Table.Cell px="4.5" py="13px" textAlign="right">
 																			{(() => {
 																				const permission = permissionByCode.get(`${resource.resource}:${action}`);
 																				if (!permission) return null;
-																				return (
+																				const trash = (
 																					<Center
 																						as="button"
 																						display="inline-flex"
@@ -1505,15 +1530,24 @@ export const Roles = () => {
 																						borderWidth="1px"
 																						borderColor="border.strong"
 																						color="aurora.magenta"
-																						cursor="pointer"
-																						title="Remove permission"
+																						cursor={canDelete ? "pointer" : "not-allowed"}
+																						opacity={canDelete ? 1 : 0.35}
+																						title={canDelete ? "Remove permission" : undefined}
 																						aria-label={`Remove permission ${resource.resource}:${action}`}
 																						css={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
-																						_hover={{ bg: "rgba(236,72,153,0.15)", borderColor: "rgba(236,72,153,0.40)" }}
-																						onClick={() => setPermissionToDelete(permission)}
+																						_hover={canDelete ? { bg: "rgba(236,72,153,0.15)", borderColor: "rgba(236,72,153,0.40)" } : undefined}
+																						onClick={() => {
+																							if (canDelete) setPermissionToDelete(permission);
+																						}}
 																					>
 																						<LuTrash2 size={13} />
 																					</Center>
+																				);
+																				if (canDelete) return trash;
+																				return (
+																					<Tooltip content={NO_PERMISSION_TOOLTIP} positioning={{ placement: "top" }}>
+																						{trash}
+																					</Tooltip>
 																				);
 																			})()}
 																		</Table.Cell>
@@ -1686,7 +1720,7 @@ export const Roles = () => {
 														<Text fontSize="12px" color="fg.muted" whiteSpace="nowrap" css={{ fontVariantNumeric: "tabular-nums" }}>
 															added {formatDateOnly(member.created_at)}
 														</Text>
-														{canAssign && (
+														<Tooltip content={NO_PERMISSION_TOOLTIP} disabled={canAssign} positioning={{ placement: "top" }}>
 															<Center
 																as="button"
 																w="8"
@@ -1696,16 +1730,19 @@ export const Roles = () => {
 																borderWidth="1px"
 																borderColor="border.strong"
 																color="aurora.magenta"
-																cursor="pointer"
-																title="Remove from role"
+																cursor={canAssign ? "pointer" : "not-allowed"}
+																opacity={canAssign ? 1 : 0.35}
+																title={canAssign ? "Remove from role" : undefined}
 																aria-label="Remove from role"
 																css={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
-																_hover={{ bg: "rgba(236,72,153,0.15)", borderColor: "rgba(236,72,153,0.40)" }}
-																onClick={() => handleRemoveMember(member)}
+																_hover={canAssign ? { bg: "rgba(236,72,153,0.15)", borderColor: "rgba(236,72,153,0.40)" } : undefined}
+																onClick={() => {
+																	if (canAssign) handleRemoveMember(member);
+																}}
 															>
 																<LuX size={14} />
 															</Center>
-														)}
+														</Tooltip>
 													</HStack>
 												))}
 											</Box>

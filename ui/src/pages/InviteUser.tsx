@@ -8,9 +8,11 @@ import { createInvitation, listAppServices } from "@/apis";
 import { AppScopedRoleAssignments } from "@/components/AppScopedRoleAssignments";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toaster } from "@/components/ui/toaster";
+import { Tooltip } from "@/components/ui/tooltip";
 import { APP_SERVICE_STATUS } from "@/consts";
 import { AURORA_CTA_STYLE } from "@/consts/styles";
 import { useUser } from "@/hooks/useUser";
+import { usePermissions } from "@/hooks/usePermissions";
 import { AppShell } from "@/layouts/AppShell";
 import type { AppService, InvitationRoleAssignment } from "@/types";
 import { copyToClipboard } from "@/utils";
@@ -88,9 +90,14 @@ const PanelHead = ({ icon, title, sub }: { icon: React.ReactNode; title: string;
 	</HStack>
 );
 
+const NO_PERMISSION_TOOLTIP = "You don't have permission";
+
 export const InviteUser = () => {
 	const { user: currentUser } = useUser();
+	const { can } = usePermissions();
 	const navigate = useNavigate();
+
+	const canCreate = can("user:create");
 
 	const [email, setEmail] = useState("");
 	const [emailError, setEmailError] = useState<string | null>(null);
@@ -341,24 +348,28 @@ export const InviteUser = () => {
 							>
 								Cancel
 							</Button>
-							<Button
-								h="11"
-								px="4.5"
-								borderRadius="glassSm"
-								fontSize="sm"
-								fontWeight="semibold"
-								color="white"
-								css={AURORA_CTA_STYLE}
-								boxShadow="ctaGlow"
-								_hover={{ boxShadow: "ctaGlowHi", backgroundPosition: "100% 100%" }}
-								_focusVisible={{ boxShadow: "focusRing" }}
-								disabled={!canSubmit}
-								loading={submitting}
-								onClick={handleSubmit}
-							>
-								<LuSend size={15} /> Send invite
-								<LuChevronRight size={15} />
-							</Button>
+							<Tooltip content={NO_PERMISSION_TOOLTIP} disabled={canCreate} positioning={{ placement: "top" }}>
+								<Box as="span">
+									<Button
+										h="11"
+										px="4.5"
+										borderRadius="glassSm"
+										fontSize="sm"
+										fontWeight="semibold"
+										color="white"
+										css={AURORA_CTA_STYLE}
+										boxShadow="ctaGlow"
+										_hover={{ boxShadow: "ctaGlowHi", backgroundPosition: "100% 100%" }}
+										_focusVisible={{ boxShadow: "focusRing" }}
+										disabled={!canSubmit || !canCreate}
+										loading={submitting}
+										onClick={handleSubmit}
+									>
+										<LuSend size={15} /> Send invite
+										<LuChevronRight size={15} />
+									</Button>
+								</Box>
+							</Tooltip>
 						</Flex>
 					</Box>
 				</>

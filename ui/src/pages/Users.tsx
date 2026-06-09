@@ -58,6 +58,7 @@ import { InviteUserDialog } from "@/components/InviteUserDialog";
 import { VerifyUserDialog } from "@/components/VerifyUserDialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toaster } from "@/components/ui/toaster";
+import { Tooltip } from "@/components/ui/tooltip";
 import {
 	USER_LAST_LOGIN_FILTER_OPTIONS,
 	USER_STATUS,
@@ -422,6 +423,7 @@ const QuickActionButton = ({
 	danger,
 	onClick,
 	disabled,
+	tooltip,
 	children,
 }: {
 	label: string;
@@ -429,46 +431,63 @@ const QuickActionButton = ({
 	danger?: boolean;
 	onClick?: () => void;
 	disabled?: boolean;
+	// When set, wraps the control in the project Tooltip (used to explain a
+	// permission-disabled state). Falls back to the native `title` (label) otherwise.
+	tooltip?: string;
 	children: React.ReactNode;
-}) => (
-	<Center
-		as="button"
-		w="8"
-		h="8"
-		borderRadius="9px"
-		bg="rgba(7,7,26,0.55)"
-		borderWidth="1px"
-		borderColor="border.strong"
-		color={color}
-		cursor={disabled ? "not-allowed" : "pointer"}
-		opacity={disabled ? 0.35 : 1}
-		title={label}
-		aria-label={label}
-		css={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
-		_hover={
-			disabled
-				? undefined
-				: danger
-					? { bg: "rgba(236,72,153,0.15)", borderColor: "rgba(236,72,153,0.40)" }
-					: { bg: "bg.glassHi", color: "fg", borderColor: "rgba(255,255,255,0.30)" }
-		}
-		onClick={(event) => {
-			event.stopPropagation();
-			if (!disabled) onClick?.();
-		}}
-	>
-		{children}
-	</Center>
-);
+}) => {
+	const button = (
+		<Center
+			as="button"
+			w="8"
+			h="8"
+			borderRadius="9px"
+			bg="rgba(7,7,26,0.55)"
+			borderWidth="1px"
+			borderColor="border.strong"
+			color={color}
+			cursor={disabled ? "not-allowed" : "pointer"}
+			opacity={disabled ? 0.35 : 1}
+			title={tooltip ? undefined : label}
+			aria-label={label}
+			css={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
+			_hover={
+				disabled
+					? undefined
+					: danger
+						? { bg: "rgba(236,72,153,0.15)", borderColor: "rgba(236,72,153,0.40)" }
+						: { bg: "bg.glassHi", color: "fg", borderColor: "rgba(255,255,255,0.30)" }
+			}
+			onClick={(event) => {
+				event.stopPropagation();
+				if (!disabled) onClick?.();
+			}}
+		>
+			{children}
+		</Center>
+	);
+	if (tooltip) {
+		return (
+			<Tooltip content={tooltip} positioning={{ placement: "top" }}>
+				{button}
+			</Tooltip>
+		);
+	}
+	return button;
+};
+
+const NO_PERMISSION_TOOLTIP = "You don't have permission";
 
 const SessionsPanel = ({
 	sessions,
 	loading,
 	onRevoke,
+	canRevoke,
 }: {
 	sessions: UserSessionItem[];
 	loading: boolean;
 	onRevoke: (sessionId: string) => void;
+	canRevoke: boolean;
 }) => (
 	<Box
 		borderRadius="14px"
@@ -515,25 +534,29 @@ const SessionsPanel = ({
 					<Text fontSize="12px" color="fg.muted" css={{ fontVariantNumeric: "tabular-nums" }}>
 						expires {formatShortDateTime(session.expires_at)}
 					</Text>
-					<Button
-						ml="auto"
-						h="8"
-						px="3"
-						borderRadius="9px"
-						variant="outline"
-						borderColor="rgba(236,72,153,0.35)"
-						bg="rgba(236,72,153,0.08)"
-						fontSize="12px"
-						fontWeight="semibold"
-						color="aurora.magenta"
-						_hover={{ bg: "rgba(236,72,153,0.16)" }}
-						onClick={(event) => {
-							event.stopPropagation();
-							onRevoke(session.id);
-						}}
-					>
-						<LuLogOut size={13} /> Revoke
-					</Button>
+					<Tooltip content={NO_PERMISSION_TOOLTIP} disabled={canRevoke} positioning={{ placement: "top" }}>
+						<Box as="span" ml="auto">
+							<Button
+								h="8"
+								px="3"
+								borderRadius="9px"
+								variant="outline"
+								borderColor="rgba(236,72,153,0.35)"
+								bg="rgba(236,72,153,0.08)"
+								fontSize="12px"
+								fontWeight="semibold"
+								color="aurora.magenta"
+								_hover={{ bg: "rgba(236,72,153,0.16)" }}
+								disabled={!canRevoke}
+								onClick={(event) => {
+									event.stopPropagation();
+									onRevoke(session.id);
+								}}
+							>
+								<LuLogOut size={13} /> Revoke
+							</Button>
+						</Box>
+					</Tooltip>
 				</HStack>
 			))
 		)}
@@ -547,6 +570,10 @@ export const Users = () => {
 
 	const canAssignRole = can("role:assign") && can("role:read");
 	const canVerify = can("user:verify");
+	const canCreate = can("user:create");
+	const canUpdate = can("user:update");
+	const canDelete = can("user:delete");
+	const canRevokeSession = can("user_session:revoke");
 
 	const [users, setUsers] = useState<UserListItem[]>([]);
 	const [total, setTotal] = useState(0);
@@ -1070,21 +1097,26 @@ export const Users = () => {
 					<Button h="11" px="4.5" fontSize="sm" {...GHOST_BUTTON_PROPS} onClick={handleExportCsv} disabled>
 						<LuDownload size={16} /> Export CSV
 					</Button>
-					<Button
-						h="11"
-						px="4.5"
-						borderRadius="glassSm"
-						fontSize="sm"
-						fontWeight="semibold"
-						color="white"
-						css={AURORA_CTA_STYLE}
-						boxShadow="ctaGlow"
-						_hover={{ boxShadow: "ctaGlowHi", backgroundPosition: "100% 100%" }}
-						_focusVisible={{ boxShadow: "focusRing" }}
-						onClick={() => navigate("/users/invite")}
-					>
-						<LuUserPlus size={16} /> Invite user
-					</Button>
+					<Tooltip content={NO_PERMISSION_TOOLTIP} disabled={canCreate} positioning={{ placement: "top" }}>
+						<Box as="span">
+							<Button
+								h="11"
+								px="4.5"
+								borderRadius="glassSm"
+								fontSize="sm"
+								fontWeight="semibold"
+								color="white"
+								css={AURORA_CTA_STYLE}
+								boxShadow="ctaGlow"
+								_hover={{ boxShadow: "ctaGlowHi", backgroundPosition: "100% 100%" }}
+								_focusVisible={{ boxShadow: "focusRing" }}
+								disabled={!canCreate}
+								onClick={() => navigate("/users/invite")}
+							>
+								<LuUserPlus size={16} /> Invite user
+							</Button>
+						</Box>
+					</Tooltip>
 				</HStack>
 			</Flex>
 
@@ -1460,10 +1492,16 @@ export const Users = () => {
 											</Table.Cell>
 											<Table.Cell px="3.5" py="13px">
 												<HStack className="row-actions" gap="1.5" justify="flex-end">
-													{/* verify (one-way) — rendered ONLY when is_verified=false AND the
-													    caller holds user:verify; verified rows never show it */}
-													{!user.is_verified && canVerify && (
-														<QuickActionButton label="Verify account" color="aurora.mint" onClick={() => openVerifyDialog([user], 0)}>
+													{/* verify (one-way) — only shown for unverified rows (business
+													    rule); disabled with a perm tooltip when user:verify is missing */}
+													{!user.is_verified && (
+														<QuickActionButton
+															label="Verify account"
+															color="aurora.mint"
+															disabled={!canVerify}
+															tooltip={canVerify ? undefined : NO_PERMISSION_TOOLTIP}
+															onClick={() => openVerifyDialog([user], 0)}
+														>
 															<LuBadgeCheck size={14} />
 														</QuickActionButton>
 													)}
@@ -1471,11 +1509,23 @@ export const Users = () => {
 														<LuPencil size={14} />
 													</QuickActionButton>
 													{user.status === USER_STATUS.ACTIVE ? (
-														<QuickActionButton label="Deactivate" color="aurora.amber" onClick={() => handleToggleStatus(user)}>
+														<QuickActionButton
+															label="Deactivate"
+															color="aurora.amber"
+															disabled={!canUpdate}
+															tooltip={canUpdate ? undefined : NO_PERMISSION_TOOLTIP}
+															onClick={() => handleToggleStatus(user)}
+														>
 															<LuCircleSlash size={14} />
 														</QuickActionButton>
 													) : (
-														<QuickActionButton label="Activate" color="aurora.mint" onClick={() => handleToggleStatus(user)}>
+														<QuickActionButton
+															label="Activate"
+															color="aurora.mint"
+															disabled={!canUpdate}
+															tooltip={canUpdate ? undefined : NO_PERMISSION_TOOLTIP}
+															onClick={() => handleToggleStatus(user)}
+														>
 															<LuCircleCheck size={14} />
 														</QuickActionButton>
 													)}
@@ -1483,7 +1533,14 @@ export const Users = () => {
 													<QuickActionButton label="Reset password — available when email lands" color="fg.subtle" disabled>
 														<LuKeyRound size={14} />
 													</QuickActionButton>
-													<QuickActionButton label="Delete" color="aurora.magenta" danger onClick={() => handleDelete(user)}>
+													<QuickActionButton
+														label="Delete"
+														color="aurora.magenta"
+														danger
+														disabled={!canDelete}
+														tooltip={canDelete ? undefined : NO_PERMISSION_TOOLTIP}
+														onClick={() => handleDelete(user)}
+													>
 														<LuTrash2 size={14} />
 													</QuickActionButton>
 												</HStack>
@@ -1497,6 +1554,7 @@ export const Users = () => {
 														sessions={sessionsByUser[user.id] ?? []}
 														loading={sessionsLoadingFor === user.id}
 														onRevoke={(sessionId) => handleRevokeSession(user.id, sessionId)}
+														canRevoke={canRevokeSession}
 													/>
 												</Table.Cell>
 											</Table.Row>
@@ -1524,50 +1582,72 @@ export const Users = () => {
 						</Text>
 						<Box h="18px" w="1px" bg="border.strong" />
 						{/* bulk verify — only selected unverified rows are sent; verified
-						    selections are skipped (reported in the toast). Hidden without user:verify. */}
-						{canVerify && (
-							<Button
-								h="8"
-								px="3"
-								variant="outline"
-								borderRadius="9px"
-								borderColor="rgba(52,211,153,0.35)"
-								bg="rgba(52,211,153,0.08)"
-								fontSize="12px"
-								fontWeight="semibold"
-								color="aurora.mint"
-								_hover={{ bg: "rgba(52,211,153,0.16)" }}
-								disabled={!users.some((user) => selectedIds.has(user.id) && !user.is_verified)}
-								title={
-									users.some((user) => selectedIds.has(user.id) && !user.is_verified)
-										? undefined
-										: "All selected accounts are already verified"
-								}
-								onClick={handleBulkVerify}
-							>
-								<LuBadgeCheck size={13} /> Verify
-							</Button>
-						)}
-						<Button {...GHOST_BUTTON_PROPS} h="8" px="3" fontSize="12px" borderRadius="9px" color="fg.subtle" onClick={() => handleBulkStatus(USER_STATUS.ACTIVE)}>
-							<LuCircleCheck size={13} /> Activate
-						</Button>
-						<Button {...GHOST_BUTTON_PROPS} h="8" px="3" fontSize="12px" borderRadius="9px" color="fg.subtle" onClick={() => handleBulkStatus(USER_STATUS.INACTIVE)}>
-							<LuCircleSlash size={13} /> Deactivate
-						</Button>
+						    selections are skipped (reported in the toast). Disabled without
+						    user:verify (perm tooltip) or when no selection is unverified. */}
+						{(() => {
+							const hasUnverified = users.some((user) => selectedIds.has(user.id) && !user.is_verified);
+							const verifyDisabled = !canVerify || !hasUnverified;
+							const verifyTip = !canVerify
+								? NO_PERMISSION_TOOLTIP
+								: !hasUnverified
+									? "All selected accounts are already verified"
+									: undefined;
+							return (
+								<Tooltip content={verifyTip ?? ""} disabled={!verifyTip} positioning={{ placement: "top" }}>
+									<Box as="span">
+										<Button
+											h="8"
+											px="3"
+											variant="outline"
+											borderRadius="9px"
+											borderColor="rgba(52,211,153,0.35)"
+											bg="rgba(52,211,153,0.08)"
+											fontSize="12px"
+											fontWeight="semibold"
+											color="aurora.mint"
+											_hover={{ bg: "rgba(52,211,153,0.16)" }}
+											disabled={verifyDisabled}
+											onClick={handleBulkVerify}
+										>
+											<LuBadgeCheck size={13} /> Verify
+										</Button>
+									</Box>
+								</Tooltip>
+							);
+						})()}
+						<Tooltip content={NO_PERMISSION_TOOLTIP} disabled={canUpdate} positioning={{ placement: "top" }}>
+							<Box as="span">
+								<Button {...GHOST_BUTTON_PROPS} h="8" px="3" fontSize="12px" borderRadius="9px" color="fg.subtle" disabled={!canUpdate} onClick={() => handleBulkStatus(USER_STATUS.ACTIVE)}>
+									<LuCircleCheck size={13} /> Activate
+								</Button>
+							</Box>
+						</Tooltip>
+						<Tooltip content={NO_PERMISSION_TOOLTIP} disabled={canUpdate} positioning={{ placement: "top" }}>
+							<Box as="span">
+								<Button {...GHOST_BUTTON_PROPS} h="8" px="3" fontSize="12px" borderRadius="9px" color="fg.subtle" disabled={!canUpdate} onClick={() => handleBulkStatus(USER_STATUS.INACTIVE)}>
+									<LuCircleSlash size={13} /> Deactivate
+								</Button>
+							</Box>
+						</Tooltip>
 						<Menu.Root onSelect={(details) => handleBulkAssignRole(details.value)}>
 							<Menu.Trigger asChild>
-								<Button
-									{...GHOST_BUTTON_PROPS}
-									h="8"
-									px="3"
-									fontSize="12px"
-									borderRadius="9px"
-									color="fg.subtle"
-									disabled={!canAssignRole || roleOptions.length === 0}
-									title={canAssignRole ? undefined : "Requires the role:assign permission"}
-								>
-									<LuKeyRound size={13} /> Assign role
-								</Button>
+								<Box as="span">
+									<Tooltip content={NO_PERMISSION_TOOLTIP} disabled={canAssignRole} positioning={{ placement: "top" }}>
+										<Box as="span">
+											<Button
+												{...GHOST_BUTTON_PROPS}
+												h="8"
+												px="3"
+												fontSize="12px"
+												borderRadius="9px"
+												color="fg.subtle"
+												disabled={!canAssignRole || roleOptions.length === 0}
+											>
+												<LuKeyRound size={13} /> Assign role
+											</Button>
+										</Box>
+									</Tooltip>
+								</Box>
 							</Menu.Trigger>
 							<Portal>
 								<Menu.Positioner>
@@ -1595,21 +1675,26 @@ export const Users = () => {
 								</Menu.Positioner>
 							</Portal>
 						</Menu.Root>
-						<Button
-							h="8"
-							px="3"
-							variant="outline"
-							borderRadius="9px"
-							borderColor="rgba(236,72,153,0.35)"
-							bg="rgba(236,72,153,0.08)"
-							fontSize="12px"
-							fontWeight="semibold"
-							color="aurora.magenta"
-							_hover={{ bg: "rgba(236,72,153,0.16)" }}
-							onClick={handleBulkDelete}
-						>
-							<LuTrash2 size={13} /> Delete
-						</Button>
+						<Tooltip content={NO_PERMISSION_TOOLTIP} disabled={canDelete} positioning={{ placement: "top" }}>
+							<Box as="span">
+								<Button
+									h="8"
+									px="3"
+									variant="outline"
+									borderRadius="9px"
+									borderColor="rgba(236,72,153,0.35)"
+									bg="rgba(236,72,153,0.08)"
+									fontSize="12px"
+									fontWeight="semibold"
+									color="aurora.magenta"
+									_hover={{ bg: "rgba(236,72,153,0.16)" }}
+									disabled={!canDelete}
+									onClick={handleBulkDelete}
+								>
+									<LuTrash2 size={13} /> Delete
+								</Button>
+							</Box>
+						</Tooltip>
 						<Center
 							as="button"
 							ml="auto"
@@ -1744,20 +1829,25 @@ export const Users = () => {
 						<Text fontSize="13px" color="fg.muted" maxW="360px" mb="3.5">
 							Invite links are the only way to create accounts — public signup is disabled. Create one to get a teammate on board.
 						</Text>
-						<Button
-							h="10"
-							px="4"
-							borderRadius="glassSm"
-							fontSize="13px"
-							fontWeight="semibold"
-							color="white"
-							css={AURORA_CTA_STYLE}
-							boxShadow="ctaGlow"
-							_hover={{ boxShadow: "ctaGlowHi", backgroundPosition: "100% 100%" }}
-							onClick={() => setInviteOpen(true)}
-						>
-							<LuUserPlus size={15} /> Invite user
-						</Button>
+						<Tooltip content={NO_PERMISSION_TOOLTIP} disabled={canCreate} positioning={{ placement: "top" }}>
+							<Box as="span">
+								<Button
+									h="10"
+									px="4"
+									borderRadius="glassSm"
+									fontSize="13px"
+									fontWeight="semibold"
+									color="white"
+									css={AURORA_CTA_STYLE}
+									boxShadow="ctaGlow"
+									_hover={{ boxShadow: "ctaGlowHi", backgroundPosition: "100% 100%" }}
+									disabled={!canCreate}
+									onClick={() => setInviteOpen(true)}
+								>
+									<LuUserPlus size={15} /> Invite user
+								</Button>
+							</Box>
+						</Tooltip>
 					</Center>
 				) : (
 					<>
@@ -1914,12 +2004,25 @@ export const Users = () => {
 											<Table.Cell px="3.5" py="13px">
 												<HStack className="row-actions" gap="1.5" justify="flex-end">
 													{displayStatus === "pending" && (
-														<QuickActionButton label="Revoke invite" color="aurora.magenta" danger onClick={() => handleRevokeInvitation(invitation)}>
+														<QuickActionButton
+															label="Revoke invite"
+															color="aurora.magenta"
+															danger
+															disabled={!canCreate}
+															tooltip={canCreate ? undefined : NO_PERMISSION_TOOLTIP}
+															onClick={() => handleRevokeInvitation(invitation)}
+														>
 															<LuBan size={14} />
 														</QuickActionButton>
 													)}
 													{muted && (
-														<QuickActionButton label="New invite" color="aurora.cyan" onClick={() => handleReissueInvite(invitation)}>
+														<QuickActionButton
+															label="New invite"
+															color="aurora.cyan"
+															disabled={!canCreate}
+															tooltip={canCreate ? undefined : NO_PERMISSION_TOOLTIP}
+															onClick={() => handleReissueInvite(invitation)}
+														>
 															<LuRefreshCw size={14} />
 														</QuickActionButton>
 													)}
