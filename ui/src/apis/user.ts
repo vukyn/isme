@@ -31,6 +31,7 @@ export const listUsers = async (request: ListUsersRequest): Promise<ListUsersRes
 			size: request.size,
 			query: request.query || undefined,
 			status: request.status || undefined,
+			app: request.app || undefined,
 			role: request.role || undefined,
 			verified: request.verified,
 		},

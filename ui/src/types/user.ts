@@ -48,6 +48,9 @@ export interface ListUsersRequest {
 	size: number;
 	query?: string;
 	status?: UserStatus;
+	/** App-scope for the role filter (app_code). Role codes are not unique across
+	 *  apps under app-owned RBAC, so a role filter is only honoured with an app. */
+	app?: string;
 	role?: string;
 	/** Filter by verification state — omitted = all. */
 	verified?: boolean;
