@@ -312,6 +312,9 @@
   }
   .sel:focus { outline: 0; border-color: var(--c-violet); box-shadow: 0 0 0 4px rgba(139,92,246,0.18); }
   .sel option { background: var(--bg-2); color: var(--fg); }
+  /* disabled scoped select — Role with no app chosen (role w/o app is ambiguous) */
+  .sel:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+  .sel:disabled:focus { border-color: var(--border-strong); box-shadow: none; }
   .filters .spacer { margin-left: auto; display: flex; gap: 10px; }
   .filters .map-note {
     width: 100%; font-size: 12px; color: var(--fg-mute);
@@ -658,7 +661,8 @@
       <button class="filter-btn">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3Z"/></svg>
         Filter
-        <span class="count">2</span>
+        <!-- active filters: Status=active · App=medioa2 · Role=admin -->
+        <span class="count">3</span>
       </button>
     </div>
 
@@ -703,15 +707,31 @@
         </div>
       </div>
 
-      <!-- ROLE: select — options come from roles list (role domain) -->
+      <!-- APP: select — options come from app_service list (app_service domain).
+           App-owned RBAC: every role belongs to an app_service. Picking an app
+           scopes the Role select below to that app's roles (cascade). -->
+      <div>
+        <span class="flabel">App</span>
+        <select class="sel" id="appFilter" aria-label="App filter" onchange="onAppFilterChange(this.value)">
+          <option value="all">all apps</option>
+          <option value="isme">isme</option>
+          <option value="medioa2" selected>medioa2</option>
+          <option value="rainy">rainy</option>
+        </select>
+      </div>
+
+      <!-- ROLE: select — options come from roles filtered by the selected app_id.
+           App = all apps → only `all` is offered and the select is disabled
+           (a role without an app is ambiguous under app-owned RBAC).
+           App chosen → lists that app's role_codes. Shown here for medioa2. -->
       <div>
         <span class="flabel">Role</span>
-        <select class="sel" aria-label="Role filter">
-          <option>all</option>
-          <option selected>admin</option>
-          <option>member</option>
-          <option>viewer</option>
-          <option>content-ops</option>
+        <select class="sel" id="roleFilter" aria-label="Role filter">
+          <!-- options populated by onAppFilterChange(); medioa2 set rendered on load -->
+          <option value="all">all</option>
+          <option value="admin" selected>admin</option>
+          <option value="uploader">uploader</option>
+          <option value="viewer">viewer</option>
         </select>
       </div>
 
@@ -728,17 +748,43 @@
       </div>
 
       <div class="spacer">
-        <!-- on click: clear filters and close row -->
-        <button class="btn btn-ghost btn-sm">Reset</button>
-        <!-- on click: apply filters → refetch user list -->
+        <!-- on click: clear filters and close row — resets App→all apps and Role→all (disabled) -->
+        <button class="btn btn-ghost btn-sm" onclick="resetAppRoleFilter()">Reset</button>
+        <!-- on click: apply filters → refetch user list (app_id + role_code passed together) -->
         <button class="btn btn-primary btn-sm">Apply</button>
       </div>
 
       <div class="map-note">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-        status · <code>user.status</code> &nbsp;·&nbsp; verified · <code>user.is_verified</code> &nbsp;·&nbsp; role · rbac assignment &nbsp;·&nbsp; last login · <code>last_login_at</code>
+        status · <code>user.status</code> &nbsp;·&nbsp; verified · <code>user.is_verified</code> &nbsp;·&nbsp; app · <code>app_service</code> &nbsp;·&nbsp; role · rbac assignment (scoped to app) &nbsp;·&nbsp; last login · <code>last_login_at</code>
       </div>
     </div>
+
+    <!-- Cascade: App → Role. Static-mock role sets hardcoded per app; in the React
+         port these come from the roles list filtered by selected app_id.
+         App = all apps → Role shows only `all` and is disabled (role w/o app is ambiguous). -->
+    <script>
+      const ROLES_BY_APP = {
+        all:     ["all"],
+        isme:    ["all", "admin", "member", "viewer"],
+        medioa2: ["all", "admin", "uploader", "viewer"],
+        rainy:   ["all", "admin", "curator", "listener"],
+      };
+      function onAppFilterChange(app) {
+        const role = document.getElementById("roleFilter");
+        const roles = ROLES_BY_APP[app] || ["all"];
+        role.innerHTML = roles
+          .map(r => `<option value="${r}">${r}</option>`)
+          .join("");
+        role.value = "all";
+        role.disabled = (app === "all"); // ambiguous without an app → dimmed/disabled
+      }
+      function resetAppRoleFilter() {
+        const app = document.getElementById("appFilter");
+        app.value = "all";
+        onAppFilterChange("all");
+      }
+    </script>
 
     <!-- ================= TABLE =================
          Row anatomy: checkbox · avatar+name+email · status pill · verified pill ·

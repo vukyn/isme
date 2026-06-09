@@ -150,6 +150,26 @@ func (r *repository) List(ctx context.Context, req models.ListRequest) ([]entity
 		query = query.Where("is_verified = ?", *req.Verified)
 	}
 
+	// Apply app + role filter (app-owned RBAC).
+	// Role codes are not unique across apps, so role filtering is only meaningful
+	// when scoped to an app — mirror the UI contract: ignore the role predicate
+	// unless an app is also chosen. Restrict to users holding a matching role via
+	// the user_roles → roles → app_services chain, keeping soft-delete semantics
+	// on roles and matching the assignment scope to the owning role's app.
+	if req.AppCode != "" {
+		subQuery := r.db.NewSelect().
+			TableExpr("user_roles AS ur").
+			ColumnExpr("ur.user_id").
+			Join("JOIN roles AS rol ON rol.id = ur.role_id AND rol.deleted_at IS NULL").
+			Join("JOIN app_services AS app ON app.id = rol.app_id").
+			Where("ur.app_service_id = rol.app_id").
+			Where("app.app_code = ?", req.AppCode)
+		if req.RoleID != "" {
+			subQuery = subQuery.Where("rol.code = ?", req.RoleID)
+		}
+		query = query.Where("id IN (?)", subQuery)
+	}
+
 	// Get total count
 	total, err := query.Count(ctx)
 	if err != nil {

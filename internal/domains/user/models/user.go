@@ -35,9 +35,12 @@ func (r CreateRequest) Validate() error {
 type ListRequest struct {
 	Page     int    `json:"page" query:"page"`
 	PageSize int    `json:"size" query:"size"`
-	Search   string `json:"query" query:"query"`       // search by name or email
-	Status   int32  `json:"status" query:"status"`     // 1=active, 2=inactive
-	RoleID   string `json:"role" query:"role"`         // filter by role
+	Search   string `json:"query" query:"query"`   // search by name or email
+	Status   int32  `json:"status" query:"status"` // 1=active, 2=inactive
+	// AppCode scopes the role filter to one app_service (app-owned RBAC).
+	AppCode string `json:"app" query:"app"`
+	// RoleID carries a role *code* (not an id); app-scoped, only honoured when AppCode is set.
+	RoleID   string `json:"role" query:"role"`         // filter by role code (requires AppCode)
 	Verified *bool  `json:"verified" query:"verified"` // filter by verification state (nil=all)
 }
 

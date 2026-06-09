@@ -44,6 +44,7 @@ import {
 } from "react-icons/lu";
 import {
 	assignUserRole,
+	listAppServices,
 	listInvitations,
 	listRoles,
 	listUsers,
@@ -64,7 +65,6 @@ import {
 	USER_STATUS,
 	USER_STATUS_FILTER_OPTIONS,
 	USER_VERIFIED_FILTER_OPTIONS,
-	USER_ROLE_OPTIONS,
 	USERS_PAGE_SIZE_OPTIONS,
 } from "@/consts";
 import { AURORA_CTA_STYLE } from "@/consts/styles";
@@ -74,6 +74,7 @@ import { AppShell } from "@/layouts/AppShell";
 import { INVITATION_STATUS_LABELS } from "@/types";
 import type {
 	AppRole,
+	AppService,
 	InvitationDisplayStatus,
 	InvitationListItem,
 	InvitationRoleAssignment,
@@ -582,6 +583,8 @@ export const Users = () => {
 	const [reloadKey, setReloadKey] = useState(0);
 
 	const [roleOptions, setRoleOptions] = useState<RoleListItem[]>([]);
+	// App options for the App→Role cascade filter (app-owned RBAC).
+	const [appOptions, setAppOptions] = useState<AppService[]>([]);
 
 	const [search, setSearch] = useState("");
 	const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -590,6 +593,10 @@ export const Users = () => {
 	const [filterOpen, setFilterOpen] = useState(false);
 	const [draftStatus, setDraftStatus] = useState<StatusFilter>("all");
 	const [draftVerified, setDraftVerified] = useState<VerifiedFilter>("all");
+	// App→Role cascade: the App select scopes the Role select (role codes are not
+	// unique across apps). "all" apps disables Role (a role without an app is
+	// ambiguous under app-owned RBAC).
+	const [draftApp, setDraftApp] = useState("all");
 	const [draftRole, setDraftRole] = useState("all");
 	const [draftLastLogin, setDraftLastLogin] = useState<LastLoginFilter>("any");
 	// `at` is captured when filters are applied so the last-login window is
@@ -597,10 +604,11 @@ export const Users = () => {
 	const [applied, setApplied] = useState<{
 		status: StatusFilter;
 		verified: VerifiedFilter;
+		app: string;
 		role: string;
 		lastLogin: LastLoginFilter;
 		at: number;
-	}>({ status: "all", verified: "all", role: "all", lastLogin: "any", at: 0 });
+	}>({ status: "all", verified: "all", app: "all", role: "all", lastLogin: "any", at: 0 });
 
 	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 	const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -660,7 +668,8 @@ export const Users = () => {
 			size: pageSize,
 			query: debouncedSearch || undefined,
 			status: applied.status !== "all" ? STATUS_FILTER_TO_VALUE[applied.status] : undefined,
-			role: applied.role !== "all" ? applied.role : undefined,
+			app: applied.app !== "all" ? applied.app : undefined,
+			role: applied.app !== "all" && applied.role !== "all" ? applied.role : undefined,
 			verified: applied.verified !== "all" ? applied.verified === "verified" : undefined,
 		})
 			.then((response) => {
@@ -714,23 +723,42 @@ export const Users = () => {
 		};
 	}, [reloadKey]);
 
-	// Role options for the filter select + bulk assign (needs role:read).
-	// Scoped to the isme app — the user list only carries isme-app roles, so the
-	// role filter + bulk-assign operate on isme roles (platform roles).
+	// App options for the App→Role cascade (needs app_service:read). The App
+	// select scopes the Role select below — picking an app reveals that app's
+	// role codes, "all apps" disables Role.
 	useEffect(() => {
-		if (!can("role:read")) return;
+		if (!can("app_service:read")) return;
 		let active = true;
-		listRoles({ app_code: "isme" })
-			.then((items) => {
-				if (active) setRoleOptions(items);
+		listAppServices({ page: 1, page_size: 100 })
+			.then((response) => {
+				if (active) setAppOptions(response.items);
 			})
 			.catch(() => {
-				// non-fatal — the role filter falls back to the static options
+				// non-fatal — the app filter falls back to "all apps" only
 			});
 		return () => {
 			active = false;
 		};
 	}, [can]);
+
+	// Role options cascade off the chosen app (needs role:read): refetch the
+	// selected app's roles whenever draftApp changes. With "all" apps the Role
+	// select is disabled and only ever offers "all", so the JSX gates on
+	// draftApp !== "all" and stale options are never shown (no clear needed here).
+	useEffect(() => {
+		if (draftApp === "all" || !can("role:read")) return;
+		let active = true;
+		listRoles({ app_code: draftApp })
+			.then((items) => {
+				if (active) setRoleOptions(items);
+			})
+			.catch(() => {
+				if (active) setRoleOptions([]);
+			});
+		return () => {
+			active = false;
+		};
+	}, [can, draftApp]);
 
 	useEffect(() => {
 		const handler = (event: KeyboardEvent) => {
@@ -767,7 +795,8 @@ export const Users = () => {
 	const appliedCount =
 		(applied.status !== "all" ? 1 : 0) +
 		(applied.verified !== "all" ? 1 : 0) +
-		(applied.role !== "all" ? 1 : 0) +
+		(applied.app !== "all" ? 1 : 0) +
+		(applied.app !== "all" && applied.role !== "all" ? 1 : 0) +
 		(applied.lastLogin !== "any" ? 1 : 0);
 	const totalSessions = users.reduce((sum, user) => sum + user.sessions_count, 0);
 	const allOnPageSelected = paged.length > 0 && paged.every((user) => selectedIds.has(user.id));
@@ -943,18 +972,34 @@ export const Users = () => {
 	};
 
 	const handleApplyFilters = () => {
-		setApplied({ status: draftStatus, verified: draftVerified, role: draftRole, lastLogin: draftLastLogin, at: Date.now() });
+		setApplied({
+			status: draftStatus,
+			verified: draftVerified,
+			app: draftApp,
+			// role is only meaningful when scoped to an app
+			role: draftApp !== "all" ? draftRole : "all",
+			lastLogin: draftLastLogin,
+			at: Date.now(),
+		});
 		setPage(1);
 	};
 
 	const handleResetFilters = () => {
 		setDraftStatus("all");
 		setDraftVerified("all");
+		setDraftApp("all");
 		setDraftRole("all");
 		setDraftLastLogin("any");
-		setApplied({ status: "all", verified: "all", role: "all", lastLogin: "any", at: 0 });
+		setApplied({ status: "all", verified: "all", app: "all", role: "all", lastLogin: "any", at: 0 });
 		setFilterOpen(false);
 		setPage(1);
+	};
+
+	// Changing the App resets the Role to "all" (mock onAppFilterChange) — the
+	// role options refetch is handled by the draftApp-keyed effect above.
+	const handleAppFilterChange = (app: string) => {
+		setDraftApp(app);
+		setDraftRole("all");
 	};
 
 	const handleExportCsv = () => {
@@ -1286,9 +1331,44 @@ export const Users = () => {
 						</Box>
 						<Box>
 							<Text {...LABEL_PROPS} mb="2">
+								App
+							</Text>
+							<NativeSelect.Root size="sm" w="52">
+								<NativeSelect.Field
+									h="10"
+									borderRadius="glassSm"
+									bg="bg.glass"
+									borderColor="border.strong"
+									fontSize="13px"
+									color="fg"
+									css={{
+										backdropFilter: "blur(12px)",
+										WebkitBackdropFilter: "blur(12px)",
+										overflow: "hidden",
+										textOverflow: "ellipsis",
+										whiteSpace: "nowrap",
+										"& option": { background: "#12122E", color: "#F4F5FF" },
+									}}
+									_focus={{ borderColor: "aurora.violet", boxShadow: "focusRing", outline: "none" }}
+									value={draftApp}
+									onChange={(event) => handleAppFilterChange(event.target.value)}
+									title={appOptions.find((app) => app.app_code === draftApp)?.app_name || undefined}
+								>
+									<option value="all">all apps</option>
+									{appOptions.map((app) => (
+										<option key={app.id} value={app.app_code} title={app.app_name || app.app_code}>
+											{app.app_name || app.app_code}
+										</option>
+									))}
+								</NativeSelect.Field>
+								<NativeSelect.Indicator color="fg.muted" />
+							</NativeSelect.Root>
+						</Box>
+						<Box>
+							<Text {...LABEL_PROPS} mb="2">
 								Role
 							</Text>
-							<NativeSelect.Root size="sm" w="40">
+							<NativeSelect.Root size="sm" w="40" disabled={draftApp === "all"}>
 								<NativeSelect.Field
 									h="10"
 									borderRadius="glassSm"
@@ -1300,17 +1380,19 @@ export const Users = () => {
 										backdropFilter: "blur(12px)",
 										WebkitBackdropFilter: "blur(12px)",
 										"& option": { background: "#12122E", color: "#F4F5FF" },
+										"&:disabled": { opacity: 0.45, cursor: "not-allowed" },
 									}}
 									_focus={{ borderColor: "aurora.violet", boxShadow: "focusRing", outline: "none" }}
 									value={draftRole}
 									onChange={(event) => setDraftRole(event.target.value)}
 								>
 									<option value="all">all</option>
-									{(roleOptions.length > 0 ? roleOptions.map((role) => role.code) : USER_ROLE_OPTIONS).map((role) => (
-										<option key={role} value={role}>
-											{role}
-										</option>
-									))}
+									{draftApp !== "all" &&
+										roleOptions.map((role) => (
+											<option key={role.id} value={role.code}>
+												{role.code}
+											</option>
+										))}
 								</NativeSelect.Field>
 								<NativeSelect.Indicator color="fg.muted" />
 							</NativeSelect.Root>
