@@ -214,21 +214,26 @@ func (u *usecase) Login(ctx context.Context, req models.LoginRequest) (models.Lo
 	// if login from external app service, need exchange authorization code for tokens
 	var authorizationCode string
 	if appServiceID != "" {
-		// clear session ID from cache (one-time use)
-		u.cache.Delete(req.SessionID)
+		// SSO login produces TWO distinct token pairs — they must NEVER be crossed:
+		//
+		//   1. APP-SCOPED tokens (accessToken/refreshToken/expiresAt above, built
+		//      with buildTokenScope(groupedPerms, appCode), aud-restricted to the
+		//      requesting app) → go ONLY into mintAuthorizationCode. The app later
+		//      redeems the code via ExchangeCode for these aud-restricted tokens.
+		//
+		//   2. IdP-SCOPED tokens (full isme scope, fresh IdP session) → go ONLY into
+		//      the LoginResponse. The browser writes these as real isme cookies so the
+		//      silent-SSO consent screen can trigger on later app handshakes.
+		authorizationCode = u.mintAuthorizationCode(accessToken, refreshToken, expiresAt, req.SessionID)
 
-		// generate authorization code
-		authorizationCode = cryp.ULID()
-
-		// set tokens to cache for exchange token
-		u.cache.Set(keyAuthorizationCodeAccessToken(authorizationCode), accessToken, time.Duration(u.cfg.Auth.ExternalExchangeCodeTTL)*time.Second)
-		u.cache.Set(keyAuthorizationCodeRefreshToken(authorizationCode), refreshToken, time.Duration(u.cfg.Auth.ExternalExchangeCodeTTL)*time.Second)
-		u.cache.Set(keyAuthorizationCodeExpiresAt(authorizationCode), expiresAt, time.Duration(u.cfg.Auth.ExternalExchangeCodeTTL)*time.Second)
-
-		// sanitize tokens info
-		accessToken = ""
-		refreshToken = ""
-		expiresAt = ""
+		// establish the isme IdP browser session and return ITS (full-scope) tokens
+		idpAccess, idpRefresh, idpExpires, err := u.establishIdPSession(ctx, user, groupedPerms)
+		if err != nil {
+			return models.LoginResponse{}, err
+		}
+		accessToken = idpAccess
+		refreshToken = idpRefresh
+		expiresAt = idpExpires
 	}
 
 	return models.LoginResponse{
@@ -475,6 +480,145 @@ func (u *usecase) ExchangeCode(ctx context.Context, req models.ExchangeCodeReque
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		ExpiresAt:    expiresAt,
+	}, nil
+}
+
+// ssoConsentScopes are the static consent line items shown on the SSO consent
+// screen. Rendered from data on the frontend, not hardcoded in TSX.
+var ssoConsentScopes = []models.SSOScope{
+	{Title: "View your profile & email", Description: "Your name and email address."},
+	{Title: "Access your roles & permissions", Description: "Your assigned access for this application."},
+	{Title: "Act on your behalf", Description: "Perform actions in the application as you."},
+}
+
+// SSOCheck is the READ-ONLY silent-authorize probe. It resolves the SSO session
+// to its requesting app and validates the caller's existing isme tokens WITHOUT
+// rotating them. On a valid session it returns the user identity, the requesting
+// app, the static consent scopes, and a fresh single-use CSRF nonce. On an
+// invalid/expired session it returns {valid:false} WITHOUT erroring, so the
+// consent page can fall back to the password form.
+func (u *usecase) SSOCheck(ctx context.Context, req models.SSOCheckRequest) (models.SSOCheckResponse, error) {
+	// validation
+	if err := req.Validate(); err != nil {
+		return models.SSOCheckResponse{}, pkgErr.InvalidRequest(err.Error())
+	}
+
+	// resolve session_id → requesting app service (same as Login)
+	appServiceID, ok := u.cache.Get(req.SessionID)
+	if !ok {
+		return models.SSOCheckResponse{}, pkgErr.InvalidRequest("invalid session_id")
+	}
+	appService, err := u.appServiceRepo.GetByID(ctx, appServiceID)
+	if err != nil {
+		return models.SSOCheckResponse{}, err
+	}
+	if appService.ID == "" {
+		return models.SSOCheckResponse{}, pkgErr.InvalidRequest("invalid session_id")
+	}
+
+	// read-only validity probe (NO rotation, NO session mutation)
+	user, valid := u.validateSessionForConsent(ctx, req.AccessToken, req.RefreshToken)
+	if !valid {
+		// not an error: the page renders the password form instead
+		return models.SSOCheckResponse{Valid: false}, nil
+	}
+
+	// mint a fresh single-use nonce that /sso/consent will require
+	nonce := u.mintConsentNonce(req.SessionID)
+
+	return models.SSOCheckResponse{
+		Valid: true,
+		User: models.SSOCheckUser{
+			Name:  user.Name,
+			Email: user.Email,
+		},
+		App: models.SSOCheckApp{
+			Name:        appService.AppName,
+			RedirectURL: appService.RedirectURL,
+		},
+		Scopes: ssoConsentScopes,
+		Nonce:  nonce,
+	}, nil
+}
+
+// SSOConsent is the authorize step of silent SSO. It re-validates everything
+// server-side independently (never trusting a prior /sso/check), consumes the
+// single-use nonce, re-resolves the requesting app from the session_id, and
+// mints a FRESH app-scoped token pair bound to a NEW user_session for the
+// requesting app — exactly like an SSO login would, minus password verification.
+// It never reads or mutates the caller's own (isme browser) session, so the
+// browser stays logged in, and the issued token is aud-restricted to the
+// requesting app via buildTokenScope(appService.AppCode).
+func (u *usecase) SSOConsent(ctx context.Context, req models.SSOConsentRequest) (models.SSOConsentResponse, error) {
+	// validation
+	if err := req.Validate(); err != nil {
+		return models.SSOConsentResponse{}, pkgErr.InvalidRequest(err.Error())
+	}
+
+	// resolve session_id → requesting app service (independent re-resolution)
+	appServiceID, ok := u.cache.Get(req.SessionID)
+	if !ok {
+		return models.SSOConsentResponse{}, pkgErr.InvalidRequest("invalid session_id")
+	}
+	appService, err := u.appServiceRepo.GetByID(ctx, appServiceID)
+	if err != nil {
+		return models.SSOConsentResponse{}, err
+	}
+	if appService.ID == "" {
+		return models.SSOConsentResponse{}, pkgErr.InvalidRequest("invalid session_id")
+	}
+
+	// re-run the read-only validity probe server-side — never trust prior /check.
+	// capture the user so we can mint a fresh app-scoped session for them below.
+	user, valid := u.validateSessionForConsent(ctx, req.AccessToken, req.RefreshToken)
+	if !valid {
+		return models.SSOConsentResponse{}, pkgErr.InvalidRequest("session is no longer valid")
+	}
+
+	// validate + consume the single-use CSRF nonce (replay guard)
+	if !u.consumeConsentNonce(req.SessionID, req.Nonce) {
+		return models.SSOConsentResponse{}, pkgErr.InvalidRequest("invalid or expired nonce")
+	}
+
+	// mint a fresh app-scoped token pair bound to a NEW session for the
+	// requesting app — mirrors the Login SSO branch, minus password checks.
+	// The caller's own browser session is never read or mutated here.
+
+	// re-load authorization data from the DB so revoked rights never leak
+	groupedPerms, err := u.roleRepo.GetPermissionCodesGroupedByApp(ctx, user.ID)
+	if err != nil {
+		return models.SSOConsentResponse{}, err
+	}
+
+	// aud-restrict the token to the requesting app (medioa2), not a full token
+	resourceAccess, audience := buildTokenScope(groupedPerms, appService.AppCode)
+
+	// generate access tokens
+	accessToken, accessTokenClaims, err := u.generateAccessTokens(user.ID, user.Email, resourceAccess, audience)
+	if err != nil {
+		return models.SSOConsentResponse{}, err
+	}
+	expiresAt := accessTokenClaims.GetExpiredAt().Format(time.RFC3339)
+
+	// generate refresh tokens
+	refreshToken, _, err := u.generateRefreshTokens(user.ID, user.Email)
+	if err != nil {
+		return models.SSOConsentResponse{}, err
+	}
+
+	// create a NEW user session bound to the requesting app (the medioa2
+	// session); the browser's isme session row is untouched
+	_, err = u.createUserSession(ctx, user.ID, accessTokenClaims.GetTokenID(), user.Email, refreshToken, appServiceID, accessTokenClaims.GetExpiredAt())
+	if err != nil {
+		return models.SSOConsentResponse{}, err
+	}
+
+	// mint a one-time authorization code (deletes session_id atomically)
+	authorizationCode := u.mintAuthorizationCode(accessToken, refreshToken, expiresAt, req.SessionID)
+
+	return models.SSOConsentResponse{
+		RedirectURL:       appService.RedirectURL,
+		AuthorizationCode: authorizationCode,
 	}, nil
 }
 

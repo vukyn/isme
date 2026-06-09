@@ -81,6 +81,54 @@ export interface AuthTokens {
 	expires_at: string;
 }
 
+/** Maps to internal/domains/auth/models.SSOCheckRequest — read-only silent-authorize probe. */
+export interface SSOCheckRequest {
+	session_id: string;
+	access_token?: string;
+	refresh_token?: string;
+}
+
+/** One consent line item rendered on the SSO consent screen. Maps to models.SSOScope. */
+export interface SSOScope {
+	title: string;
+	description: string;
+}
+
+/** Maps to internal/domains/auth/models.SSOCheckResponse.
+ *  When `valid` is false the page falls back to the password form. */
+export interface SSOCheckResponse {
+	data: {
+		valid: boolean;
+		user: {
+			name: string;
+			email: string;
+		};
+		app: {
+			name: string;
+			redirect_url: string;
+		};
+		scopes: SSOScope[];
+		/** Short-TTL single-use CSRF nonce required by /sso/consent. */
+		nonce: string;
+	};
+}
+
+/** Maps to internal/domains/auth/models.SSOConsentRequest. */
+export interface SSOConsentRequest {
+	session_id: string;
+	access_token?: string;
+	refresh_token?: string;
+	nonce: string;
+}
+
+/** Maps to internal/domains/auth/models.SSOConsentResponse. */
+export interface SSOConsentResponse {
+	data: {
+		redirect_url: string;
+		authorization_code: string;
+	};
+}
+
 /**
  * Maps to internal/domains/auth/models.GetMeResponse.
  * Authorization data (admin flag, permissions) is NOT here —

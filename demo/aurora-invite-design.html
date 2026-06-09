@@ -77,7 +77,7 @@
     100% { background-position: 100% 100%, 0% 100%, 0% 0%, 100% 0%, 0 0; }
   }
 
-  /* ====== Showcase stack (same anatomy as auth-mockup.html) ====== */
+  /* ====== Showcase stack (same anatomy as aurora-auth-mockup.html) ====== */
   .page-stack { display: flex; flex-direction: column; gap: 56px; padding: 48px 24px; max-width: 1440px; margin: 0 auto; }
   .page-label {
     font-size: 11px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase;
@@ -496,7 +496,7 @@
   .copy-btn:hover { background: var(--glass-strong); color: var(--fg); border-color: rgba(255,255,255,0.30); }
   .copy-btn.copied { color: var(--c-mint); border-color: rgba(52,211,153,0.40); }
 
-  /* ====== Accept-invite page (auth-mockup split anatomy) ====== */
+  /* ====== Accept-invite page (aurora-auth-mockup split anatomy) ====== */
   .split { display: grid; grid-template-columns: 1.05fr 1fr; min-height: 680px; }
   @media (max-width: 900px) { .split { grid-template-columns: 1fr; } .brand-panel { min-height: 300px; } }
   .brand-panel {
@@ -596,7 +596,7 @@
   modal at the bottom of aurora-users-design.html (that modal stays in demo/ as
   unported design material — do not delete it).
 
-  Three screens, stacked like auth-mockup.html:
+  Three screens, stacked like aurora-auth-mockup.html:
     01 · Invite user dialog (form + one-time-link success state)
     02 · Invitations list — sub-tab on the /users page
     03 · Accept invite — public /accept-invite page (valid + error variants)
@@ -1009,7 +1009,7 @@
 
   <!-- ============================================================
        03 · ACCEPT INVITE — public page at /accept-invite?token=…
-       Same split anatomy as the auth-mockup login screen (AuthLayout:
+       Same split anatomy as the aurora-auth-mockup login screen (AuthLayout:
        brand panel left, form right). On load the SPA calls
        GET /invitations/validate?token=… →
          200 → render this form with the invite's email prefilled+locked

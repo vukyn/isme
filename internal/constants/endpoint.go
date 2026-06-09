@@ -10,6 +10,8 @@ const (
 	AUTH_ENDPOINT_CHANGE_PASSWORD = "/change-password"
 	AUTH_ENDPOINT_REQUEST_LOGIN   = "/request-login"
 	AUTH_ENDPOINT_EXCHANGE_CODE   = "/exchange-code"
+	AUTH_ENDPOINT_SSO_CHECK       = "/sso/check"
+	AUTH_ENDPOINT_SSO_CONSENT     = "/sso/consent"
 	AUTH_ENDPOINT_INVITE_DETAIL   = "/invites/:token"
 	AUTH_ENDPOINT_ACCEPT_INVITE   = "/accept-invite"
 

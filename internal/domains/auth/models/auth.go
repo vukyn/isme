@@ -33,6 +33,15 @@ func (r LoginRequest) Validate() error {
 	return nil
 }
 
+// LoginResponse carries the result of a login.
+//
+//   - First-party isme login: AccessToken/RefreshToken/ExpiresAt are the
+//     full-scope tokens; AuthorizationCode/RedirectURL are empty.
+//   - SSO login (session_id set): AccessToken/RefreshToken/ExpiresAt carry the
+//     full-scope IdP tokens (the browser writes these as isme cookies so silent
+//     SSO can trigger later), while AuthorizationCode carries the app handoff —
+//     a one-time code that ExchangeCode resolves to the APP-scoped, aud-restricted
+//     tokens. The two token pairs are intentionally distinct and never crossed.
 type LoginResponse struct {
 	AccessToken       string `json:"access_token"`
 	RefreshToken      string `json:"refresh_token"`
@@ -130,4 +139,83 @@ type ExchangeCodeResponse struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
 	ExpiresAt    string `json:"expires_at"`
+}
+
+// SSOCheckRequest is the read-only silent-authorize probe. It resolves the SSO
+// session and validates the caller's existing isme tokens WITHOUT rotating them.
+// At least one of AccessToken / RefreshToken must be present (the access token
+// may be expired, in which case the refresh token is probed instead).
+type SSOCheckRequest struct {
+	SessionID    string `json:"session_id"`
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+}
+
+func (r SSOCheckRequest) Validate() error {
+	if r.SessionID == "" {
+		return errors.New("session_id is required")
+	}
+	if r.AccessToken == "" && r.RefreshToken == "" {
+		return errors.New("access_token or refresh_token is required")
+	}
+	return nil
+}
+
+// SSOCheckUser is the minimal identity shown on the consent screen. No avatar
+// field exists on the user entity — the frontend derives initials from Name.
+type SSOCheckUser struct {
+	Name  string `json:"name"`
+	Email string `json:"email"`
+}
+
+// SSOCheckApp identifies the requesting app resolved from the session_id.
+type SSOCheckApp struct {
+	Name        string `json:"name"`
+	RedirectURL string `json:"redirect_url"`
+}
+
+// SSOScope is one consent line item rendered on the consent screen.
+type SSOScope struct {
+	Title       string `json:"title"`
+	Description string `json:"description"`
+}
+
+// SSOCheckResponse drives the consent screen. When Valid is false the frontend
+// falls back to the password form; the probe never errors on an invalid/expired
+// session so the page can degrade gracefully.
+type SSOCheckResponse struct {
+	Valid  bool         `json:"valid"`
+	User   SSOCheckUser `json:"user"`
+	App    SSOCheckApp  `json:"app"`
+	Scopes []SSOScope   `json:"scopes"`
+	// Nonce is a short-TTL single-use CSRF token that /sso/consent requires.
+	Nonce string `json:"nonce"`
+}
+
+// SSOConsentRequest is the authorize step. It re-validates server-side and
+// requires the single-use Nonce minted by /sso/check.
+type SSOConsentRequest struct {
+	SessionID    string `json:"session_id"`
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+	Nonce        string `json:"nonce"`
+}
+
+func (r SSOConsentRequest) Validate() error {
+	if r.SessionID == "" {
+		return errors.New("session_id is required")
+	}
+	if r.Nonce == "" {
+		return errors.New("nonce is required")
+	}
+	if r.AccessToken == "" && r.RefreshToken == "" {
+		return errors.New("access_token or refresh_token is required")
+	}
+	return nil
+}
+
+// SSOConsentResponse mirrors the SSO fields of LoginResponse.
+type SSOConsentResponse struct {
+	RedirectURL       string `json:"redirect_url"`
+	AuthorizationCode string `json:"authorization_code"`
 }

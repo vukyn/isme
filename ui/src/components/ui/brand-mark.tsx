@@ -1,15 +1,21 @@
 import { Center } from "@chakra-ui/react";
 
 interface BrandMarkProps {
-	size?: "sm" | "md";
+	// "lg" matches the 52px SSO handshake app-tile (.app-tile.isme in the mock)
+	size?: "sm" | "md" | "lg";
 }
 
+// Explicit px — Chakra's size scale has no "13" token (and skips other odd
+// values), so token strings like "13" are silently dropped, collapsing the
+// tile to its content size. Pixel values render deterministically.
+const SIZES = {
+	sm: { outer: "32px", inner: "24px", radii: "9px", innerRadii: "7px", icon: 14 },
+	md: { outer: "40px", inner: "32px", radii: "10px", innerRadii: "9px", icon: 16 },
+	lg: { outer: "52px", inner: "40px", radii: "15px", innerRadii: "11px", icon: 22 },
+} as const;
+
 export const BrandMark = ({ size = "md" }: BrandMarkProps) => {
-	const outer = size === "sm" ? "8" : "10";
-	const inner = size === "sm" ? "6" : "8";
-	const radii = size === "sm" ? "9px" : "10px";
-	const innerRadii = size === "sm" ? "7px" : "9px";
-	const iconSize = size === "sm" ? 14 : 16;
+	const { outer, inner, radii, innerRadii, icon: iconSize } = SIZES[size];
 
 	return (
 		<Center
@@ -29,7 +35,7 @@ export const BrandMark = ({ size = "md" }: BrandMarkProps) => {
 					viewBox="0 0 24 24"
 					fill="none"
 					stroke="white"
-					strokeWidth={2.4}
+					strokeWidth={2.2}
 					strokeLinecap="round"
 					strokeLinejoin="round"
 				>

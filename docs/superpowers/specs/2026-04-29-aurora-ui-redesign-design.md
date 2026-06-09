@@ -3,7 +3,7 @@
 **Date**: 2026-04-29
 **Status**: Approved (pending user review)
 **Scope**: Frontend (`ui/`) only. No backend changes.
-**Source mockup**: `design/auth-mockup.html`
+**Source mockup**: `design/aurora-auth-mockup.html`
 
 ## 1. Goal
 

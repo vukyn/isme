@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
 <style>
-  /* ====== Aurora design tokens — extracted from demo/auth-mockup.html ====== */
+  /* ====== Aurora design tokens — extracted from demo/aurora-auth-mockup.html ====== */
   :root {
     --bg-0: #07071A;
     --bg-1: #0B0B23;
@@ -51,7 +51,7 @@
     *, *::before, *::after { animation: none !important; transition: none !important; }
   }
 
-  /* Aurora background — global, same as auth-mockup */
+  /* Aurora background — global, same as aurora-auth-mockup */
   body::before {
     content: ""; position: fixed; inset: 0; z-index: -2;
     background:
@@ -77,7 +77,7 @@
     100% { background-position: 100% 100%, 0% 100%, 0% 0%, 100% 0%, 0 0; }
   }
 
-  /* ====== Topbar shell (same anatomy as auth-mockup Welcome screen) ====== */
+  /* ====== Topbar shell (same anatomy as aurora-auth-mockup Welcome screen) ====== */
   .app-bar {
     position: sticky; top: 0; z-index: 50;
     height: 64px;
@@ -171,7 +171,7 @@
   .page-sub .num.warn { color: var(--c-amber); }
   .head-actions { display: flex; gap: 10px; }
 
-  /* buttons — same tokens as auth-mockup, auto width */
+  /* buttons — same tokens as aurora-auth-mockup, auto width */
   .btn {
     display: inline-flex; align-items: center; justify-content: center; gap: 9px;
     height: 44px; padding: 0 18px;
@@ -378,7 +378,7 @@
   .u-name .shield { color: var(--c-violet); filter: drop-shadow(0 0 6px var(--accent-glow)); flex: 0 0 auto; }
   .u-mail { font-size: 12px; color: var(--fg-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-  /* pills — same shape as auth-mockup .pill */
+  /* pills — same shape as aurora-auth-mockup .pill */
   .pill {
     display: inline-flex; align-items: center; gap: 7px;
     font-size: 12px; font-weight: 500;
@@ -577,7 +577,7 @@
   USERS MANAGEMENT screen for isme (SSO admin console) — AURORA theme.
   Visual port of cursor-users-design.html: functional spec is identical
   (already implemented in React); only the theme changes. Shares the aurora
-  topbar shell (auth-mockup.html Welcome screen / ui AppShell+Topbar) with
+  topbar shell (aurora-auth-mockup.html Welcome screen / ui AppShell+Topbar) with
   aurora-permissions-design.html — "Users" and "Roles & Permissions" are
   sibling nav tabs.
 

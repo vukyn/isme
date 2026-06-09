@@ -18,4 +18,9 @@ func SetupAuthRoutes(router fiber.Router) {
 	r.Post(constants.AUTH_ENDPOINT_LOGOUT, middleware.AuthMiddleware, Logout)
 	r.Post(constants.AUTH_ENDPOINT_REQUEST_LOGIN, RequestLogin)
 	r.Post(constants.AUTH_ENDPOINT_EXCHANGE_CODE, ExchangeCode)
+	// Public: AuthMiddleware → VerifyToken would reject an expired access token
+	// before the handler runs, breaking the refresh-token probe branch. These
+	// endpoints validate the tokens passed in the body themselves.
+	r.Post(constants.AUTH_ENDPOINT_SSO_CHECK, SSOCheck)
+	r.Post(constants.AUTH_ENDPOINT_SSO_CONSENT, SSOConsent)
 }
