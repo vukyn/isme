@@ -4,7 +4,7 @@ import (
 	"github.com/vukyn/kuery/rbac"
 )
 
-// Permission codes (must match the catalog seeded by 010_seed_rbac + 012_add_user_verification — 19 permissions)
+// Permission codes (must match the catalog seeded by 010_seed_rbac + 012_add_user_verification + 022_create_session_revoke_config — 21 permissions)
 var (
 	PERM_USER_READ           = rbac.Perm("user", "read")
 	PERM_USER_CREATE         = rbac.Perm("user", "create")
@@ -28,6 +28,9 @@ var (
 	PERM_ROLE_UPDATE = rbac.Perm("role", "update")
 	PERM_ROLE_DELETE = rbac.Perm("role", "delete")
 	PERM_ROLE_ASSIGN = rbac.Perm("role", "assign")
+
+	PERM_SETTINGS_READ   = rbac.Perm("settings", "read")
+	PERM_SETTINGS_UPDATE = rbac.Perm("settings", "update")
 )
 
 // isme self-app identifiers. isme is itself an app_service that owns the

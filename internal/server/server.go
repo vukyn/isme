@@ -10,6 +10,7 @@ import (
 	appServiceHandlers "github.com/vukyn/isme/internal/domains/app_service/handlers/http"
 	authHandlers "github.com/vukyn/isme/internal/domains/auth/handlers/http"
 	roleHandlers "github.com/vukyn/isme/internal/domains/role/handlers/http"
+	settingsHandlers "github.com/vukyn/isme/internal/domains/settings/handlers/http"
 	userHandlers "github.com/vukyn/isme/internal/domains/user/handlers/http"
 	userInvitationHandlers "github.com/vukyn/isme/internal/domains/user_invitation/handlers/http"
 
@@ -74,6 +75,7 @@ func (s *Server) Start() {
 	userInvitationHandlers.SetupUserInvitationRoutes(apiV1)
 	userHandlers.SetupUserRoutes(apiV1)
 	roleHandlers.SetupRoleRoutes(apiV1)
+	settingsHandlers.SetupSettingsRoutes(apiV1)
 
 	// web routes
 	s.webRoutes(s.app)

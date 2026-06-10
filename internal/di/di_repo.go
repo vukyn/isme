@@ -4,6 +4,7 @@ import (
 	"github.com/vukyn/isme/internal/constants"
 	appServiceRepo "github.com/vukyn/isme/internal/domains/app_service/repository"
 	roleRepo "github.com/vukyn/isme/internal/domains/role/repository"
+	settingsRepo "github.com/vukyn/isme/internal/domains/settings/repository"
 	userRepo "github.com/vukyn/isme/internal/domains/user/repository"
 	userInvitationRepo "github.com/vukyn/isme/internal/domains/user_invitation/repository"
 	userSessionRepo "github.com/vukyn/isme/internal/domains/user_session/repository"
@@ -20,6 +21,7 @@ func defineRepository() []*di.Def {
 		defineAppServiceRepository(),
 		defineRoleRepository(),
 		defineUserInvitationRepository(),
+		defineSettingsRepository(),
 	}
 }
 
@@ -146,4 +148,29 @@ func GetUserInvitationRepository(ctn di.Container) (userInvitationRepo.IReposito
 		return nil, err
 	}
 	return repo.(userInvitationRepo.IRepository), nil
+}
+
+func defineSettingsRepository() *di.Def {
+	def := &di.Def{
+		Name:  constants.CONTAINER_NAME_SETTINGS_REPOSITORY,
+		Scope: di.Request,
+		Build: func(ctn di.Container) (any, error) {
+			db := ctn.Get(constants.CONTAINER_NAME_DB).(*bun.DB)
+			log.New().Debug("Settings repository initialized")
+			return settingsRepo.NewRepository(db), nil
+		},
+		Close: func(obj any) error {
+			log.New().Debug("Settings repository destroyed")
+			return nil
+		},
+	}
+	return def
+}
+
+func GetSettingsRepository(ctn di.Container) (settingsRepo.IRepository, error) {
+	repo, err := ctn.SafeGet(constants.CONTAINER_NAME_SETTINGS_REPOSITORY)
+	if err != nil {
+		return nil, err
+	}
+	return repo.(settingsRepo.IRepository), nil
 }

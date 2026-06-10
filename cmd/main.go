@@ -20,6 +20,9 @@ func main() {
 	server := server.NewServer(app.Config)
 	server.Start()
 
+	// start background scheduler (session auto-revoke)
+	app.Scheduler.Start(context.Background())
+
 	// graceful shutdown
 	shutdown := func(ctx context.Context) error {
 		log.New().Info("Shutting down server")
@@ -29,6 +32,11 @@ func main() {
 			return err
 		}
 		log.New().Debug("Server stopped")
+
+		// stop the scheduler before tearing down the DI container
+		app.Scheduler.Stop()
+		log.New().Debug("Scheduler stopped")
+
 		err = app.App.DeleteWithSubContainers()
 		if err != nil {
 			log.New().Errorf("Failed to delete app: %v", err)

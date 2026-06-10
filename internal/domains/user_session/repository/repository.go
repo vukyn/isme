@@ -227,6 +227,23 @@ func (r *repository) GetByID(ctx context.Context, sessionID string) (entity.User
 	return userSession, nil
 }
 
+func (r *repository) InactiveExpiredSessions(ctx context.Context, before time.Time) (int64, error) {
+	res, err := r.db.NewUpdate().
+		Model((*entity.UserSession)(nil)).
+		Set("status = ?", constants.UserSessionStatusInactive).
+		Where("status = ?", constants.UserSessionStatusActive).
+		Where("expires_at < ?", before).
+		Exec(ctx)
+	if err != nil {
+		return 0, pkgErr.DatabaseError(err.Error())
+	}
+	count, err := res.RowsAffected()
+	if err != nil {
+		return 0, pkgErr.DatabaseError(err.Error())
+	}
+	return count, nil
+}
+
 func (r *repository) InactiveSessionByID(ctx context.Context, sessionID string) error {
 	if sessionID == "" {
 		return pkgErr.InvalidRequest("session_id is required")

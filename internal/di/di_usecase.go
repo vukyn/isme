@@ -6,8 +6,10 @@ import (
 	appServiceUsecase "github.com/vukyn/isme/internal/domains/app_service/usecase"
 	authUsecase "github.com/vukyn/isme/internal/domains/auth/usecase"
 	roleUsecase "github.com/vukyn/isme/internal/domains/role/usecase"
+	settingsUsecase "github.com/vukyn/isme/internal/domains/settings/usecase"
 	userUsecase "github.com/vukyn/isme/internal/domains/user/usecase"
 	userInvitationUsecase "github.com/vukyn/isme/internal/domains/user_invitation/usecase"
+	"github.com/vukyn/isme/internal/scheduler"
 
 	"github.com/sarulabs/di/v2"
 	"github.com/vukyn/kuery/log"
@@ -20,6 +22,7 @@ func defineUsecase() []*di.Def {
 		defineUserUsecase(),
 		defineRoleUsecase(),
 		defineUserInvitationUsecase(),
+		defineSettingsUsecase(),
 	}
 }
 
@@ -213,4 +216,34 @@ func GetUserInvitationUsecase(ctn di.Container) (userInvitationUsecase.IUseCase,
 		return nil, err
 	}
 	return uc.(userInvitationUsecase.IUseCase), nil
+}
+
+func defineSettingsUsecase() *di.Def {
+	def := &di.Def{
+		Name:  constants.CONTAINER_NAME_SETTINGS_USECASE,
+		Scope: di.Request,
+		Build: func(ctn di.Container) (any, error) {
+			settingsRepo, err := GetSettingsRepository(ctn)
+			if err != nil {
+				return nil, err
+			}
+			// the app-scoped scheduler singleton acts as the IReloader
+			reloader := ctn.Get(constants.CONTAINER_NAME_SCHEDULER).(*scheduler.Scheduler)
+			log.New().Debug("Settings usecase initialized")
+			return settingsUsecase.NewUsecase(settingsRepo, reloader), nil
+		},
+		Close: func(obj any) error {
+			log.New().Debug("Settings usecase destroyed")
+			return nil
+		},
+	}
+	return def
+}
+
+func GetSettingsUsecase(ctn di.Container) (settingsUsecase.IUseCase, error) {
+	uc, err := ctn.SafeGet(constants.CONTAINER_NAME_SETTINGS_USECASE)
+	if err != nil {
+		return nil, err
+	}
+	return uc.(settingsUsecase.IUseCase), nil
 }

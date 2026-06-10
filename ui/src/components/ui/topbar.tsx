@@ -21,7 +21,7 @@ const NAV: { key: TopbarTab; label: string; to: string; perm?: string }[] = [
 	{ key: "appServices", label: "App Services", to: "/app-services", perm: "app_service:read" },
 	{ key: "sessions", label: "Sessions", to: "/sessions", perm: "user_session:read" },
 	{ key: "team", label: "Team", to: "/team" },
-	{ key: "settings", label: "Settings", to: "/settings" },
+	{ key: "settings", label: "Settings", to: "/settings", perm: "settings:read" },
 ];
 
 export const Topbar = ({ active, user }: TopbarProps) => {
