@@ -4,6 +4,7 @@ import { Box, Center, HStack, Heading, Stack, Text } from "@chakra-ui/react";
 import { LuArrowRight, LuLock, LuUser, LuShieldCheck, LuFileCheck, LuCheck } from "react-icons/lu";
 import type { IconType } from "react-icons";
 import { GlassCard } from "@/components/ui/glass-card";
+import { AppTile } from "@/components/AppTile";
 import { BrandMark } from "@/components/ui/brand-mark";
 import { Button } from "@/components/ui/button";
 import { Link } from "@/components/ui/link";
@@ -12,6 +13,9 @@ import type { SSOScope } from "@/types";
 
 interface SSOConsentProps {
 	appName: string;
+	appCode: string;
+	appIcon: string;
+	appColor: string;
 	userName: string;
 	userEmail: string;
 	scopes: SSOScope[];
@@ -40,6 +44,9 @@ const SCOPE_ACCENTS: { icon: IconType; color: string }[] = [
 
 export const SSOConsent = ({
 	appName,
+	appCode,
+	appIcon,
+	appColor,
 	userName,
 	userEmail,
 	scopes,
@@ -88,21 +95,8 @@ export const SSOConsent = ({
 						{/* ===== consent header: which app wants access ===== */}
 						<Stack align="center" textAlign="center" gap="3.5" mb="5">
 							<HStack gap="3.5" aria-hidden="true">
-								{/* requesting app (generic placeholder tile) */}
-								<Center
-									w="52px"
-									h="52px"
-									borderRadius="15px"
-									color="accent"
-									bg="rgba(139,92,246,0.18)"
-									borderWidth="1px"
-									borderColor="rgba(139,92,246,0.45)"
-									css={{ boxShadow: "0 0 22px rgba(139,92,246,0.25)" }}
-								>
-									<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-										<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
-									</svg>
-								</Center>
+								{/* requesting app — real stored icon/color tile */}
+								<AppTile iconKey={appIcon} colorKey={appColor} size="lg" appCode={appCode} fallbackSeed={appCode} />
 								<Center color="fg.muted">
 									<svg width="26" height="16" viewBox="0 0 26 16" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
 										<path d="M2 8h22" />

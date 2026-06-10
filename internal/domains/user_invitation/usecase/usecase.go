@@ -232,6 +232,8 @@ func (u *usecase) buildAssignmentDetails(ctx context.Context, invitationID strin
 		details = append(details, models.InviteAssignmentDetail{
 			AppCode:     app.AppCode,
 			AppName:     app.AppName,
+			Icon:        app.Icon,
+			Color:       app.Color,
 			RoleName:    role.Name,
 			RoleCode:    role.Code,
 			Permissions: perms,

@@ -49,6 +49,9 @@ export interface LogoutResponse {
 export interface InviteAssignmentDetail {
 	app_code: string;
 	app_name: string;
+	/** Stored appearance keys for the app tile (empty → fallback look). */
+	icon: string;
+	color: string;
 	role_name: string;
 	role_code: string;
 	/** resource:action codes this role grants. */
@@ -106,6 +109,10 @@ export interface SSOCheckResponse {
 		app: {
 			name: string;
 			redirect_url: string;
+			app_code: string;
+			/** Stored appearance keys for the requesting-app tile (empty → fallback). */
+			icon: string;
+			color: string;
 		};
 		scopes: SSOScope[];
 		/** Short-TTL single-use CSRF nonce required by /sso/consent. */

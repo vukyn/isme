@@ -170,9 +170,15 @@ type SSOCheckUser struct {
 }
 
 // SSOCheckApp identifies the requesting app resolved from the session_id.
+// Icon/Color are the stored appearance keys so the SSO screens can render the
+// requesting app's real tile (the handshake header); AppCode seeds the tile
+// fallback when no appearance is stored.
 type SSOCheckApp struct {
 	Name        string `json:"name"`
 	RedirectURL string `json:"redirect_url"`
+	AppCode     string `json:"app_code"`
+	Icon        string `json:"icon"`
+	Color       string `json:"color"`
 }
 
 // SSOScope is one consent line item rendered on the consent screen.

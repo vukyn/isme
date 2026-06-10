@@ -9,6 +9,7 @@ import { loginSchema, type LoginFormData } from "@/validators";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/ui/glass-card";
+import { AppTile } from "@/components/AppTile";
 import { BrandMark } from "@/components/ui/brand-mark";
 import { PasswordField } from "@/components/ui/password-field";
 import { toaster } from "@/components/ui/toaster";
@@ -31,6 +32,9 @@ type CheckState =
 	| {
 			phase: "consent";
 			appName: string;
+			appCode: string;
+			appIcon: string;
+			appColor: string;
 			redirectURL: string;
 			userName: string;
 			userEmail: string;
@@ -68,6 +72,11 @@ export const SSOLogin = () => {
 	// session_id (returned by /sso/check even when no isme session exists), so it
 	// shows "continue to <app>" instead of the generic fallback.
 	const [appName, setAppName] = useState(REQUESTING_APP_NAME);
+	// Requesting-app appearance (stored icon/color keys + code) for the handshake
+	// tile; empty values fall back to the neutral/hashed tile in AppTile.
+	const [appCode, setAppCode] = useState("");
+	const [appIcon, setAppIcon] = useState("");
+	const [appColor, setAppColor] = useState("");
 
 	const sessionId = searchParams.get("session_id") ?? "";
 
@@ -92,11 +101,19 @@ export const SSOLogin = () => {
 					refresh_token: tokens.refresh_token || undefined,
 				});
 				if (cancelled) return;
-				if (res.data.app?.name) setAppName(res.data.app.name);
+				if (res.data.app) {
+					setAppName(res.data.app.name);
+					setAppCode(res.data.app.app_code);
+					setAppIcon(res.data.app.icon);
+					setAppColor(res.data.app.color);
+				}
 				if (res.data.valid) {
 					setCheck({
 						phase: "consent",
 						appName: res.data.app.name,
+						appCode: res.data.app.app_code,
+						appIcon: res.data.app.icon,
+						appColor: res.data.app.color,
 						redirectURL: res.data.app.redirect_url,
 						userName: res.data.user.name,
 						userEmail: res.data.user.email,
@@ -201,6 +218,9 @@ export const SSOLogin = () => {
 		return (
 			<SSOConsent
 				appName={check.appName}
+				appCode={check.appCode}
+				appIcon={check.appIcon}
+				appColor={check.appColor}
 				userName={check.userName}
 				userEmail={check.userEmail}
 				scopes={check.scopes}
@@ -250,21 +270,8 @@ export const SSOLogin = () => {
 						{/* ===== SSO context header: which app you're signing in to ===== */}
 						<Stack align="center" textAlign="center" gap="3.5" mb="22px">
 							<HStack gap="3.5" aria-hidden="true">
-								{/* requesting app (generic placeholder tile) */}
-								<Center
-									w="52px"
-									h="52px"
-									borderRadius="15px"
-									color="accent"
-									bg="rgba(139,92,246,0.18)"
-									borderWidth="1px"
-									borderColor="rgba(139,92,246,0.45)"
-									css={{ boxShadow: "0 0 22px rgba(139,92,246,0.25)" }}
-								>
-									<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-										<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
-									</svg>
-								</Center>
+								{/* requesting app — real stored icon/color tile */}
+								<AppTile iconKey={appIcon} colorKey={appColor} size="lg" appCode={appCode} fallbackSeed={appCode} />
 								<Center color="fg.muted">
 									<svg width="26" height="16" viewBox="0 0 26 16" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
 										<path d="M2 8h22" />

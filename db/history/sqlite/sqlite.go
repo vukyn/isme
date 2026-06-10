@@ -1012,7 +1012,7 @@ var Migrations = []models.Migration{
 			// backfill the seeded isme self-app with its branded appearance
 			_, err := db.Exec(`
 				UPDATE app_services
-				SET icon = 'layers', color = 'violet'
+				SET icon = 'isme', color = 'violet'
 				WHERE id = 'app_isme' AND icon = ''
 			`)
 			return err

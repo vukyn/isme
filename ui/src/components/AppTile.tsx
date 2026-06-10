@@ -28,7 +28,10 @@ const STATUS_INACTIVE = 2;
 /** Pixel sizes for the three surfaces the tile appears on. */
 const SIZE_PX: Record<NonNullable<AppTileProps["size"]>, { box: string; radius: string; icon: number }> = {
 	chip: { box: "22px", radius: "7px", icon: 12 },
+	md: { box: "38px", radius: "11px", icon: 18 },
 	list: { box: "34px", radius: "10px", icon: 16 },
+	// lg matches the 52px SSO handshake tile + BrandMark size="lg"
+	lg: { box: "52px", radius: "15px", icon: 24 },
 	detail: { box: "64px", radius: "18px", icon: 30 },
 };
 
@@ -57,7 +60,7 @@ export interface AppTileProps {
 	/** Stored appearance color palette key; empty triggers the fallback look. */
 	colorKey?: string;
 	/** Which surface to size for. */
-	size: "chip" | "list" | "detail";
+	size: "chip" | "md" | "list" | "lg" | "detail";
 	/** Override the tile border radius. */
 	radius?: string;
 	/** App service status — drives terminated/inactive visuals. */

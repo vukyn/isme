@@ -12,6 +12,7 @@ import {
 	LuBell,
 	LuBox,
 	LuCloud,
+	LuCloudRain,
 	LuCode,
 	LuDatabase,
 	LuFile,
@@ -59,6 +60,8 @@ export const PERMISSION_ICON_KEYS = [
 	"cloud",
 	"code",
 	"layers",
+	"cloud-rain",
+	"isme",
 ] as const;
 
 export type PermissionIconKey = (typeof PERMISSION_ICON_KEYS)[number];
@@ -85,6 +88,15 @@ const REGISTRY: Record<PermissionIconKey, IconRenderer> = {
 	cloud: (size) => <LuCloud size={size} />,
 	code: (size) => <LuCode size={size} />,
 	layers: (size) => <LuLayers size={size} />,
+	"cloud-rain": (size) => <LuCloudRain size={size} />,
+	// isme brand "i" monogram (the favicon mark, demo/aurora-favicon.svg) drawn
+	// monochrome in currentColor so it tints like every other registry icon.
+	isme: (size) => (
+		<svg width={size} height={size} viewBox="0 0 32 32" fill="currentColor" aria-hidden="true">
+			<circle cx="16" cy="10" r="3.6" />
+			<rect x="12.4" y="16.4" width="7.2" height="9.6" rx="3.6" />
+		</svg>
+	),
 };
 
 /** Neutral fallback for an empty or unknown icon key. */
