@@ -32,4 +32,8 @@ type IRepository interface {
 	GetListActiveByUserID(ctx context.Context, userID string) ([]entity.UserSession, error)
 	// Count active sessions per user for multiple user IDs
 	CountActiveByUserIDs(ctx context.Context, userIDs []string) (map[string]int, error)
+	// Count active sessions for a user created after the given time
+	CountActiveByUserIDCreatedAfter(ctx context.Context, userID string, after time.Time) (int, error)
+	// Inactive all active sessions for a user except the one with the given token ID
+	InactiveAllUserSessionExcept(ctx context.Context, userID string, exceptTokenID string) error
 }

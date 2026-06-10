@@ -207,6 +207,47 @@ func (r *repository) CountActiveByUserIDs(ctx context.Context, userIDs []string)
 	return counts, nil
 }
 
+func (r *repository) CountActiveByUserIDCreatedAfter(ctx context.Context, userID string, after time.Time) (int, error) {
+	if userID == "" {
+		return 0, pkgErr.InvalidRequest("user_id is required")
+	}
+
+	count, err := r.db.NewSelect().
+		Model((*entity.UserSession)(nil)).
+		Where("user_id = ?", userID).
+		Where("status = ?", constants.UserSessionStatusActive).
+		Where("created_at >= ?", after).
+		Count(ctx)
+	if err != nil {
+		return 0, pkgErr.DatabaseError(err.Error())
+	}
+	return count, nil
+}
+
+func (r *repository) InactiveAllUserSessionExcept(ctx context.Context, userID string, exceptTokenID string) error {
+	if userID == "" {
+		return pkgErr.InvalidRequest("user_id is required")
+	}
+	if exceptTokenID == "" {
+		return pkgErr.InvalidRequest("token_id is required")
+	}
+
+	userSession := entity.UserSession{
+		Status: constants.UserSessionStatusInactive,
+	}
+
+	_, err := r.db.NewUpdate().
+		Model(&userSession).
+		Column("status").
+		Where("user_id = ?", userID).
+		Where("token_id != ?", exceptTokenID).
+		Exec(ctx)
+	if err != nil {
+		return pkgErr.DatabaseError(err.Error())
+	}
+	return nil
+}
+
 func (r *repository) GetByID(ctx context.Context, sessionID string) (entity.UserSession, error) {
 	if sessionID == "" {
 		return entity.UserSession{}, pkgErr.InvalidRequest("session_id is required")

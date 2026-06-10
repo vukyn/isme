@@ -5,7 +5,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { BrandMark } from "./brand-mark";
 import { UserChip } from "./user-chip";
 
-export type TopbarTab = "overview" | "users" | "roles" | "appServices" | "settings";
+export type TopbarTab = "overview" | "users" | "roles" | "appServices" | "sessions" | "settings";
 
 interface TopbarProps {
 	active: TopbarTab;
@@ -19,6 +19,7 @@ const NAV: { key: TopbarTab; label: string; to: string; perm?: string }[] = [
 	{ key: "users", label: "Users", to: "/users", perm: "user:read" },
 	{ key: "roles", label: "Roles & Permissions", to: "/roles", perm: "role:read" },
 	{ key: "appServices", label: "App Services", to: "/app-services", perm: "app_service:read" },
+	{ key: "sessions", label: "Sessions", to: "/sessions" },
 	{ key: "settings", label: "Settings", to: "/settings", perm: "settings:read" },
 ];
 

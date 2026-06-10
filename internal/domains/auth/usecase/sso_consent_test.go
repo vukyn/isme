@@ -57,6 +57,12 @@ type ssoUserSessionRepo struct {
 	updateCalls     int
 	createCalls     int
 	createdSessions []userSessionModels.CreateRequest
+
+	// session-manager test controls (used by session_test.go)
+	activeSessions     []userSessionEntity.UserSession
+	newIn24h           int
+	inactiveByIDCalls  []string
+	exceptTokenIDCalls []string
 }
 
 func (s *ssoUserSessionRepo) Create(ctx context.Context, req userSessionModels.CreateRequest) (userSessionEntity.UserSession, error) {
@@ -75,7 +81,15 @@ func (s *ssoUserSessionRepo) InactiveSessionByTokenID(ctx context.Context, token
 	return nil
 }
 func (s *ssoUserSessionRepo) InactiveSessionByID(ctx context.Context, sessionID string) error {
+	s.inactiveByIDCalls = append(s.inactiveByIDCalls, sessionID)
 	return nil
+}
+func (s *ssoUserSessionRepo) InactiveAllUserSessionExcept(ctx context.Context, userID string, exceptTokenID string) error {
+	s.exceptTokenIDCalls = append(s.exceptTokenIDCalls, exceptTokenID)
+	return nil
+}
+func (s *ssoUserSessionRepo) CountActiveByUserIDCreatedAfter(ctx context.Context, userID string, after time.Time) (int, error) {
+	return s.newIn24h, nil
 }
 func (s *ssoUserSessionRepo) InactiveExpiredSessions(ctx context.Context, before time.Time) (int64, error) {
 	return 0, nil
@@ -90,7 +104,7 @@ func (s *ssoUserSessionRepo) GetByID(ctx context.Context, sessionID string) (use
 	return s.session, nil
 }
 func (s *ssoUserSessionRepo) GetListActiveByUserID(ctx context.Context, userID string) ([]userSessionEntity.UserSession, error) {
-	return nil, nil
+	return s.activeSessions, nil
 }
 func (s *ssoUserSessionRepo) CountActiveByUserIDs(ctx context.Context, userIDs []string) (map[string]int, error) {
 	return nil, nil

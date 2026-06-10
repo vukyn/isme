@@ -14,6 +14,13 @@ const (
 	AUTH_ENDPOINT_SSO_CONSENT     = "/sso/consent"
 	AUTH_ENDPOINT_INVITE_DETAIL   = "/invites/:token"
 	AUTH_ENDPOINT_ACCEPT_INVITE   = "/accept-invite"
+	// Self-service session management. Register the static /sessions/others and
+	// /sessions/count BEFORE /sessions/:id so Fiber's in-order matcher does not
+	// swallow them as the :id param.
+	AUTH_ENDPOINT_MY_SESSIONS              = "/sessions"
+	AUTH_ENDPOINT_MY_SESSIONS_COUNT        = "/sessions/count"
+	AUTH_ENDPOINT_REVOKE_MY_OTHER_SESSIONS = "/sessions/others"
+	AUTH_ENDPOINT_REVOKE_MY_SESSION        = "/sessions/:id"
 
 	// App service
 	APP_SERVICE_GROUP_NAME        = "app-service"

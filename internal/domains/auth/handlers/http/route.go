@@ -23,4 +23,11 @@ func SetupAuthRoutes(router fiber.Router) {
 	// endpoints validate the tokens passed in the body themselves.
 	r.Post(constants.AUTH_ENDPOINT_SSO_CHECK, SSOCheck)
 	r.Post(constants.AUTH_ENDPOINT_SSO_CONSENT, SSOConsent)
+	// Self-service session management (self-scoped, no RBAC permission gate).
+	// Register the static /sessions/count and /sessions/others BEFORE the
+	// /sessions/:id param route so Fiber's in-order matcher does not swallow them.
+	r.Get(constants.AUTH_ENDPOINT_MY_SESSIONS, middleware.AuthMiddleware, ListMySessions)
+	r.Get(constants.AUTH_ENDPOINT_MY_SESSIONS_COUNT, middleware.AuthMiddleware, CountMySessions)
+	r.Delete(constants.AUTH_ENDPOINT_REVOKE_MY_OTHER_SESSIONS, middleware.AuthMiddleware, RevokeMyOtherSessions)
+	r.Delete(constants.AUTH_ENDPOINT_REVOKE_MY_SESSION, middleware.AuthMiddleware, RevokeMySession)
 }
