@@ -9,6 +9,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/vukyn/isme/internal/config"
 	"github.com/vukyn/isme/internal/domains/auth/models"
@@ -91,6 +92,10 @@ func (f *fakeUserSessionRepository) InactiveSessionByTokenID(ctx context.Context
 
 func (f *fakeUserSessionRepository) InactiveSessionByID(ctx context.Context, sessionID string) error {
 	return nil
+}
+
+func (f *fakeUserSessionRepository) InactiveExpiredSessions(ctx context.Context, before time.Time) (int64, error) {
+	return 0, nil
 }
 
 func (f *fakeUserSessionRepository) FindByRefreshToken(ctx context.Context, refreshToken string) (userSessionEntity.UserSession, error) {

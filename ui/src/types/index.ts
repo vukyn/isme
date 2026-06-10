@@ -65,3 +65,4 @@ export type {
 	ListRoleMembersRequest,
 	ListRoleMembersResponse,
 } from "./role";
+export type { SessionRevokeConfig, UpdateSessionRevokeConfigRequest } from "./settings";

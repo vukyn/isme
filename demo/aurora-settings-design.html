@@ -1,0 +1,713 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>isme — Settings (Session auto-revoke) · Aurora UI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  /* ====== Aurora design tokens — IDENTICAL set to aurora-permissions / aurora-users / aurora-app-service-edit ====== */
+  :root {
+    --bg-0: #07071A;
+    --bg-1: #0B0B23;
+    --bg-2: #12122E;
+    --fg: #F4F5FF;
+    --fg-soft: #C7CAE8;
+    --fg-mute: #8A8FB5;
+    --border: rgba(255,255,255,0.10);
+    --border-strong: rgba(255,255,255,0.18);
+    --glass: rgba(255,255,255,0.06);
+    --glass-strong: rgba(255,255,255,0.10);
+
+    --c-cyan: #22D3EE;
+    --c-blue: #6366F1;
+    --c-violet: #8B5CF6;
+    --c-magenta: #EC4899;
+    --c-amber: #F59E0B;
+    --c-mint: #34D399;
+
+    --accent: var(--c-violet);
+    --accent-glow: rgba(139,92,246,0.45);
+
+    --radius: 16px;
+    --radius-sm: 12px;
+    --easing: cubic-bezier(.2,.8,.2,1);
+    --shadow-glass: 0 1px 0 rgba(255,255,255,0.06) inset, 0 8px 32px rgba(0,0,0,0.45);
+    --shadow-pop: 0 20px 60px rgba(99,102,241,0.25), 0 4px 12px rgba(0,0,0,0.35);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter','DM Sans',system-ui,-apple-system,sans-serif;
+    color: var(--fg);
+    background: var(--bg-0);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
+    overflow-x: hidden;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+
+  /* Aurora background — global, same as aurora-auth-mockup */
+  body::before {
+    content: ""; position: fixed; inset: 0; z-index: -2;
+    background:
+      radial-gradient(60% 50% at 12% 10%, rgba(99,102,241,0.45), transparent 60%),
+      radial-gradient(45% 40% at 88% 18%, rgba(34,211,238,0.35), transparent 60%),
+      radial-gradient(55% 45% at 75% 92%, rgba(236,72,153,0.32), transparent 60%),
+      radial-gradient(50% 40% at 18% 80%, rgba(139,92,246,0.32), transparent 60%),
+      linear-gradient(180deg, #07071A 0%, #0B0B23 60%, #04040E 100%);
+    background-size: 200% 200%;
+    animation: auroraFlow 14s ease-in-out infinite alternate;
+    filter: saturate(1.15);
+  }
+  body::after {
+    content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 3px 3px;
+    mix-blend-mode: overlay;
+    opacity: 0.45;
+  }
+  @keyframes auroraFlow {
+    0%   { background-position: 0% 0%, 100% 0%, 100% 100%, 0% 100%, 0 0; }
+    50%  { background-position: 30% 20%, 60% 30%, 70% 70%, 30% 60%, 0 0; }
+    100% { background-position: 100% 100%, 0% 100%, 0% 0%, 100% 0%, 0 0; }
+  }
+
+  /* ====== Topbar shell (identical to aurora-users-design.html / aurora-permissions-design.html) ====== */
+  .app-bar {
+    position: sticky; top: 0; z-index: 50;
+    height: 64px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 28px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(7,7,26,0.62);
+    backdrop-filter: blur(20px) saturate(1.2);
+  }
+  .bar-left { display: flex; align-items: center; gap: 24px; }
+  .bar-right { display: flex; align-items: center; gap: 10px; }
+  .brand-row { display: flex; align-items: center; gap: 12px; }
+  .brand-mark {
+    width: 34px; height: 34px; border-radius: 10px;
+    background: conic-gradient(from 180deg at 50% 50%, var(--c-cyan), var(--c-blue), var(--c-violet), var(--c-magenta), var(--c-cyan));
+    display: grid; place-items: center;
+    box-shadow: 0 8px 24px rgba(99,102,241,0.45);
+  }
+  .brand-mark > span { width: 26px; height: 26px; border-radius: 7px; background: var(--bg-0); display: grid; place-items: center; }
+  .brand-name { font-weight: 700; font-size: 17px; letter-spacing: -0.01em; }
+  .nav { display: flex; gap: 4px; }
+  .nav a {
+    font-size: 14px; padding: 8px 14px; border-radius: 10px;
+    color: var(--fg-mute); text-decoration: none; font-weight: 500;
+    transition: all .15s var(--easing); border: 1px solid transparent;
+  }
+  .nav a.active { color: var(--fg); background: var(--glass); border-color: var(--border-strong); box-shadow: 0 0 20px rgba(99,102,241,0.20); }
+  .nav a:hover { color: var(--fg); }
+  .icon-btn {
+    width: 40px; height: 40px; background: var(--glass); border: 1px solid var(--border-strong);
+    border-radius: 10px; display: grid; place-items: center;
+    color: var(--fg-soft); cursor: pointer; backdrop-filter: blur(12px);
+    transition: all .15s var(--easing); position: relative;
+  }
+  .icon-btn:hover { color: var(--fg); border-color: rgba(255,255,255,0.28); }
+  .icon-btn .badge { position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--c-magenta); box-shadow: 0 0 8px var(--c-magenta); }
+  .user-chip {
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 4px 10px 4px 4px; border: 1px solid var(--border-strong); border-radius: 999px;
+    background: var(--glass); backdrop-filter: blur(12px); cursor: pointer; transition: all .15s var(--easing);
+  }
+  .user-chip:hover { background: var(--glass-strong); }
+  .avatar-lg {
+    width: 32px; height: 32px; border-radius: 999px;
+    background: conic-gradient(from 200deg, var(--c-cyan), var(--c-blue), var(--c-violet), var(--c-magenta), var(--c-cyan));
+    color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 13px; box-shadow: 0 0 16px var(--accent-glow);
+  }
+  .user-chip .meta { font-size: 13px; line-height: 1.15; }
+  .user-chip .meta b { display: block; font-weight: 600; color: var(--fg); }
+  .user-chip .meta span { color: var(--fg-mute); font-size: 12px; }
+
+  /* ====== Main layout ====== */
+  .app-main { max-width: 880px; margin: 0 auto; padding: 32px 28px 72px; display: grid; gap: 20px; }
+  .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .page-head h1 { margin: 0; font-size: 32px; font-weight: 700; letter-spacing: -0.025em; line-height: 1.1; }
+  .page-sub { margin: 6px 0 0; color: var(--fg-mute); font-size: 14px; }
+
+  /* settings is a VERTICAL STACK — more cards drop in below over time */
+  .settings-stack { display: grid; gap: 20px; }
+
+  /* buttons — aurora baseline */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+    height: 44px; padding: 0 18px; border-radius: var(--radius-sm); border: 1px solid transparent;
+    font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+    transition: transform .15s var(--easing), box-shadow .2s var(--easing), background .2s var(--easing);
+  }
+  .btn:active { transform: translateY(1px) scale(0.995); }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--c-blue) 0%, var(--c-violet) 50%, var(--c-magenta) 100%);
+    background-repeat: no-repeat; background-position: 0% 0%; color: #fff;
+    box-shadow: 0 10px 30px rgba(99,102,241,0.45), 0 0 0 1px rgba(255,255,255,0.10) inset; background-size: 200% 200%;
+  }
+  .btn-primary:hover { background-position: 100% 100%; box-shadow: 0 14px 40px rgba(139,92,246,0.55); }
+  .btn-primary:focus-visible { outline: 0; box-shadow: 0 0 0 4px rgba(139,92,246,0.35), 0 14px 40px rgba(139,92,246,0.55); }
+  .btn-ghost { background: var(--glass); color: var(--fg); border-color: var(--border-strong); backdrop-filter: blur(12px); }
+  .btn-ghost:hover { background: var(--glass-strong); border-color: rgba(255,255,255,0.28); }
+  .btn:disabled { opacity: 0.40; cursor: not-allowed; }
+  .btn:disabled:active { transform: none; }
+  .btn-sm { height: 34px; padding: 0 12px; font-size: 13px; border-radius: 10px; }
+
+  /* ====== Glass panel (GlassCard) ====== */
+  .panel {
+    background: var(--glass); border: 1px solid var(--border); border-radius: 20px;
+    backdrop-filter: blur(20px) saturate(1.15); box-shadow: var(--shadow-glass); overflow: hidden;
+  }
+
+  /* ====== Card header (reuses aurora-app-service-edit .sect-head) ====== */
+  .sect-head {
+    padding: 18px 20px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 13px;
+    width: 100%; text-align: left; background: none; cursor: pointer;
+    font: inherit; color: inherit;
+  }
+  .sect-head:hover { background: rgba(255,255,255,0.02); }
+  .sect-head .sh-chevron {
+    margin-left: auto; flex: 0 0 auto; color: var(--fg-mute);
+    display: grid; place-items: center; transition: transform .2s ease;
+  }
+  /* collapsed: hide body + footer, rotate chevron */
+  .panel.collapsed .sect-head { border-bottom: none; }
+  .panel.collapsed .sect-head .sh-chevron { transform: rotate(-90deg); }
+  .panel.collapsed .sect-body,
+  .panel.collapsed .form-foot { display: none; }
+  .sect-head .sh-icon {
+    width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center;
+    background: linear-gradient(135deg, rgba(99,102,241,0.25), rgba(236,72,153,0.20));
+    border: 1px solid var(--border-strong); color: var(--c-cyan); flex: 0 0 auto;
+    box-shadow: 0 0 18px rgba(99,102,241,0.18);
+  }
+  .sect-head .sh-meta { line-height: 1.3; min-width: 0; }
+  .sect-head .sh-title { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
+  .sect-head .sh-sub { font-size: 12px; color: var(--fg-mute); margin-top: 2px; }
+  .sect-body { padding: 20px; display: grid; gap: 22px; }
+
+  /* ====== Enable/disable switch row (prominent, top of card body) ====== */
+  .enable-row {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 16px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border); background: rgba(7,7,26,0.35);
+  }
+  .enable-row .er-meta { flex: 1; min-width: 0; line-height: 1.35; }
+  .enable-row .er-title { font-size: 14px; font-weight: 600; color: var(--fg); }
+  .enable-row .er-sub { font-size: 12px; color: var(--fg-mute); }
+  /* state label that flips with the switch */
+  .er-state { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--c-mint); }
+
+  /* aurora switch — gradient track when ON (mirrors the .check checked fill) */
+  .switch { position: relative; display: inline-flex; flex: 0 0 auto; cursor: pointer; }
+  .switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+  .switch .track {
+    width: 52px; height: 30px; border-radius: 999px;
+    background: var(--glass); border: 1px solid var(--border-strong);
+    transition: background .2s var(--easing), border-color .2s var(--easing), box-shadow .2s var(--easing);
+    display: flex; align-items: center; padding: 3px;
+  }
+  .switch .thumb {
+    width: 22px; height: 22px; border-radius: 999px;
+    background: var(--fg-soft);
+    transition: transform .2s var(--easing), background .2s var(--easing);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  }
+  .switch input:checked + .track {
+    background: linear-gradient(135deg, var(--c-blue), var(--c-violet));
+    border-color: var(--c-violet);
+    box-shadow: 0 0 16px var(--accent-glow);
+  }
+  .switch input:checked + .track .thumb { transform: translateX(22px); background: #fff; }
+  .switch input:focus-visible + .track { box-shadow: 0 0 0 4px rgba(139,92,246,0.30); }
+
+  /* ====== Schedule block — DIMS to a disabled look when the feature is OFF ====== */
+  .schedule[data-enabled="false"] { opacity: 0.42; pointer-events: none; filter: grayscale(0.2); }
+
+  /* field scaffolding (reuses aurora .field-label / .helper / .sel / .input-wrap) */
+  .field-label { display: block; font-size: 13px; font-weight: 500; color: var(--fg-soft); margin-bottom: 8px; }
+  .field-label .opt { color: var(--fg-mute); font-weight: 400; font-size: 12px; }
+  .helper { font-size: 12px; color: var(--fg-mute); margin-top: 8px; }
+  .helper code { color: var(--fg-soft); font-family: inherit; }
+
+  /* schedule grid: Run preset + (conditional) time + (conditional) weekday */
+  .sched-grid { display: grid; grid-template-columns: 1fr 168px 168px; gap: 14px; align-items: end; }
+  @media (max-width: 720px) { .sched-grid { grid-template-columns: 1fr; } }
+  /* a field column can be hidden (e.g. weekday only for Weekly) */
+  .sched-col.is-hidden { display: none; }
+
+  /* aurora native-select — identical to aurora-permissions .sel */
+  .sel {
+    appearance: none; -webkit-appearance: none;
+    width: 100%; height: 44px; padding: 0 36px 0 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-strong);
+    background: var(--glass) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238A8FB5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>") right 12px center/14px no-repeat;
+    color: var(--fg); font: inherit; font-size: 14px; cursor: pointer;
+    backdrop-filter: blur(12px);
+  }
+  .sel:focus { outline: 0; border-color: var(--c-violet); box-shadow: 0 0 0 4px rgba(139,92,246,0.18); }
+  .sel option { background: var(--bg-2); color: var(--fg); }
+
+  /* time input — uses the aurora .input-wrap shell */
+  .input-wrap {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--glass); border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+    padding: 0 14px; height: 44px;
+    transition: border-color .2s var(--easing), box-shadow .2s var(--easing), background .2s var(--easing);
+    backdrop-filter: blur(12px);
+  }
+  .input-wrap:hover { border-color: rgba(255,255,255,0.28); }
+  .input-wrap:focus-within { border-color: var(--c-violet); box-shadow: 0 0 0 4px rgba(139,92,246,0.18), 0 0 24px rgba(139,92,246,0.25); background: rgba(255,255,255,0.08); }
+  .input-wrap svg { color: var(--fg-mute); flex: 0 0 auto; }
+  .input-wrap:focus-within svg { color: var(--c-cyan); }
+  .input-wrap input { flex: 1; border: 0; outline: 0; background: transparent; font: inherit; font-size: 14px; color: var(--fg); height: 100%; font-variant-numeric: tabular-nums; }
+  .input-wrap input::placeholder { color: var(--fg-mute); }
+  /* the cron text input is monospace-ish via tabular nums + letter spacing */
+  .input-wrap.mono input { letter-spacing: 0.06em; }
+
+  /* resolved-cron readout chip next to the preset */
+  .cron-readout {
+    display: inline-flex; align-items: center; gap: 8px; margin-top: 10px;
+    font-size: 12px; color: var(--fg-mute);
+  }
+  .cron-readout .arrow { color: var(--fg-mute); }
+  .cron-readout code {
+    font-family: inherit; font-variant-numeric: tabular-nums; letter-spacing: 0.06em;
+    color: var(--c-cyan); font-weight: 600;
+    padding: 3px 9px; border-radius: 8px;
+    background: rgba(34,211,238,0.10); border: 1px solid rgba(34,211,238,0.30);
+  }
+
+  /* ====== Advanced (cron) disclosure row ====== */
+  .disclosure {
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    background: rgba(7,7,26,0.30); overflow: hidden;
+  }
+  .disc-toggle {
+    width: 100%; display: flex; align-items: center; gap: 12px;
+    padding: 13px 16px; cursor: pointer; background: transparent; border: 0;
+    font: inherit; color: var(--fg-soft); text-align: left;
+    transition: background .15s var(--easing);
+  }
+  .disc-toggle:hover { background: rgba(255,255,255,0.03); }
+  .disc-toggle .chev { margin-left: auto; color: var(--fg-mute); transition: transform .2s var(--easing); }
+  .disclosure[data-open="true"] .disc-toggle .chev { transform: rotate(90deg); }
+  .disc-toggle .d-title { font-size: 13px; font-weight: 600; color: var(--fg); }
+  .disc-toggle .d-sub { font-size: 12px; color: var(--fg-mute); }
+  .disc-icon { color: var(--c-violet); flex: 0 0 auto; }
+  .disc-body { padding: 0 16px 16px; display: grid; gap: 0; }
+  .disclosure[data-open="false"] .disc-body { display: none; }
+
+  /* ====== Last-run info strip ====== */
+  .lastrun {
+    display: flex; align-items: center; gap: 11px;
+    padding: 12px 14px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border); background: var(--glass);
+    font-size: 13px; color: var(--fg-soft); font-variant-numeric: tabular-nums;
+  }
+  .lastrun .lr-icon {
+    width: 30px; height: 30px; border-radius: 9px; flex: 0 0 auto;
+    display: grid; place-items: center;
+    background: rgba(52,211,153,0.12); border: 1px solid rgba(52,211,153,0.30); color: var(--c-mint);
+  }
+  .lastrun b { color: var(--fg); font-weight: 600; }
+  .lastrun .lr-count { color: var(--c-mint); font-weight: 600; }
+  /* never-run empty-state variant: muted icon + plain text (see #lastrun-empty, design-note) */
+  .lastrun.empty .lr-icon { background: var(--glass); border-color: var(--border-strong); color: var(--fg-mute); }
+  .lastrun.empty { color: var(--fg-mute); }
+
+  /* note line (informational) */
+  .note {
+    display: flex; align-items: flex-start; gap: 9px; padding: 11px 14px;
+    border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--glass);
+    font-size: 12px; color: var(--fg-mute);
+  }
+  .note svg { flex: 0 0 auto; margin-top: 1px; color: var(--c-cyan); }
+  .note code { color: var(--fg-soft); font-family: inherit; }
+
+  /* footer action bar (reuses aurora-app-service-edit .form-foot) */
+  .form-foot {
+    display: flex; align-items: center; gap: 10px; padding: 16px 20px; border-top: 1px solid var(--border);
+  }
+  .form-foot .changed { font-size: 13px; color: var(--c-violet); font-weight: 600; display: inline-flex; align-items: center; gap: 8px; }
+  .form-foot .changed .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--c-violet); box-shadow: 0 0 10px var(--c-violet); }
+  .form-foot .spacer { flex: 1; }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<!--
+  SETTINGS page for isme (SSO admin console) — AURORA theme. NEW screen.
+  Today ui/src/pages/Settings.tsx is a "Coming soon" GlassCard stub; this mock
+  defines its real content. Reuses the aurora topbar shell (Settings tab active),
+  the GlassCard (.panel), the section-head pattern from aurora-app-service-edit,
+  the .sel native-select from aurora-permissions, the .input-wrap field, the
+  .form-foot dirty-state footer, and the aurora switch (gradient track = the same
+  checked fill used by .check in aurora-permissions).
+
+  LAYOUT: a single centered VERTICAL STACK (.settings-stack) so more setting cards
+  drop in below over time (notification prefs, token TTL, session limits…). Only
+  ONE card is built here: "Session auto-revoke".
+
+  FEATURE — Session auto-revoke:
+  A configurable, enable/disable-able cronjob that periodically revokes EXPIRED
+  user sessions (rows in user_session still active past their expiry). Two values
+  are saved to the backend: an ENABLE flag + a SCHEDULE (a 5-field cron string).
+  The UI offers two equivalent ways to set the schedule:
+    1. a "Run" PRESET dropdown (Hourly / Every 6 hours / Daily / Weekly) +
+       conditional time picker (Daily/Weekly) + conditional weekday (Weekly),
+    2. an ADVANCED (cron) disclosure with a raw 5-field cron text input.
+  Both resolve to the SAME cron string — shown as a live readout next to the
+  preset ("→ 0 3 * * *") so the user sees the mapping. 5-FIELD CRON ONLY.
+
+  STATES MOCKED (this file opens ENABLED, Daily @ 03:00, advanced collapsed):
+    • ENABLED  — switch on, schedule controls active (the shown default).
+    • DISABLED — design-note: switch off → .schedule[data-enabled="false"] dims +
+      blocks the controls; the state label flips "Enabled"→"Disabled" (muted),
+      and the last-run strip stays visible (read-only history). Toggle the switch
+      in-browser to see it; backend still stores the schedule so re-enabling keeps it.
+    • PRESET vs ADVANCED — preset Daily shows time, hides weekday; Weekly shows
+      both; Hourly/Every-6h hide both. Expanding Advanced reveals the raw cron
+      input; editing it sets the same value (preset would read "Custom").
+    • LAST RUN  — populated strip ("2026-06-10 03:00 · 14 sessions revoked") is
+      shown. NEVER-RUN empty variant is in the file as #lastrun-empty (display:none)
+      — swap visibility: "Never run yet" with a muted clock icon.
+
+  BACKEND (forward-looking): GET/PUT /settings/session-revoke { enabled, cron }.
+  Cron drives a scheduler that deletes/soft-deletes expired user_session rows.
+-->
+
+<!-- ====== Topbar shell (aurora AppShell/Topbar — Settings tab ACTIVE) ====== -->
+<header class="app-bar">
+  <div class="bar-left">
+    <div class="brand-row">
+      <div class="brand-mark"><span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 7l8 5 8-5-8-5Z"/><path d="m4 17 8 5 8-5"/><path d="m4 12 8 5 8-5"/></svg></span></div>
+      <div class="brand-name">isme</div>
+    </div>
+    <nav class="nav" aria-label="Primary">
+      <a href="#">Overview</a>
+      <a href="#">Users</a>
+      <a href="#">Roles &amp; Permissions</a>
+      <a href="#">App Services</a>
+      <a href="#">Sessions</a>
+      <a href="#" class="active" aria-current="page">Settings</a>
+    </nav>
+  </div>
+  <div class="bar-right">
+    <button class="icon-btn" aria-label="Notifications">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+      <span class="badge"></span>
+    </button>
+    <div class="user-chip" tabindex="0">
+      <div class="avatar-lg">VK</div>
+      <div class="meta"><b>Vu Ky</b><span>kyndv@hasaki.vn</span></div>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--fg-mute);margin-left:4px;"><path d="m6 9 6 6 6-6"/></svg>
+    </div>
+  </div>
+</header>
+
+<main class="app-main">
+
+  <div class="page-head">
+    <div>
+      <h1>Settings</h1>
+      <p class="page-sub">Platform-wide configuration for the isme SSO service.</p>
+    </div>
+  </div>
+
+  <div class="settings-stack">
+
+    <!-- ============ CARD · Session auto-revoke ============ -->
+    <section class="panel collapsed" id="revoke-card">
+
+      <!-- 1 · Card header: click to collapse/expand the body -->
+      <button class="sect-head" type="button" onclick="toggleCard()" aria-expanded="false" id="card-head">
+        <div class="sh-icon">
+          <!-- rotate-clock glyph (Lucide timer-reset / history-style) -->
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg>
+        </div>
+        <div class="sh-meta">
+          <div class="sh-title">Session auto-revoke</div>
+          <div class="sh-sub">Automatically revoke sessions that are still active past their expiry.</div>
+        </div>
+        <!-- collapse chevron -->
+        <span class="sh-chevron" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </span>
+      </button>
+
+      <div class="sect-body">
+
+        <!-- 2 · Enable/disable switch — prominent, top of body.
+             on toggle: flips state label + dims schedule + marks form dirty.
+             Shown here in the ENABLED state. -->
+        <div class="enable-row">
+          <div class="er-meta">
+            <div class="er-title">Auto-revoke cronjob</div>
+            <div class="er-sub">When on, expired sessions are revoked on the schedule below.</div>
+          </div>
+          <span class="er-state" id="enable-state">Enabled</span>
+          <label class="switch">
+            <input type="checkbox" id="enable" checked onchange="onEnableToggle()" aria-label="Enable session auto-revoke" />
+            <span class="track"><span class="thumb"></span></span>
+          </label>
+        </div>
+
+        <!-- 3 · Schedule control — dims when disabled (data-enabled drives .schedule) -->
+        <div class="schedule" id="schedule" data-enabled="true">
+
+          <div class="sched-grid">
+            <!-- Run preset -->
+            <div class="sched-col">
+              <span class="field-label">Run</span>
+              <select class="sel" id="preset" onchange="onPreset()" aria-label="Run schedule preset">
+                <option value="hourly">Hourly</option>
+                <option value="every6h">Every 6 hours</option>
+                <option value="daily" selected>Daily</option>
+                <option value="weekly">Weekly</option>
+                <!-- 'custom' appears only after the user edits the advanced cron field -->
+                <option value="custom" id="opt-custom" class="hidden">Custom (from cron)</option>
+              </select>
+            </div>
+
+            <!-- Time picker — shown for Daily / Weekly only -->
+            <div class="sched-col" id="col-time">
+              <span class="field-label">At</span>
+              <label class="input-wrap">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                <input type="time" id="time" value="03:00" onchange="recompute()" aria-label="Run time" />
+              </label>
+            </div>
+
+            <!-- Weekday picker — shown for Weekly only (simple dropdown) -->
+            <div class="sched-col is-hidden" id="col-weekday">
+              <span class="field-label">On</span>
+              <select class="sel" id="weekday" onchange="recompute()" aria-label="Run weekday">
+                <option value="1" selected>Monday</option>
+                <option value="2">Tuesday</option>
+                <option value="3">Wednesday</option>
+                <option value="4">Thursday</option>
+                <option value="5">Friday</option>
+                <option value="6">Saturday</option>
+                <option value="0">Sunday</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- resolved-cron readout — the preset↔cron mapping, always visible -->
+          <div class="cron-readout">
+            <span id="sched-summary">Daily at 03:00</span>
+            <svg class="arrow" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            <code id="cron-out">0 3 * * *</code>
+          </div>
+
+          <!-- Advanced (cron) disclosure — collapsed by default -->
+          <div class="disclosure" id="adv" data-open="false" style="margin-top:18px;">
+            <button type="button" class="disc-toggle" onclick="toggleAdv()" aria-expanded="false" aria-controls="adv-body">
+              <span class="disc-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2Z"/><circle cx="12" cy="12" r="3"/></svg></span>
+              <span>
+                <span class="d-title">Advanced (cron)</span>
+                <span class="d-sub" style="display:block;">Set the schedule with a raw cron expression.</span>
+              </span>
+              <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+            </button>
+            <div class="disc-body" id="adv-body">
+              <span class="field-label">Cron expression <span class="opt">· 5-field</span></span>
+              <label class="input-wrap mono">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 6-6 6 6 6"/><path d="m16 6 6 6-6 6"/></svg>
+                <input type="text" id="cron-in" value="0 3 * * *" oninput="onCronEdit()" spellcheck="false" aria-label="Cron expression" />
+              </label>
+              <div class="helper">5-field cron · <code>minute hour day month weekday</code>. Editing this sets the schedule directly — the preset above reads <code>Custom</code> if it no longer matches a preset.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4 · Last-run readout — POPULATED state (shown) -->
+        <div class="lastrun" id="lastrun">
+          <span class="lr-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+          <span>Last run: <b>2026-06-10 03:00</b> · <span class="lr-count">14 sessions revoked</span></span>
+        </div>
+
+        <!-- 4b · NEVER-RUN empty-state variant (design-note; swap visibility with #lastrun) -->
+        <div class="lastrun empty" id="lastrun-empty" style="display:none;">
+          <span class="lr-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+          <span>Never run yet — the first sweep happens on the next scheduled time.</span>
+        </div>
+
+        <!-- informational note -->
+        <div class="note">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+          <span>Only sessions <b style="color:var(--fg-soft);">past their expiry</b> are revoked — active, unexpired sessions are never touched.</span>
+        </div>
+      </div>
+
+      <!-- 5 · Footer actions — dirty-state hint + Cancel/Save (reuses .form-foot) -->
+      <div class="form-foot">
+        <!-- visible only when enabled/cron differ from saved values -->
+        <span class="changed" id="dirty" style="visibility:hidden;"><span class="dot"></span>Unsaved changes</span>
+        <span class="spacer"></span>
+        <!-- on click: revert enable + cron to saved values -->
+        <button class="btn btn-ghost" onclick="discard()">Cancel</button>
+        <!-- on click: PUT /settings/session-revoke { enabled, cron } → toast -->
+        <button class="btn btn-primary" id="save-btn" disabled>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg>
+          Save changes
+        </button>
+      </div>
+    </section>
+
+    <!-- Future setting cards stack here (notification prefs, token TTL, session caps…) -->
+
+  </div>
+
+</main>
+
+<script>
+  /* ===== collapse/expand the whole card ===== */
+  function toggleCard(){
+    var panel = document.getElementById('revoke-card');
+    var head = document.getElementById('card-head');
+    var collapsed = panel.classList.toggle('collapsed');
+    head.setAttribute('aria-expanded', String(!collapsed));
+  }
+
+  /* ===== saved (server) values + current selection ===== */
+  var SAVED = { enabled: true, cron: '0 3 * * *' };
+
+  /* ---- preset → cron builders. 5-field: minute hour dom month dow ---- */
+  function presetToCron(preset, hhmm, dow){
+    var parts = (hhmm || '03:00').split(':');
+    var mm = String(parseInt(parts[0+1] !== undefined ? parts[1] : '0', 10) || 0);
+    var hh = String(parseInt(parts[0], 10) || 0);
+    switch(preset){
+      case 'hourly':  return '0 * * * *';
+      case 'every6h': return '0 */6 * * *';
+      case 'daily':   return mm + ' ' + hh + ' * * *';
+      case 'weekly':  return mm + ' ' + hh + ' * * ' + dow;
+      default:        return document.getElementById('cron-in').value.trim();
+    }
+  }
+
+  var DOW_NAMES = {0:'Sunday',1:'Monday',2:'Tuesday',3:'Wednesday',4:'Thursday',5:'Friday',6:'Saturday'};
+  function humanSummary(preset, hhmm, dow){
+    switch(preset){
+      case 'hourly':  return 'Every hour, on the hour';
+      case 'every6h': return 'Every 6 hours';
+      case 'daily':   return 'Daily at ' + hhmm;
+      case 'weekly':  return 'Weekly · ' + DOW_NAMES[dow] + ' at ' + hhmm;
+      default:        return 'Custom schedule';
+    }
+  }
+
+  /* ---- show/hide time + weekday columns per preset ---- */
+  function applyPresetVisibility(preset){
+    var needsTime = (preset === 'daily' || preset === 'weekly');
+    var needsDow  = (preset === 'weekly');
+    document.getElementById('col-time').classList.toggle('is-hidden', !needsTime);
+    document.getElementById('col-weekday').classList.toggle('is-hidden', !needsDow);
+  }
+
+  function currentDow(){ return document.getElementById('weekday').value; }
+  function currentTime(){ return document.getElementById('time').value || '03:00'; }
+
+  /* ---- recompute resolved cron + summary from the preset controls ---- */
+  function recompute(){
+    var preset = document.getElementById('preset').value;
+    if (preset === 'custom') { markDirty(); return; }
+    var cron = presetToCron(preset, currentTime(), currentDow());
+    document.getElementById('cron-out').textContent = cron;
+    document.getElementById('cron-in').value = cron;     // keep advanced field in sync
+    document.getElementById('sched-summary').textContent = humanSummary(preset, currentTime(), currentDow());
+    markDirty();
+  }
+
+  function onPreset(){
+    var preset = document.getElementById('preset').value;
+    applyPresetVisibility(preset);
+    recompute();
+  }
+
+  /* ---- editing the raw cron field: preset becomes 'Custom' if it stops matching ---- */
+  function onCronEdit(){
+    var cron = document.getElementById('cron-in').value.trim();
+    document.getElementById('cron-out').textContent = cron || '—';
+    // try to map back to a known preset; otherwise show Custom
+    var matched = 'custom';
+    if (cron === '0 * * * *') matched = 'hourly';
+    else if (cron === '0 */6 * * *') matched = 'every6h';
+    else if (/^\d+ \d+ \* \* \*$/.test(cron)) matched = 'daily';
+    else if (/^\d+ \d+ \* \* \d$/.test(cron)) matched = 'weekly';
+
+    var presetSel = document.getElementById('preset');
+    if (matched === 'custom') {
+      document.getElementById('opt-custom').classList.remove('hidden');
+      presetSel.value = 'custom';
+      document.getElementById('sched-summary').textContent = 'Custom schedule';
+      // hide preset-only fields while in custom mode
+      document.getElementById('col-time').classList.add('is-hidden');
+      document.getElementById('col-weekday').classList.add('is-hidden');
+    } else {
+      presetSel.value = matched;
+      applyPresetVisibility(matched);
+      document.getElementById('sched-summary').textContent =
+        humanSummary(matched, currentTime(), currentDow());
+    }
+    markDirty();
+  }
+
+  /* ---- enable/disable switch ---- */
+  function onEnableToggle(){
+    var on = document.getElementById('enable').checked;
+    document.getElementById('schedule').setAttribute('data-enabled', on ? 'true' : 'false');
+    var lbl = document.getElementById('enable-state');
+    lbl.textContent = on ? 'Enabled' : 'Disabled';
+    lbl.style.color = on ? 'var(--c-mint)' : 'var(--fg-mute)';
+    markDirty();
+  }
+
+  /* ---- advanced disclosure ---- */
+  function toggleAdv(){
+    var adv = document.getElementById('adv');
+    var open = adv.getAttribute('data-open') === 'true';
+    adv.setAttribute('data-open', open ? 'false' : 'true');
+    adv.querySelector('.disc-toggle').setAttribute('aria-expanded', open ? 'false' : 'true');
+  }
+
+  /* ---- dirty state + save enable ---- */
+  function markDirty(){
+    var enabled = document.getElementById('enable').checked;
+    var cron = document.getElementById('cron-in').value.trim();
+    var dirty = (enabled !== SAVED.enabled) || (cron !== SAVED.cron);
+    document.getElementById('dirty').style.visibility = dirty ? 'visible' : 'hidden';
+    document.getElementById('save-btn').disabled = !dirty;
+  }
+
+  function discard(){
+    document.getElementById('enable').checked = SAVED.enabled;
+    document.getElementById('cron-in').value = SAVED.cron;
+    document.getElementById('preset').value = 'daily';
+    document.getElementById('time').value = '03:00';
+    document.getElementById('opt-custom').classList.add('hidden');
+    onEnableToggle();
+    applyPresetVisibility('daily');
+    document.getElementById('cron-out').textContent = SAVED.cron;
+    document.getElementById('sched-summary').textContent = 'Daily at 03:00';
+    markDirty();
+  }
+
+  /* init: Enabled · Daily @ 03:00 · advanced collapsed · pristine (Save disabled) */
+  applyPresetVisibility('daily');
+</script>
+
+</body>
+</html>

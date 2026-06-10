@@ -4,8 +4,6 @@ import { Login } from "./pages/Login";
 import { SSOLogin } from "./pages/SSOLogin";
 import { AcceptInvite } from "./pages/AcceptInvite";
 import { Welcome } from "./pages/Welcome";
-import { Sessions } from "./pages/Sessions";
-import { Team } from "./pages/Team";
 import { Users } from "./pages/Users";
 import { InviteUser } from "./pages/InviteUser";
 import { Roles } from "./pages/Roles";
@@ -31,22 +29,6 @@ function App() {
 						element={
 							<ProtectedRoute>
 								<Welcome />
-							</ProtectedRoute>
-						}
-					/>
-					<Route
-						path="/sessions"
-						element={
-							<ProtectedRoute requiredPermission="user_session:read">
-								<Sessions />
-							</ProtectedRoute>
-						}
-					/>
-					<Route
-						path="/team"
-						element={
-							<ProtectedRoute>
-								<Team />
 							</ProtectedRoute>
 						}
 					/>

@@ -40,4 +40,7 @@ export const API_ENDPOINTS = {
 	ROLE_MEMBER_DETAIL: (roleId: string, userId: string) => `/api/v1/roles/${roleId}/members/${userId}`,
 	PERMISSIONS: "/api/v1/permissions",
 	PERMISSION_DETAIL: (permissionId: number) => `/api/v1/permissions/${permissionId}`,
+
+	// Settings
+	SETTINGS_SESSION_REVOKE: "/api/v1/settings/session-revoke",
 } as const;

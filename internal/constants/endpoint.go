@@ -46,4 +46,8 @@ const (
 	// Permissions
 	PERMISSION_ENDPOINT_CATALOG = "/permissions"
 	PERMISSION_ENDPOINT_DETAIL  = "/permissions/:permissionID"
+
+	// Settings
+	SETTINGS_GROUP_NAME              = "/settings"
+	SETTINGS_ENDPOINT_SESSION_REVOKE = "/session-revoke"
 )

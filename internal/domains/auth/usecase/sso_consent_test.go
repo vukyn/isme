@@ -77,6 +77,9 @@ func (s *ssoUserSessionRepo) InactiveSessionByTokenID(ctx context.Context, token
 func (s *ssoUserSessionRepo) InactiveSessionByID(ctx context.Context, sessionID string) error {
 	return nil
 }
+func (s *ssoUserSessionRepo) InactiveExpiredSessions(ctx context.Context, before time.Time) (int64, error) {
+	return 0, nil
+}
 func (s *ssoUserSessionRepo) FindByRefreshToken(ctx context.Context, refreshToken string) (userSessionEntity.UserSession, error) {
 	return s.session, nil
 }

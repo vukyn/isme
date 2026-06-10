@@ -1,8 +1,7 @@
 "use client";
 
 import { Box, Center, Heading, Spinner, Stack, Text } from "@chakra-ui/react";
-import { LuSettings } from "react-icons/lu";
-import { GlassCard } from "@/components/ui/glass-card";
+import { SessionAutoRevokeCard } from "@/components/SessionAutoRevokeCard";
 import { AppShell } from "@/layouts/AppShell";
 import { useUser } from "@/hooks/useUser";
 
@@ -18,17 +17,20 @@ export const Settings = () => {
 					<Spinner size="xl" color="accent" />
 				</Center>
 			) : (
-				<GlassCard p="14">
-					<Stack align="center" gap="4" textAlign="center">
-						<Box color="accentAlt" fontSize="3xl">
-							<LuSettings />
-						</Box>
-						<Heading as="h1" fontSize="2xl" color="fg">
+				<Stack gap="5" maxW="880px" w="full" mx="auto">
+					<Box>
+						<Heading as="h1" fontSize="32px" fontWeight="bold" letterSpacing="-0.025em" lineHeight="1.1" color="fg">
 							Settings
 						</Heading>
-						<Text color="fg.muted">Coming soon.</Text>
+						<Text mt="6px" color="fg.muted" fontSize="14px">
+							Platform-wide configuration for the isme SSO service.
+						</Text>
+					</Box>
+
+					<Stack gap="5">
+						<SessionAutoRevokeCard />
 					</Stack>
-				</GlassCard>
+				</Stack>
 			)}
 		</AppShell>
 	);

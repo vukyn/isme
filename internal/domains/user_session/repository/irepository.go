@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"github.com/vukyn/isme/internal/domains/user_session/entity"
 	"github.com/vukyn/isme/internal/domains/user_session/models"
@@ -18,6 +19,9 @@ type IRepository interface {
 	InactiveSessionByTokenID(ctx context.Context, tokenID string) error
 	// Inactive specific user session by ID
 	InactiveSessionByID(ctx context.Context, sessionID string) error
+	// Inactive all active sessions whose expires_at is before the given time.
+	// Returns the number of sessions revoked.
+	InactiveExpiredSessions(ctx context.Context, before time.Time) (int64, error)
 	// Find user session by refresh token
 	FindByRefreshToken(ctx context.Context, refreshToken string) (entity.UserSession, error)
 	// Find user session by token ID

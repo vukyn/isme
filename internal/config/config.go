@@ -46,6 +46,12 @@ type Config struct {
 	AES struct {
 		Secret string `envconfig:"AES_SECRET"`
 	}
+	Scheduler struct {
+		// Master kill-switch for background schedulers (default true). When
+		// false, the session auto-revoke job is never installed regardless of
+		// the persisted DB config.
+		Enabled bool `envconfig:"SCHEDULER_ENABLED" default:"true"`
+	}
 }
 
 func LoadConfig(envFiles ...string) (*Config, error) {

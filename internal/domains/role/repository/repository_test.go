@@ -162,8 +162,8 @@ func TestGetPermissionCodesByUserID(t *testing.T) {
 			name:      "admin holds the full isme catalog",
 			userID:    "user-admin",
 			appID:     isme,
-			wantCount: 19,
-			wantCodes: []string{"user:read", "user:delete", "user:verify", "role:assign", "app_service:rotate_secret", "user_session:revoke"},
+			wantCount: 21,
+			wantCodes: []string{"user:read", "user:delete", "user:verify", "role:assign", "app_service:rotate_secret", "user_session:revoke", "settings:read", "settings:update"},
 		},
 	}
 	for _, tt := range tests {

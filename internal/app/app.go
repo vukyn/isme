@@ -1,6 +1,8 @@
 package app
 
 import (
+	"context"
+
 	"github.com/vukyn/kuery/log"
 
 	"github.com/vukyn/isme/internal/config"
@@ -11,6 +13,10 @@ import (
 
 var App di.Container
 var Config *config.Config
+var Scheduler interface {
+	Start(ctx context.Context)
+	Stop()
+}
 
 func Init() {
 	app, err := idi.NewBuilder().Build() // build all dependencies
@@ -30,4 +36,7 @@ func Init() {
 
 	// Force database initialization by accessing it
 	_ = idi.GetDB(app)
+
+	// Force scheduler singleton construction (built from the App-scoped DB)
+	Scheduler = idi.GetScheduler(app)
 }
