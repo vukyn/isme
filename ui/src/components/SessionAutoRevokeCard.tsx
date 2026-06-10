@@ -103,6 +103,8 @@ export const SessionAutoRevokeCard = () => {
 	const [time, setTime] = useState("03:00");
 	const [weekday, setWeekday] = useState("1");
 	const [advancedOpen, setAdvancedOpen] = useState(false);
+	// Whole-card collapse/expand (header toggles the body + footer).
+	const [cardOpen, setCardOpen] = useState(true);
 
 	// hydrate editable state from a cron string
 	const hydrateFromCron = (cronExpr: string) => {
@@ -213,8 +215,21 @@ export const SessionAutoRevokeCard = () => {
 
 	return (
 		<Box {...PANEL_PROPS}>
-			{/* section head */}
-			<HStack gap="13px" px="20px" py="18px" borderBottomWidth="1px" borderColor="border">
+			{/* section head — click to collapse/expand the card */}
+			<HStack
+				as="button"
+				w="full"
+				textAlign="left"
+				gap="13px"
+				px="20px"
+				py="18px"
+				borderBottomWidth={cardOpen ? "1px" : "0"}
+				borderColor="border"
+				cursor="pointer"
+				aria-expanded={cardOpen}
+				onClick={() => setCardOpen((open) => !open)}
+				_hover={{ bg: "rgba(255,255,255,0.02)" }}
+			>
 				<Center
 					w="40px"
 					h="40px"
@@ -238,8 +253,18 @@ export const SessionAutoRevokeCard = () => {
 						Automatically revoke sessions that are still active past their expiry.
 					</Text>
 				</Box>
+				<Box
+					ml="auto"
+					flex="none"
+					color="fg.muted"
+					css={{ transform: cardOpen ? "rotate(90deg)" : "none", transition: "transform .2s ease" }}
+				>
+					<LuChevronRight size={18} />
+				</Box>
 			</HStack>
 
+			{cardOpen && (
+			<>
 			<Stack gap="22px" p="20px">
 				{/* enable/disable switch row */}
 				<HStack
@@ -503,11 +528,7 @@ export const SessionAutoRevokeCard = () => {
 						<Text as="b" color="fg.subtle" fontWeight="semibold">
 							past their expiry
 						</Text>{" "}
-						are revoked — active, unexpired sessions are never touched. Stored as{" "}
-						<Text as="code" color="fg.subtle" fontFamily="inherit">
-							{"{ enabled, cron }"}
-						</Text>{" "}
-						on the SSO service.
+						are revoked — active, unexpired sessions are never touched.
 					</Text>
 				</HStack>
 			</Stack>
@@ -555,6 +576,8 @@ export const SessionAutoRevokeCard = () => {
 					<LuSave size={15} /> Save changes
 				</Button>
 			</HStack>
+			</>
+			)}
 		</Box>
 	);
 };
