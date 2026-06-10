@@ -15,14 +15,17 @@ import {
 	LuCloudRain,
 	LuCode,
 	LuDatabase,
+	LuDisc3,
 	LuFile,
 	LuFolder,
 	LuGlobe,
 	LuImage,
 	LuKey,
 	LuLayers,
+	LuListMusic,
 	LuLock,
 	LuMusic,
+	LuRadio,
 	LuServer,
 	LuSettings,
 	LuShapes,
@@ -61,6 +64,9 @@ export const PERMISSION_ICON_KEYS = [
 	"code",
 	"layers",
 	"cloud-rain",
+	"album",
+	"playlist",
+	"station",
 	"isme",
 ] as const;
 
@@ -89,6 +95,10 @@ const REGISTRY: Record<PermissionIconKey, IconRenderer> = {
 	code: (size) => <LuCode size={size} />,
 	layers: (size) => <LuLayers size={size} />,
 	"cloud-rain": (size) => <LuCloudRain size={size} />,
+	// Music resources — same icons rainy uses (album=disc, playlist=list, station=radio).
+	album: (size) => <LuDisc3 size={size} />,
+	playlist: (size) => <LuListMusic size={size} />,
+	station: (size) => <LuRadio size={size} />,
 	// isme brand "i" monogram (the favicon mark, demo/aurora-favicon.svg) drawn
 	// monochrome in currentColor so it tints like every other registry icon.
 	isme: (size) => (
