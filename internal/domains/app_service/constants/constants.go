@@ -1,5 +1,9 @@
 package constants
 
+import (
+	roleConstants "github.com/vukyn/isme/internal/domains/role/constants"
+)
+
 const (
 	AppServiceStatusActive     = 1
 	AppServiceStatusInactive   = 2
@@ -26,27 +30,13 @@ var AllowedCtxInfos = map[string]struct{}{
 	CtxInfoAppService: {},
 }
 
-// APP_SERVICE_COLOR_KEYS is the fixed aurora palette allowlist for an app tile
-// color. The value is a palette key (not a hex); the frontend maps it to a hex.
-// An empty color is always allowed and resolves to a neutral fallback in the UI.
-var APP_SERVICE_COLOR_KEYS = map[string]struct{}{
-	"violet":  {},
-	"indigo":  {},
-	"cyan":    {},
-	"sky":     {},
-	"teal":    {},
-	"mint":    {},
-	"amber":   {},
-	"rose":    {},
-	"magenta": {},
-}
+// APP_SERVICE_COLOR_KEYS aliases the shared color allowlist hoisted into
+// role/constants (the canonical source, shared with role + permission
+// appearance). Kept for the app_service call sites.
+var APP_SERVICE_COLOR_KEYS = roleConstants.COLOR_KEYS
 
-// IsValidColor reports whether the color palette key is allowed. The empty
-// string (neutral fallback) is valid; any other value must be in the allowlist.
+// IsValidColor aliases the shared roleConstants.IsValidColor — kept for the
+// app_service call sites. The empty string (neutral fallback) is valid.
 func IsValidColor(color string) bool {
-	if color == "" {
-		return true
-	}
-	_, ok := APP_SERVICE_COLOR_KEYS[color]
-	return ok
+	return roleConstants.IsValidColor(color)
 }

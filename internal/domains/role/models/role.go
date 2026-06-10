@@ -22,6 +22,12 @@ type CreateRequest struct {
 	Name            string `json:"name"`
 	Description     string `json:"description"`
 	CloneFromRoleID string `json:"clone_from_role_id"`
+	// Icon is an optional icon key (allowlist in roleConstants); empty = neutral
+	// default in the UI.
+	Icon string `json:"icon"`
+	// Color is an optional color palette key (allowlist in roleConstants);
+	// empty = neutral fallback in the UI.
+	Color string `json:"color"`
 }
 
 func (r CreateRequest) Validate() error {
@@ -36,6 +42,12 @@ func (r CreateRequest) Validate() error {
 	}
 	if r.Name == "" {
 		return errors.New("name is required")
+	}
+	if !roleConstants.IsValidIcon(r.Icon) {
+		return errors.New("icon is not a known icon key")
+	}
+	if !roleConstants.IsValidColor(r.Color) {
+		return errors.New("color is not a known color key")
 	}
 	return nil
 }
@@ -72,6 +84,11 @@ type PermissionPair struct {
 	Resource string `json:"resource"`
 	Action   string `json:"action"`
 	Icon     string `json:"icon"`
+	// Color is an optional per-resource color palette key (allowlist in
+	// roleConstants); empty = neutral fallback. When the resource already
+	// exists in the app, the repository reuses that resource's existing color
+	// and ignores this value (mirrors Icon).
+	Color string `json:"color"`
 }
 
 // CreatePermissionsRequest creates one or many resource:action permissions for
@@ -105,6 +122,9 @@ func (r CreatePermissionsRequest) Validate() error {
 		if !roleConstants.IsValidPermissionIcon(permission.Icon) {
 			return errors.New("icon is not a known icon key")
 		}
+		if !roleConstants.IsValidColor(permission.Color) {
+			return errors.New("color is not a known color key")
+		}
 	}
 	return nil
 }
@@ -112,11 +132,23 @@ func (r CreatePermissionsRequest) Validate() error {
 type UpdateRequest struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
+	// Icon is the role's icon key (allowlist in roleConstants); empty = neutral
+	// default in the UI.
+	Icon string `json:"icon"`
+	// Color is the role's color palette key (allowlist in roleConstants);
+	// empty = neutral fallback in the UI.
+	Color string `json:"color"`
 }
 
 func (r UpdateRequest) Validate() error {
 	if r.Name == "" {
 		return errors.New("name is required")
+	}
+	if !roleConstants.IsValidIcon(r.Icon) {
+		return errors.New("icon is not a known icon key")
+	}
+	if !roleConstants.IsValidColor(r.Color) {
+		return errors.New("color is not a known color key")
 	}
 	return nil
 }
@@ -170,6 +202,8 @@ type RoleListItem struct {
 	Code         string `json:"code"`
 	Name         string `json:"name"`
 	Description  string `json:"description"`
+	Icon         string `json:"icon"`
+	Color        string `json:"color"`
 	IsSystem     bool   `json:"is_system"`
 	MembersCount int    `json:"members_count"`
 }
@@ -182,6 +216,9 @@ type PermissionItem struct {
 	// Icon is the per-resource icon key shared by all rows of the same
 	// (app_id, resource); empty = neutral default in the UI.
 	Icon string `json:"icon"`
+	// Color is the per-resource color palette key shared by all rows of the
+	// same (app_id, resource); empty = neutral fallback in the UI.
+	Color string `json:"color"`
 }
 
 type RoleDetailResponse struct {
@@ -191,6 +228,8 @@ type RoleDetailResponse struct {
 	Code        string           `json:"code"`
 	Name        string           `json:"name"`
 	Description string           `json:"description"`
+	Icon        string           `json:"icon"`
+	Color       string           `json:"color"`
 	IsSystem    bool             `json:"is_system"`
 	Permissions []PermissionItem `json:"permissions"`
 }

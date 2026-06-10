@@ -16,8 +16,8 @@ type AppService struct {
 	RedirectURL   string    `bun:"redirect_url,notnull"`
 	CtxInfo       string    `bun:"ctx_info,notnull"`
 	Status        int32     `bun:"status,notnull"`
-	Icon          string    `bun:"icon,nullzero"`
-	Color         string    `bun:"color,nullzero"`
+	Icon          string    `bun:"icon"`
+	Color         string    `bun:"color"`
 	CreatedAt     time.Time `bun:"created_at,default:current_timestamp"`
 	CreatedBy     string    `bun:"created_by,nullzero"`
 	UpdatedAt     time.Time `bun:"updated_at,default:current_timestamp"`

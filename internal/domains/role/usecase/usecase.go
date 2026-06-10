@@ -124,6 +124,7 @@ func (u *usecase) GetDetail(ctx context.Context, id string) (models.RoleDetailRe
 			Resource: permission.Resource,
 			Action:   permission.Action,
 			Icon:     permission.Icon,
+			Color:    permission.Color,
 		})
 	}
 
@@ -144,6 +145,8 @@ func (u *usecase) GetDetail(ctx context.Context, id string) (models.RoleDetailRe
 		Code:        role.Code,
 		Name:        role.Name,
 		Description: role.Description,
+		Icon:        role.Icon,
+		Color:       role.Color,
 		IsSystem:    role.IsSystem,
 		Permissions: permissionItems,
 	}, nil
@@ -222,25 +225,30 @@ func (u *usecase) ListPermissions(ctx context.Context, req models.ListPermission
 		return nil, err
 	}
 
-	// per-resource consistency: every row of a resource reports the same icon —
-	// the one on the resource's lowest-id (first) row. Rows are returned ordered
-	// by id ASC, so the first row seen per (app_id, resource) is authoritative.
+	// per-resource consistency: every row of a resource reports the same icon and
+	// color — the ones on the resource's lowest-id (first) row. Rows are returned
+	// ordered by id ASC, so the first row seen per (app_id, resource) is
+	// authoritative.
 	iconByResource := map[string]string{}
+	colorByResource := map[string]string{}
 	for _, permission := range permissions {
 		key := permission.AppID + "\x00" + permission.Resource
 		if _, seen := iconByResource[key]; !seen {
 			iconByResource[key] = permission.Icon
+			colorByResource[key] = permission.Color
 		}
 	}
 
 	items := make([]models.PermissionItem, 0, len(permissions))
 	for _, permission := range permissions {
+		key := permission.AppID + "\x00" + permission.Resource
 		items = append(items, models.PermissionItem{
 			ID:       permission.ID,
 			AppID:    permission.AppID,
 			Resource: permission.Resource,
 			Action:   permission.Action,
-			Icon:     iconByResource[permission.AppID+"\x00"+permission.Resource],
+			Icon:     iconByResource[key],
+			Color:    colorByResource[key],
 		})
 	}
 	return items, nil
@@ -276,7 +284,7 @@ func (u *usecase) CreatePermissions(ctx context.Context, req models.CreatePermis
 
 	perms := make([]models.PermissionItem, 0, len(req.Permissions))
 	for _, permission := range req.Permissions {
-		perms = append(perms, models.PermissionItem{Resource: permission.Resource, Action: permission.Action, Icon: permission.Icon})
+		perms = append(perms, models.PermissionItem{Resource: permission.Resource, Action: permission.Action, Icon: permission.Icon, Color: permission.Color})
 	}
 
 	permissionIDsByCode, err := u.roleRepo.CreatePermissions(ctx, req.AppID, perms)
@@ -284,17 +292,19 @@ func (u *usecase) CreatePermissions(ctx context.Context, req models.CreatePermis
 		return nil, err
 	}
 
-	// resolve each resource's authoritative icon (the repo may have reused an
-	// existing resource's icon instead of the requested one) by re-reading the
-	// app catalog once and indexing the lowest-id row's icon per resource.
+	// resolve each resource's authoritative icon and color (the repo may have
+	// reused an existing resource's values instead of the requested ones) by
+	// re-reading the app catalog once and indexing the lowest-id row per resource.
 	catalog, err := u.ListPermissions(ctx, models.ListPermissionsRequest{AppID: req.AppID})
 	if err != nil {
 		return nil, err
 	}
 	iconByResource := map[string]string{}
+	colorByResource := map[string]string{}
 	for _, item := range catalog {
 		if _, seen := iconByResource[item.Resource]; !seen {
 			iconByResource[item.Resource] = item.Icon
+			colorByResource[item.Resource] = item.Color
 		}
 	}
 
@@ -306,6 +316,7 @@ func (u *usecase) CreatePermissions(ctx context.Context, req models.CreatePermis
 			Resource: permission.Resource,
 			Action:   permission.Action,
 			Icon:     iconByResource[permission.Resource],
+			Color:    colorByResource[permission.Resource],
 		})
 	}
 	return items, nil

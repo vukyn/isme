@@ -3,11 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Box, Button, Center, Flex, Grid, Heading, HStack, Input, Spinner, Stack, Text } from "@chakra-ui/react";
-import { LuArrowLeft, LuArrowRight, LuCheck, LuInfo, LuLock, LuPencil, LuSave } from "react-icons/lu";
+import { LuArrowLeft, LuArrowRight, LuInfo, LuLock, LuPencil, LuSave } from "react-icons/lu";
 import { getAppService, updateAppServiceAppearance } from "@/apis";
 import { AppTile } from "@/components/AppTile";
+import { ColorSwatchPicker } from "@/components/ColorSwatchPicker";
+import { IconPicker } from "@/components/IconPicker";
 import { toaster } from "@/components/ui/toaster";
-import { APP_COLOR_KEYS, APP_COLORS, ICON_KEYS, renderIcon } from "@/consts";
+import { APP_COLORS } from "@/consts";
 import { AURORA_CTA_STYLE } from "@/consts/styles";
 import { useUser } from "@/hooks/useUser";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -285,48 +287,7 @@ export const EditAppService = () => {
 										· pick from the shared icon set
 									</Text>
 								</Text>
-								<Flex
-									wrap="wrap"
-									gap="8px"
-									p="12px"
-									borderRadius="glassSm"
-									borderWidth="1px"
-									borderColor="border"
-									css={{ background: "rgba(7,7,26,0.35)" }}
-									role="radiogroup"
-									aria-label="App icon"
-								>
-									{ICON_KEYS.map((key) => {
-										const selected = icon === key;
-										return (
-											<Center
-												key={key}
-												as="button"
-												role="radio"
-												aria-checked={selected}
-												aria-label={key}
-												title={key}
-												onClick={() => setIcon(key)}
-												w="38px"
-												h="38px"
-												borderRadius="9px"
-												cursor="pointer"
-												borderWidth="1px"
-												borderColor={selected ? "aurora.violet" : "border.strong"}
-												color={selected ? "aurora.violet" : "fg.subtle"}
-												css={{
-													background: selected
-														? "linear-gradient(135deg, rgba(139,92,246,0.22), rgba(99,102,241,0.14))"
-														: "rgba(255,255,255,0.06)",
-													boxShadow: selected ? "0 0 0 3px rgba(139,92,246,0.25), 0 0 16px rgba(139,92,246,0.20) inset" : "none",
-												}}
-												_hover={{ color: "fg", borderColor: "rgba(255,255,255,0.30)" }}
-											>
-												{renderIcon(key, 17)}
-											</Center>
-										);
-									})}
-								</Flex>
+								<IconPicker value={icon} onChange={setIcon} ariaLabel="App icon" />
 								<Text mt="8px" fontSize="12px" color="fg.muted">
 									Stored as a string key (e.g.{" "}
 									<Text as="code" color="fg.subtle" fontFamily="inherit">
@@ -344,50 +305,7 @@ export const EditAppService = () => {
 										· aurora palette
 									</Text>
 								</Text>
-								<Flex
-									wrap="wrap"
-									gap="12px"
-									p="14px"
-									borderRadius="glassSm"
-									borderWidth="1px"
-									borderColor="border"
-									css={{ background: "rgba(7,7,26,0.35)" }}
-									role="radiogroup"
-									aria-label="App color"
-								>
-									{APP_COLOR_KEYS.map((key) => {
-										const selected = color === key;
-										const hex = APP_COLORS[key].hex;
-										return (
-											<Center
-												key={key}
-												as="button"
-												role="radio"
-												aria-checked={selected}
-												aria-label={`${key} (${hex})`}
-												title={key}
-												onClick={() => setColor(key)}
-												position="relative"
-												w="36px"
-												h="36px"
-												borderRadius="full"
-												cursor="pointer"
-												borderWidth="2px"
-												borderColor="transparent"
-												css={{
-													background: hex,
-													boxShadow: selected
-														? `0 0 0 2px #0B0B23, 0 0 0 4px ${hex}, 0 0 16px ${hex}`
-														: "0 0 0 1px rgba(255,255,255,0.12) inset",
-													transition: "transform .15s ease, box-shadow .15s ease",
-												}}
-												_hover={{ transform: "scale(1.08)" }}
-											>
-												{selected && <LuCheck size={16} color="white" />}
-											</Center>
-										);
-									})}
-								</Flex>
+								<ColorSwatchPicker value={color} onChange={setColor} ariaLabel="App color" />
 								<Text mt="10px" fontSize="12px" color="fg.muted">
 									Stored as palette key{" "}
 									<Text as="b" color="fg.subtle" fontWeight="semibold">

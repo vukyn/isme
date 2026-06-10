@@ -4,9 +4,15 @@ import { useState } from "react";
 import { Box, Button, Center, Dialog, Field, HStack, Input, NativeSelect, Text } from "@chakra-ui/react";
 import { LuKeyRound, LuPlus, LuType, LuX } from "react-icons/lu";
 import { createRole } from "@/apis";
+import { ColorSwatchPicker } from "@/components/ColorSwatchPicker";
+import { IconPicker } from "@/components/IconPicker";
 import { toaster } from "@/components/ui/toaster";
 import { AURORA_CTA_STYLE } from "@/consts/styles";
 import type { RoleListItem } from "@/types";
+
+/** Sensible appearance defaults for a brand-new role. */
+const DEFAULT_ROLE_ICON = "key";
+const DEFAULT_ROLE_COLOR = "violet";
 
 interface CreateRoleDialogProps {
 	open: boolean;
@@ -45,6 +51,8 @@ export const CreateRoleDialog = ({ open, onOpenChange, appId, appCode, roles, on
 	const [name, setName] = useState("");
 	const [description, setDescription] = useState("");
 	const [cloneFromRoleId, setCloneFromRoleId] = useState("");
+	const [icon, setIcon] = useState(DEFAULT_ROLE_ICON);
+	const [color, setColor] = useState(DEFAULT_ROLE_COLOR);
 	const [codeError, setCodeError] = useState<string | null>(null);
 	const [nameError, setNameError] = useState<string | null>(null);
 	const [submitting, setSubmitting] = useState(false);
@@ -54,6 +62,8 @@ export const CreateRoleDialog = ({ open, onOpenChange, appId, appCode, roles, on
 		setName("");
 		setDescription("");
 		setCloneFromRoleId("");
+		setIcon(DEFAULT_ROLE_ICON);
+		setColor(DEFAULT_ROLE_COLOR);
 		setCodeError(null);
 		setNameError(null);
 	};
@@ -87,6 +97,8 @@ export const CreateRoleDialog = ({ open, onOpenChange, appId, appCode, roles, on
 				name: trimmedName,
 				description: description.trim(),
 				clone_from_role_id: cloneFromRoleId || undefined,
+				icon,
+				color,
 			});
 			toaster.create({ title: `Role ${trimmedCode} created`, type: "success", meta: { closable: true } });
 			resetForm();
@@ -188,6 +200,24 @@ export const CreateRoleDialog = ({ open, onOpenChange, appId, appCode, roles, on
 								value={description}
 								onChange={(event) => setDescription(event.target.value)}
 							/>
+						</Field.Root>
+						<Field.Root>
+							<Field.Label {...FIELD_LABEL_PROPS}>
+								Icon{" "}
+								<Text as="span" color="fg.muted" fontWeight="normal" fontSize="12px">
+									· role badge
+								</Text>
+							</Field.Label>
+							<IconPicker value={icon} onChange={setIcon} ariaLabel="Role icon" />
+						</Field.Root>
+						<Field.Root>
+							<Field.Label {...FIELD_LABEL_PROPS}>
+								Color{" "}
+								<Text as="span" color="fg.muted" fontWeight="normal" fontSize="12px">
+									· aurora palette
+								</Text>
+							</Field.Label>
+							<ColorSwatchPicker value={color} onChange={setColor} ariaLabel="Role color" />
 						</Field.Root>
 						<Field.Root>
 							<Field.Label {...FIELD_LABEL_PROPS}>
