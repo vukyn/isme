@@ -11,6 +11,10 @@ export interface RoleListItem {
 	code: string;
 	name: string;
 	description: string;
+	/** Icon key (allowlist in consts/permissionIcons); empty = neutral default. */
+	icon: string;
+	/** Color palette key (allowlist in consts/appColors); empty = neutral fallback. */
+	color: string;
 	is_system: boolean;
 	members_count: number;
 }
@@ -26,6 +30,9 @@ export interface PermissionItem {
 	/** Per-resource icon key (allowlist in consts/permissionIcons). Shared by all
 	 *  rows of the same (app_id, resource); empty = neutral default. */
 	icon: string;
+	/** Per-resource color palette key (allowlist in consts/appColors). Shared by
+	 *  all rows of the same (app_id, resource); empty = neutral fallback. */
+	color: string;
 }
 
 /** Maps to models.RoleDetailResponse (GET /api/v1/roles/:id). */
@@ -36,6 +43,10 @@ export interface RoleDetailResponse {
 	code: string;
 	name: string;
 	description: string;
+	/** Icon key (allowlist in consts/permissionIcons); empty = neutral default. */
+	icon: string;
+	/** Color palette key (allowlist in consts/appColors); empty = neutral fallback. */
+	color: string;
 	is_system: boolean;
 	permissions: PermissionItem[];
 }
@@ -54,6 +65,10 @@ export interface CreateRoleRequest {
 	name: string;
 	description: string;
 	clone_from_role_id?: string;
+	/** Optional icon key (allowlist in consts/permissionIcons); empty = neutral default. */
+	icon?: string;
+	/** Optional color palette key (allowlist in consts/appColors); empty = neutral fallback. */
+	color?: string;
 }
 
 /** Maps to models.CreateResponse. */
@@ -65,6 +80,10 @@ export interface CreateRoleResponse {
 export interface UpdateRoleRequest {
 	name: string;
 	description: string;
+	/** Icon key (allowlist in consts/permissionIcons); empty = neutral default. */
+	icon?: string;
+	/** Color palette key (allowlist in consts/appColors); empty = neutral fallback. */
+	color?: string;
 }
 
 /** Maps to models.SetPermissionsRequest (PUT /api/v1/roles/:id/permissions). */
@@ -79,6 +98,9 @@ export interface PermissionPair {
 	/** Optional per-resource icon key. When the resource already exists in the
 	 *  app, the backend reuses that resource's stored icon and ignores this. */
 	icon?: string;
+	/** Optional per-resource color palette key. When the resource already exists
+	 *  in the app, the backend reuses that resource's stored color and ignores this. */
+	color?: string;
 }
 
 /** Maps to models.CreatePermissionsRequest (POST /api/v1/permissions). Creates

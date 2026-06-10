@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Box, Button, Center, Dialog, Field, Flex, HStack, Input, NativeSelect, Text } from "@chakra-ui/react";
-import { LuAppWindow, LuCheck, LuCode, LuKeyRound, LuLink2, LuPlus, LuX } from "react-icons/lu";
+import { Box, Button, Center, Dialog, Field, HStack, Input, NativeSelect, Text } from "@chakra-ui/react";
+import { LuAppWindow, LuCode, LuKeyRound, LuLink2, LuPlus, LuX } from "react-icons/lu";
 import { registerAppService } from "@/apis";
+import { ColorSwatchPicker } from "@/components/ColorSwatchPicker";
+import { IconPicker } from "@/components/IconPicker";
 import { toaster } from "@/components/ui/toaster";
-import { APP_COLOR_KEYS, APP_COLORS, APP_SERVICE_CTX_INFO_OPTIONS, ICON_KEYS, renderIcon } from "@/consts";
+import { APP_SERVICE_CTX_INFO_OPTIONS } from "@/consts";
 import { AURORA_CTA_STYLE } from "@/consts/styles";
 import type { AppServiceCtxInfo } from "@/types";
 import { registerAppServiceSchema } from "@/validators";
@@ -232,49 +234,7 @@ export const RegisterAppServiceDialog = ({ open, onOpenChange, onRegistered }: R
 									· appearance tile
 								</Text>
 							</Field.Label>
-							<Flex
-								wrap="wrap"
-								gap="2"
-								p="3"
-								w="full"
-								borderRadius="glassSm"
-								borderWidth="1px"
-								borderColor="border"
-								css={{ background: "rgba(7,7,26,0.35)" }}
-								role="radiogroup"
-								aria-label="App icon"
-							>
-								{ICON_KEYS.map((key) => {
-									const selected = icon === key;
-									return (
-										<Center
-											key={key}
-											as="button"
-											role="radio"
-											aria-checked={selected}
-											aria-label={key}
-											title={key}
-											onClick={() => setIcon(key)}
-											w="34px"
-											h="34px"
-											borderRadius="9px"
-											cursor="pointer"
-											borderWidth="1px"
-											borderColor={selected ? "aurora.violet" : "border.strong"}
-											color={selected ? "aurora.violet" : "fg.subtle"}
-											css={{
-												background: selected
-													? "linear-gradient(135deg, rgba(139,92,246,0.22), rgba(99,102,241,0.14))"
-													: "rgba(255,255,255,0.06)",
-												boxShadow: selected ? "0 0 0 3px rgba(139,92,246,0.25)" : "none",
-											}}
-											_hover={{ color: "fg", borderColor: "rgba(255,255,255,0.30)" }}
-										>
-											{renderIcon(key, 16)}
-										</Center>
-									);
-								})}
-							</Flex>
+							<IconPicker value={icon} onChange={setIcon} ariaLabel="App icon" />
 						</Field.Root>
 						<Field.Root>
 							<Field.Label {...FIELD_LABEL_PROPS}>
@@ -283,47 +243,7 @@ export const RegisterAppServiceDialog = ({ open, onOpenChange, onRegistered }: R
 									· aurora palette
 								</Text>
 							</Field.Label>
-							<Flex
-								wrap="wrap"
-								gap="3"
-								p="3.5"
-								w="full"
-								borderRadius="glassSm"
-								borderWidth="1px"
-								borderColor="border"
-								css={{ background: "rgba(7,7,26,0.35)" }}
-								role="radiogroup"
-								aria-label="App color"
-							>
-								{APP_COLOR_KEYS.map((key) => {
-									const selected = color === key;
-									const hex = APP_COLORS[key].hex;
-									return (
-										<Center
-											key={key}
-											as="button"
-											role="radio"
-											aria-checked={selected}
-											aria-label={`${key} (${hex})`}
-											title={key}
-											onClick={() => setColor(key)}
-											w="32px"
-											h="32px"
-											borderRadius="full"
-											cursor="pointer"
-											borderWidth="2px"
-											borderColor="transparent"
-											css={{
-												background: hex,
-												boxShadow: selected ? `0 0 0 2px #0B0B23, 0 0 0 4px ${hex}` : "0 0 0 1px rgba(255,255,255,0.12) inset",
-											}}
-											_hover={{ transform: "scale(1.08)" }}
-										>
-											{selected && <LuCheck size={14} color="white" />}
-										</Center>
-									);
-								})}
-							</Flex>
+							<ColorSwatchPicker value={color} onChange={setColor} ariaLabel="App color" />
 						</Field.Root>
 						<HStack
 							gap="2"

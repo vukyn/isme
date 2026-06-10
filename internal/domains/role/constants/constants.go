@@ -98,3 +98,30 @@ var PERMISSION_ICON_KEYS = ICON_KEYS
 func IsValidPermissionIcon(icon string) bool {
 	return IsValidIcon(icon)
 }
+
+// COLOR_KEYS is the shared allowlist of color palette keys a caller may store on
+// any entity that carries a color (app_service tile, role chip, permission
+// resource badge). The value is a palette key (not a hex); the frontend maps it
+// to a hex (ui/src/consts/appColors.ts). An empty color is always allowed and
+// resolves to a neutral fallback in the UI.
+var COLOR_KEYS = map[string]struct{}{
+	"violet":  {},
+	"indigo":  {},
+	"cyan":    {},
+	"sky":     {},
+	"teal":    {},
+	"mint":    {},
+	"amber":   {},
+	"rose":    {},
+	"magenta": {},
+}
+
+// IsValidColor reports whether the color palette key is allowed. The empty
+// string (neutral fallback) is valid; any other value must be in the allowlist.
+func IsValidColor(color string) bool {
+	if color == "" {
+		return true
+	}
+	_, ok := COLOR_KEYS[color]
+	return ok
+}

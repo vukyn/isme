@@ -43,12 +43,15 @@ import { CreateRoleDialog } from "@/components/CreateRoleDialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip } from "@/components/ui/tooltip";
 import {
+	APP_COLORS,
 	APP_SERVICE_STATUS,
 	PERMISSION_ICON_KEYS,
 	renderDefaultPermissionIcon,
 	renderPermissionIcon,
 	resolveResourceIconKey,
 } from "@/consts";
+import { ColorSwatchPicker } from "@/components/ColorSwatchPicker";
+import { IconPicker } from "@/components/IconPicker";
 import { toaster } from "@/components/ui/toaster";
 import { AURORA_CTA_STYLE } from "@/consts/styles";
 import { useUser } from "@/hooks/useUser";
@@ -122,22 +125,34 @@ const resourceLabel = (resource: string) =>
  */
 const buildMatrix = (catalog: PermissionItem[]): MatrixResource[] => {
 	const byResource = new Map<string, Set<string>>();
-	// the persisted icon key per resource — all rows of a resource share it, so
-	// the first row seen (catalog is id-ordered) is authoritative.
+	// the persisted icon + color keys per resource — all rows of a resource share
+	// them, so the first row seen (catalog is id-ordered) is authoritative.
 	const iconByResource = new Map<string, string>();
+	const colorByResource = new Map<string, string>();
 	for (const permission of catalog) {
 		if (!byResource.has(permission.resource)) byResource.set(permission.resource, new Set());
 		byResource.get(permission.resource)!.add(permission.action);
 		if (!iconByResource.has(permission.resource)) iconByResource.set(permission.resource, permission.icon);
+		if (!colorByResource.has(permission.resource)) colorByResource.set(permission.resource, permission.color);
 	}
 	return [...byResource.entries()]
 		.sort(([a], [b]) => a.localeCompare(b))
 		.map(([resource, actions], index) => {
 			const iconKey = resolveResourceIconKey(resource, iconByResource.get(resource));
+			// a stored per-resource color wins; otherwise fall back to the cycling
+			// palette so resources that have never been styled look unchanged.
+			const storedColorKey = colorByResource.get(resource);
+			const accent =
+				storedColorKey && storedColorKey in APP_COLORS
+					? {
+							color: APP_COLORS[storedColorKey as keyof typeof APP_COLORS].hex,
+							bg: `rgba(${APP_COLORS[storedColorKey as keyof typeof APP_COLORS].rgb},0.14)`,
+						}
+					: RESOURCE_ACCENTS[index % RESOURCE_ACCENTS.length];
 			return {
 			resource,
 			label: resourceLabel(resource),
-			accent: RESOURCE_ACCENTS[index % RESOURCE_ACCENTS.length],
+			accent,
 			icon: renderPermissionIcon(iconKey, 14),
 			crud: {
 				read: actions.has("read"),
@@ -265,21 +280,47 @@ const errorMessage = (error: unknown, fallback: string): string => {
 	return err?.response?.data?.message || err?.message || fallback;
 };
 
-const RoleIconBox = ({ code, size = "9", radius = "11px", iconSize = 16, glow = false }: { code: string; size?: string; radius?: string; iconSize?: number; glow?: boolean }) => {
-	const accent = roleAccent(code, iconSize);
+const RoleIconBox = ({
+	code,
+	icon,
+	color,
+	size = "9",
+	radius = "11px",
+	iconSize = 16,
+	glow = false,
+}: {
+	code: string;
+	/** Stored role icon key — wins over the code heuristic when present. */
+	icon?: string;
+	/** Stored role color palette key — wins over the code heuristic when present. */
+	color?: string;
+	size?: string;
+	radius?: string;
+	iconSize?: number;
+	glow?: boolean;
+}) => {
+	// the code heuristic gives every role a tasteful default; a stored color/icon
+	// overrides it so existing roles (empty appearance) look unchanged.
+	const heuristic = roleAccent(code, iconSize);
+	const hasStoredColor = !!color && color in APP_COLORS;
+	const palette = hasStoredColor ? APP_COLORS[color as keyof typeof APP_COLORS] : null;
+	const accentColor = palette ? palette.hex : heuristic.color;
+	const accentBg = palette ? `rgba(${palette.rgb},0.15)` : heuristic.bg;
+	const accentGlow = palette ? `rgba(${palette.rgb},0.18)` : heuristic.glow;
+	const node = icon ? renderPermissionIcon(icon, iconSize) : heuristic.icon;
 	return (
 		<Center
 			w={size}
 			h={size}
 			flex="none"
 			borderRadius={radius}
-			bg={accent.bg}
+			bg={accentBg}
 			borderWidth="1px"
 			borderColor="border.strong"
-			color={accent.color}
-			boxShadow={glow ? `0 0 18px ${accent.glow}` : "none"}
+			color={accentColor}
+			boxShadow={glow ? `0 0 18px ${accentGlow}` : "none"}
 		>
-			{accent.icon}
+			{node}
 		</Center>
 	);
 };
@@ -402,6 +443,8 @@ export const Roles = () => {
 	const [renameOpen, setRenameOpen] = useState(false);
 	const [renameName, setRenameName] = useState("");
 	const [renameDescription, setRenameDescription] = useState("");
+	const [renameIcon, setRenameIcon] = useState("");
+	const [renameColor, setRenameColor] = useState("");
 	const [renameSaving, setRenameSaving] = useState(false);
 	const [deleteOpen, setDeleteOpen] = useState(false);
 	const [deleting, setDeleting] = useState(false);
@@ -417,6 +460,9 @@ export const Roles = () => {
 	// Icon chosen for a BRAND-NEW resource; when the typed resource matches an
 	// existing one the icon is locked to that resource's stored icon instead.
 	const [newResourceIcon, setNewResourceIcon] = useState("");
+	// Color chosen for a BRAND-NEW resource; when the typed resource matches an
+	// existing one the color is locked to that resource's stored color instead.
+	const [newResourceColor, setNewResourceColor] = useState("");
 
 	// Remove-permission confirm dialog (delete a resource:action from the catalog).
 	const [permissionToDelete, setPermissionToDelete] = useState<PermissionItem | null>(null);
@@ -640,12 +686,25 @@ export const Roles = () => {
 		}
 		return byResource;
 	}, [catalog]);
-	// Does the typed resource match an existing one? If so its icon is locked.
+	// Stored color key per EXISTING resource — locks the color the same way the
+	// icon is locked when the typed resource already exists.
+	const existingResourceColorKeys = useMemo(() => {
+		const byResource = new Map<string, string>();
+		for (const permission of catalog) {
+			if (!byResource.has(permission.resource)) {
+				byResource.set(permission.resource, permission.color ?? "");
+			}
+		}
+		return byResource;
+	}, [catalog]);
+	// Does the typed resource match an existing one? If so its icon/color are locked.
 	const matchedExistingResource = cleanResource ? existingResourceIconKeys.has(cleanResource) : false;
 	const lockedResourceIconKey = matchedExistingResource ? (existingResourceIconKeys.get(cleanResource) ?? "") : "";
-	// The icon that will actually be sent: locked for an existing resource, the
-	// user's pick for a new one.
+	const lockedResourceColorKey = matchedExistingResource ? (existingResourceColorKeys.get(cleanResource) ?? "") : "";
+	// The icon/color that will actually be sent: locked for an existing resource,
+	// the user's pick for a new one.
 	const effectiveIconKey = matchedExistingResource ? lockedResourceIconKey : newResourceIcon;
+	const effectiveColorKey = matchedExistingResource ? lockedResourceColorKey : newResourceColor;
 	const livePermission = cleanResource && cleanAction ? `${cleanResource}:${cleanAction}` : "";
 	// A live pair counts only when valid AND not already queued.
 	const liveValid = !!livePermission && !permissionQueue.some((pair) => `${pair.resource}:${pair.action}` === livePermission);
@@ -656,17 +715,22 @@ export const Roles = () => {
 		setNewResource("");
 		setNewAction("");
 		setNewResourceIcon("");
+		setNewResourceColor("");
 		setPermissionQueue([]);
 	};
 
-	// "+ Add another" — stage the current inputs (with the resolved icon) and
-	// clear them for the next pair.
+	// "+ Add another" — stage the current inputs (with the resolved icon/color)
+	// and clear them for the next pair.
 	const handleQueuePermission = () => {
 		if (!liveValid) return;
-		setPermissionQueue((previous) => [...previous, { resource: cleanResource, action: cleanAction, icon: effectiveIconKey }]);
+		setPermissionQueue((previous) => [
+			...previous,
+			{ resource: cleanResource, action: cleanAction, icon: effectiveIconKey, color: effectiveColorKey },
+		]);
 		setNewResource("");
 		setNewAction("");
 		setNewResourceIcon("");
+		setNewResourceColor("");
 	};
 
 	const handleUnqueuePermission = (index: number) => {
@@ -677,7 +741,7 @@ export const Roles = () => {
 		if (!selectedApp) return;
 		// Submit every queued pair plus the live inputs (if a valid, unqueued pair).
 		const payload: PermissionPair[] = [...permissionQueue];
-		if (liveValid) payload.push({ resource: cleanResource, action: cleanAction, icon: effectiveIconKey });
+		if (liveValid) payload.push({ resource: cleanResource, action: cleanAction, icon: effectiveIconKey, color: effectiveColorKey });
 		if (payload.length === 0) return;
 		setCreatingPermission(true);
 		try {
@@ -775,6 +839,8 @@ export const Roles = () => {
 	const handleOpenRename = () => {
 		setRenameName(detail?.name ?? "");
 		setRenameDescription(detail?.description ?? "");
+		setRenameIcon(detail?.icon ?? "");
+		setRenameColor(detail?.color ?? "");
 		setRenameOpen(true);
 	};
 
@@ -782,11 +848,22 @@ export const Roles = () => {
 		if (!selectedRoleId || !renameName.trim()) return;
 		setRenameSaving(true);
 		try {
-			await updateRole(selectedRoleId, { name: renameName.trim(), description: renameDescription.trim() });
-			setDetail((previous) => (previous ? { ...previous, name: renameName.trim(), description: renameDescription.trim() } : previous));
+			const trimmedName = renameName.trim();
+			const trimmedDescription = renameDescription.trim();
+			await updateRole(selectedRoleId, {
+				name: trimmedName,
+				description: trimmedDescription,
+				icon: renameIcon,
+				color: renameColor,
+			});
+			setDetail((previous) =>
+				previous ? { ...previous, name: trimmedName, description: trimmedDescription, icon: renameIcon, color: renameColor } : previous
+			);
 			setRoles((previous) =>
 				previous.map((role) =>
-					role.id === selectedRoleId ? { ...role, name: renameName.trim(), description: renameDescription.trim() } : role
+					role.id === selectedRoleId
+						? { ...role, name: trimmedName, description: trimmedDescription, icon: renameIcon, color: renameColor }
+						: role
 				)
 			);
 			setRenameOpen(false);
@@ -1030,7 +1107,7 @@ export const Roles = () => {
 									_hover={selected ? undefined : { bg: "rgba(255,255,255,0.04)" }}
 									onClick={() => setSelectedRoleId(role.id)}
 								>
-									<RoleIconBox code={role.is_system ? role.code : "custom"} />
+									<RoleIconBox code={role.is_system ? role.code : "custom"} icon={role.icon} color={role.color} />
 									<Box minW="0" lineHeight="1.3" flex="1">
 										<HStack gap="7px" fontSize="sm" fontWeight="semibold" color="fg">
 											<Text truncate>{role.code}</Text>
@@ -1071,7 +1148,7 @@ export const Roles = () => {
 							<>
 								{/* Role header */}
 								<HStack gap="3.5" px="5" py="4.5" borderBottomWidth="1px" borderColor="border" wrap="wrap">
-									<RoleIconBox code={detail.is_system ? detail.code : "custom"} size="11" radius="13px" iconSize={20} glow />
+									<RoleIconBox code={detail.is_system ? detail.code : "custom"} icon={detail.icon} color={detail.color} size="11" radius="13px" iconSize={20} glow />
 									<Box lineHeight="1.3" flex="1" minW="0">
 										<HStack gap="2.5" fontSize="17px" fontWeight="bold" letterSpacing="-0.01em" color="fg">
 											<Text>{detail.code}</Text>
@@ -1848,7 +1925,7 @@ export const Roles = () => {
 					>
 						<Dialog.Header px="5" py="4" display="flex" alignItems="center" borderBottomWidth="1px" borderColor="border">
 							<Dialog.Title fontSize="15px" fontWeight="semibold">
-								Rename role
+								Edit role
 							</Dialog.Title>
 						</Dialog.Header>
 						<Dialog.Body p="5" display="flex" flexDirection="column" gap="4">
@@ -1863,6 +1940,24 @@ export const Roles = () => {
 									Description
 								</Field.Label>
 								<Input {...INPUT_PROPS} value={renameDescription} onChange={(event) => setRenameDescription(event.target.value)} />
+							</Field.Root>
+							<Field.Root>
+								<Field.Label fontSize="13px" fontWeight="medium" color="fg.subtle">
+									Icon{" "}
+									<Text as="span" color="fg.muted" fontWeight="normal" fontSize="12px">
+										· role badge
+									</Text>
+								</Field.Label>
+								<IconPicker value={renameIcon} onChange={setRenameIcon} ariaLabel="Role icon" />
+							</Field.Root>
+							<Field.Root>
+								<Field.Label fontSize="13px" fontWeight="medium" color="fg.subtle">
+									Color{" "}
+									<Text as="span" color="fg.muted" fontWeight="normal" fontSize="12px">
+										· aurora palette
+									</Text>
+								</Field.Label>
+								<ColorSwatchPicker value={renameColor} onChange={setRenameColor} ariaLabel="Role color" />
 							</Field.Root>
 						</Dialog.Body>
 						<HStack justify="flex-end" gap="2.5" px="5" py="4" borderTopWidth="1px" borderColor="border">
@@ -2137,6 +2232,55 @@ export const Roles = () => {
 											);
 										})}
 									</Grid>
+								)}
+							</Field.Root>
+
+							{/* Resource color — picker for a new resource, locked to the
+							    existing resource's color when the name matches one (mirrors icon). */}
+							<Field.Root>
+								<Field.Label fontSize="13px" fontWeight="medium" color="fg.subtle">
+									Color{" "}
+									<Text as="span" color="fg.muted" fontWeight="normal">
+										· tints this resource everywhere
+									</Text>
+								</Field.Label>
+								{matchedExistingResource ? (
+									<HStack
+										gap="2.5"
+										px="3.5"
+										py="2.5"
+										borderRadius="glassSm"
+										borderWidth="1px"
+										borderColor="border"
+										bg="bg.glass"
+										color="fg.muted"
+									>
+										<Center
+											flex="none"
+											w="30px"
+											h="30px"
+											borderRadius="full"
+											css={{
+												background:
+													lockedResourceColorKey && lockedResourceColorKey in APP_COLORS
+														? APP_COLORS[lockedResourceColorKey as keyof typeof APP_COLORS].hex
+														: "rgba(255,255,255,0.10)",
+											}}
+										/>
+										<Box>
+											<Text fontSize="13px" fontWeight="medium" color="fg">
+												Locked
+											</Text>
+											<Text fontSize="12px" color="fg.muted">
+												color set by existing resource
+											</Text>
+										</Box>
+										<Box ml="auto" flex="none" color="fg.muted">
+											<LuLock size={14} />
+										</Box>
+									</HStack>
+								) : (
+									<ColorSwatchPicker value={newResourceColor} onChange={setNewResourceColor} ariaLabel="Resource color" />
 								)}
 							</Field.Root>
 

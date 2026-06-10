@@ -86,23 +86,32 @@ func (f *fakeRoleRepository) ListPermissions(ctx context.Context, req models.Lis
 			Resource: perm.Resource,
 			Action:   perm.Action,
 			Icon:     perm.Icon,
+			Color:    perm.Color,
 		})
 	}
 	return items, nil
 }
 
 func (f *fakeRoleRepository) CreatePermissions(ctx context.Context, appID string, perms []models.PermissionItem) (map[string]int64, error) {
-	// mirror the repo's per-resource icon rule: an existing resource keeps its
-	// stored icon; a new resource takes the icon on its first incoming pair.
+	// mirror the repo's per-resource icon/color rule: an existing resource keeps
+	// its stored icon/color; a new resource takes the values on its first
+	// incoming pair.
 	iconByResource := map[string]string{}
+	colorByResource := map[string]string{}
 	for _, existing := range f.createdPermissions[appID] {
 		if _, seen := iconByResource[existing.Resource]; !seen && existing.Icon != "" {
 			iconByResource[existing.Resource] = existing.Icon
+		}
+		if _, seen := colorByResource[existing.Resource]; !seen && existing.Color != "" {
+			colorByResource[existing.Resource] = existing.Color
 		}
 	}
 	for _, perm := range perms {
 		if _, resolved := iconByResource[perm.Resource]; !resolved {
 			iconByResource[perm.Resource] = perm.Icon
+		}
+		if _, resolved := colorByResource[perm.Resource]; !resolved {
+			colorByResource[perm.Resource] = perm.Color
 		}
 	}
 
@@ -115,6 +124,7 @@ func (f *fakeRoleRepository) CreatePermissions(ctx context.Context, appID string
 			Resource: perm.Resource,
 			Action:   perm.Action,
 			Icon:     iconByResource[perm.Resource],
+			Color:    colorByResource[perm.Resource],
 		})
 		ids[perm.Resource+":"+perm.Action] = id
 	}

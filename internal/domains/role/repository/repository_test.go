@@ -275,6 +275,46 @@ func TestCreatePermissionsIconPerResource(t *testing.T) {
 	}
 }
 
+// CreatePermissions stores the color on a brand-new resource and reuses it for
+// later rows of the same resource (never overwriting), exactly like the icon, so
+// a resource keeps one consistent color and ListPermissions reports it on every
+// row.
+func TestCreatePermissionsColorPerResource(t *testing.T) {
+	db := newTestDB(t)
+	ctx := context.Background()
+	roleRepository := NewRepository(db)
+
+	insertApp(t, db, "app_medioa2", "medioa2", nil)
+
+	// new resource takes the requested color
+	if _, err := roleRepository.CreatePermissions(ctx, "app_medioa2", []models.PermissionItem{
+		{Resource: "report", Action: "read", Color: "violet"},
+	}); err != nil {
+		t.Fatalf("CreatePermissions() error = %v", err)
+	}
+
+	// a later row of the same resource requests a different color — the stored
+	// color must win (existing-resource lock)
+	if _, err := roleRepository.CreatePermissions(ctx, "app_medioa2", []models.PermissionItem{
+		{Resource: "report", Action: "export", Color: "rose"},
+	}); err != nil {
+		t.Fatalf("CreatePermissions() error = %v", err)
+	}
+
+	permissions, err := roleRepository.ListPermissions(ctx, models.ListPermissionsRequest{AppID: "app_medioa2"})
+	if err != nil {
+		t.Fatalf("ListPermissions() error = %v", err)
+	}
+	if len(permissions) != 2 {
+		t.Fatalf("expected 2 permissions, got %d", len(permissions))
+	}
+	for _, permission := range permissions {
+		if permission.Color != "violet" {
+			t.Errorf("expected color %q for %s:%s, got %q", "violet", permission.Resource, permission.Action, permission.Color)
+		}
+	}
+}
+
 func keysOf(m map[string][]string) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {

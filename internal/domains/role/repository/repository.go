@@ -38,6 +38,8 @@ func (r *repository) Create(ctx context.Context, req models.CreateRequest) (stri
 		Code:        req.Code,
 		Name:        req.Name,
 		Description: req.Description,
+		Icon:        req.Icon,
+		Color:       req.Color,
 		CreatedBy:   pkgCtx.GetUserID(ctx),
 	}
 	_, err := r.db.NewInsert().
@@ -125,6 +127,8 @@ func (r *repository) List(ctx context.Context, req models.ListRequest) ([]models
 			Code:         row.Code,
 			Name:         row.Name,
 			Description:  row.Description,
+			Icon:         row.Icon,
+			Color:        row.Color,
 			IsSystem:     row.IsSystem,
 			MembersCount: row.MembersCount,
 		})
@@ -144,11 +148,13 @@ func (r *repository) Update(ctx context.Context, id string, req models.UpdateReq
 		ID:          id,
 		Name:        req.Name,
 		Description: req.Description,
+		Icon:        req.Icon,
+		Color:       req.Color,
 		UpdatedBy:   pkgCtx.GetUserID(ctx),
 	}
 	_, err := r.db.NewUpdate().
 		Model(role).
-		Column("name", "description", "updated_by").
+		Column("name", "description", "icon", "color", "updated_by").
 		Where("id = ?", id).
 		Exec(ctx)
 	if err != nil {
@@ -198,19 +204,21 @@ func (r *repository) ListPermissions(ctx context.Context, req models.ListPermiss
 }
 
 // CreatePermissions idempotently inserts the given resource:action permissions for
-// an app and returns their permission IDs keyed by "resource:action". The icon is
-// stored per resource: if the (app_id, resource) already has rows, those rows'
-// existing icon is reused for new rows of that resource (never overwritten) so a
-// resource keeps one consistent icon; only a brand-new resource takes the
-// requested icon.
+// an app and returns their permission IDs keyed by "resource:action". The icon and
+// color are stored per resource: if the (app_id, resource) already has rows, those
+// rows' existing icon/color are reused for new rows of that resource (never
+// overwritten) so a resource keeps one consistent icon and color; only a
+// brand-new resource takes the requested icon/color.
 func (r *repository) CreatePermissions(ctx context.Context, appID string, perms []models.PermissionItem) (map[string]int64, error) {
 	if appID == "" {
 		return nil, pkgErr.InvalidRequest("app_id is required")
 	}
 
-	// resolve each resource's effective icon once: an existing resource keeps its
-	// stored icon; a new resource takes the icon supplied on its first pair.
+	// resolve each resource's effective icon/color once: an existing resource keeps
+	// its stored icon/color; a new resource takes the values supplied on its first
+	// pair.
 	iconByResource := map[string]string{}
+	colorByResource := map[string]string{}
 	for _, perm := range perms {
 		if _, resolved := iconByResource[perm.Resource]; resolved {
 			continue
@@ -224,6 +232,15 @@ func (r *repository) CreatePermissions(ctx context.Context, appID string, perms 
 		} else {
 			iconByResource[perm.Resource] = perm.Icon
 		}
+		existingColor, err := r.getResourceColor(ctx, appID, perm.Resource)
+		if err != nil {
+			return nil, err
+		}
+		if existingColor != "" {
+			colorByResource[perm.Resource] = existingColor
+		} else {
+			colorByResource[perm.Resource] = perm.Color
+		}
 	}
 
 	permissionIDs := map[string]int64{}
@@ -234,6 +251,7 @@ func (r *repository) CreatePermissions(ctx context.Context, appID string, perms 
 				Resource: perm.Resource,
 				Action:   perm.Action,
 				Icon:     iconByResource[perm.Resource],
+				Color:    colorByResource[perm.Resource],
 			}).
 			Ignore().
 			Exec(ctx); err != nil {
@@ -275,6 +293,28 @@ func (r *repository) getResourceIcon(ctx context.Context, appID string, resource
 		return "", pkgErr.DatabaseError(err.Error())
 	}
 	return icon, nil
+}
+
+// getResourceColor returns the color stored on the lowest-id (first) row of the
+// given (app_id, resource), or "" when the resource has no rows yet. Mirrors
+// getResourceIcon — the per-resource color is read from the resource's first row.
+func (r *repository) getResourceColor(ctx context.Context, appID string, resource string) (string, error) {
+	var color string
+	err := r.db.NewSelect().
+		Model((*entity.Permission)(nil)).
+		Column("color").
+		Where("app_id = ?", appID).
+		Where("resource = ?", resource).
+		Order("id ASC").
+		Limit(1).
+		Scan(ctx, &color)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", nil
+		}
+		return "", pkgErr.DatabaseError(err.Error())
+	}
+	return color, nil
 }
 
 func (r *repository) GetPermissionByID(ctx context.Context, permissionID int64) (entity.Permission, error) {
