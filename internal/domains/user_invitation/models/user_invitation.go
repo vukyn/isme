@@ -76,6 +76,8 @@ type ListResponse struct {
 type InviteAssignmentDetail struct {
 	AppCode  string `json:"app_code"`
 	AppName  string `json:"app_name"`
+	Icon     string `json:"icon"`
+	Color    string `json:"color"`
 	RoleName string `json:"role_name"`
 	RoleCode string `json:"role_code"`
 	// Permissions previews the resource:action codes this role grants.

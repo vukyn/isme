@@ -521,6 +521,9 @@ func (u *usecase) SSOCheck(ctx context.Context, req models.SSOCheckRequest) (mod
 	app := models.SSOCheckApp{
 		Name:        appService.AppName,
 		RedirectURL: appService.RedirectURL,
+		AppCode:     appService.AppCode,
+		Icon:        appService.Icon,
+		Color:       appService.Color,
 	}
 
 	// read-only validity probe (NO rotation, NO session mutation)

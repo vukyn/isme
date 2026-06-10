@@ -16,7 +16,7 @@ import {
 	LuUserCheck,
 } from "react-icons/lu";
 import { acceptInvite, getInvitationByToken } from "@/apis";
-import { AppTile } from "@/components/AppRoleChip";
+import { AppTile } from "@/components/AppTile";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { PasswordField } from "@/components/ui/password-field";
@@ -71,7 +71,13 @@ const AccessCard = ({ assignment }: { assignment: InviteAssignmentDetail }) => {
 					setOpen((value) => !value);
 				}}
 			>
-				<AppTile appCode={assignment.app_code} size="38px" radius="11px" />
+				<AppTile
+						iconKey={assignment.icon}
+						colorKey={assignment.color}
+						size="md"
+						appCode={assignment.app_code}
+						fallbackSeed={assignment.app_code}
+					/>
 				<Box flex="1" minW="0" lineHeight="1.3">
 					<Text fontSize="15px" fontWeight="semibold" color="fg" truncate>
 						{assignment.app_name || assignment.app_code}
