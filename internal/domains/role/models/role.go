@@ -166,9 +166,11 @@ func (r SetPermissionsRequest) Validate() error {
 	return nil
 }
 
+// AppServiceID is intentionally not a field: the assignment's app_service_id is
+// derived server-side from the role's owning app_id (the perm query enforces
+// ur.app_service_id = rol.app_id), so it must never be client-supplied.
 type AddMembersRequest struct {
-	UserIDs      []string `json:"user_ids"`
-	AppServiceID *string  `json:"app_service_id"`
+	UserIDs []string `json:"user_ids"`
 }
 
 func (r AddMembersRequest) Validate() error {
@@ -179,9 +181,6 @@ func (r AddMembersRequest) Validate() error {
 		if userID == "" {
 			return errors.New("user_ids must not contain empty values")
 		}
-	}
-	if r.AppServiceID != nil && *r.AppServiceID == "" {
-		return errors.New("app_service_id must not be empty when set")
 	}
 	return nil
 }

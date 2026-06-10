@@ -437,18 +437,12 @@ func (u *usecase) AddMembers(ctx context.Context, id string, req models.AddMembe
 		}
 	}
 
-	// check app service exists when scoped
-	if req.AppServiceID != nil {
-		appService, err := u.appServiceRepo.GetByID(ctx, *req.AppServiceID)
-		if err != nil {
-			return err
-		}
-		if appService.ID == "" {
-			return pkgErr.InvalidRequest("app service not found")
-		}
-	}
-
-	return u.roleRepo.AddMembers(ctx, id, req.UserIDs, req.AppServiceID)
+	// app_service_id MUST equal the role's owning app_id — the perm query enforces
+	// ur.app_service_id = rol.app_id, so a missing or mismatched value silently
+	// grants no perms in the issued token. Derive it from the role rather than
+	// trusting the client (the UI add-to-role flow omits it).
+	appServiceID := role.AppID
+	return u.roleRepo.AddMembers(ctx, id, req.UserIDs, &appServiceID)
 }
 
 func (u *usecase) RemoveMember(ctx context.Context, id string, userID string, appServiceID *string) error {
