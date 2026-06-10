@@ -42,7 +42,7 @@ const PERMS_PREVIEW_COUNT = 4;
  * list collapsing to "+N more" past PERMS_PREVIEW_COUNT.
  */
 const AccessCard = ({ assignment }: { assignment: InviteAssignmentDetail }) => {
-	const [open, setOpen] = useState(true);
+	const [open, setOpen] = useState(false);
 	const [permsOpen, setPermsOpen] = useState(false);
 	const perms = assignment.permissions ?? [];
 	const visible = permsOpen ? perms : perms.slice(0, PERMS_PREVIEW_COUNT);
