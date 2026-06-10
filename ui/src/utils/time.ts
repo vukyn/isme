@@ -60,6 +60,33 @@ export const formatShortDateTime = (timestamp?: string): string => {
 };
 
 /**
+ * Compact relative time for the rotation pill + Welcome delta, e.g. "just now",
+ * "3m ago", "5h ago", "2d ago". Empty / zero time → "—".
+ */
+export const formatRelative = (timestamp?: string): string => {
+	if (isZeroTime(timestamp)) return "—";
+	const date = new Date(timestamp as string);
+	if (Number.isNaN(date.getTime())) return "—";
+
+	const diffInSeconds = Math.floor((Date.now() - date.getTime()) / 1000);
+	if (diffInSeconds < 60) return "just now";
+
+	const diffInMinutes = Math.floor(diffInSeconds / 60);
+	if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+
+	const diffInHours = Math.floor(diffInMinutes / 60);
+	if (diffInHours < 24) return `${diffInHours}h ago`;
+
+	const diffInDays = Math.floor(diffInHours / 24);
+	if (diffInDays < 7) return `${diffInDays}d ago`;
+
+	const diffInWeeks = Math.floor(diffInDays / 7);
+	if (diffInWeeks < 4) return `${diffInWeeks}w ago`;
+
+	return `${Math.floor(diffInDays / 30)}mo ago`;
+};
+
+/**
  * ISO date only, e.g. "2025-01-12". Zero time → "—".
  */
 export const formatDateOnly = (timestamp?: string): string => {

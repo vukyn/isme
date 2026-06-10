@@ -39,7 +39,10 @@ func (r CreateRequest) Validate() error {
 }
 
 type UpdateLastLoginRequest struct {
-	ID           string
+	ID      string
+	// UserID owns the session being rotated; required so the matching
+	// token_rotation_events row can be attributed to the user for the 24h count.
+	UserID       string
 	TokenID      string
 	RefreshToken string
 	ClientIP     string
@@ -50,6 +53,9 @@ type UpdateLastLoginRequest struct {
 func (r UpdateLastLoginRequest) Validate() error {
 	if r.ID == "" {
 		return errors.New("id is required")
+	}
+	if r.UserID == "" {
+		return errors.New("user_id is required")
 	}
 	if r.TokenID == "" {
 		return errors.New("token_id is required")

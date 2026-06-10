@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"testing"
+	"time"
 
 	appServiceEntity "github.com/vukyn/isme/internal/domains/app_service/entity"
 	userSessionConstants "github.com/vukyn/isme/internal/domains/user_session/constants"
@@ -164,6 +165,101 @@ func TestCountMySessionsDelta(t *testing.T) {
 	}
 	if count.NewIn24h != 2 {
 		t.Errorf("expected NewIn24h=2, got %d", count.NewIn24h)
+	}
+}
+
+// TestCountMySessionsRotations proves the sliding-24h rotation count is surfaced
+// from the event log and last_refreshed_at is the MAX across the user's active
+// sessions (the most-recent rotation), formatted RFC3339.
+func TestCountMySessionsRotations(t *testing.T) {
+	const userID = "user-1"
+	older := time.Now().UTC().Add(-3 * time.Hour)
+	newest := time.Now().UTC().Add(-5 * time.Minute)
+
+	sessionRepo := &ssoUserSessionRepo{
+		rotations24h: 7,
+		activeSessions: []userSessionEntity.UserSession{
+			{ID: "s1", UserID: userID, LastRefreshedAt: &older, Status: userSessionConstants.UserSessionStatusActive},
+			{ID: "s2", UserID: userID, LastRefreshedAt: &newest, Status: userSessionConstants.UserSessionStatusActive},
+			// never-refreshed session contributes no timestamp
+			{ID: "s3", UserID: userID, LastRefreshedAt: nil, Status: userSessionConstants.UserSessionStatusActive},
+		},
+	}
+	uc := newSessionFixture(sessionRepo)
+
+	count, err := uc.CountMySessions(ctxWithUser(userID, "token-current"))
+	if err != nil {
+		t.Fatalf("expected success, got %v", err)
+	}
+	if count.Rotations24h != 7 {
+		t.Errorf("expected Rotations24h=7, got %d", count.Rotations24h)
+	}
+	want := newest.Format(time.RFC3339)
+	if count.LastRefreshedAt != want {
+		t.Errorf("expected LastRefreshedAt=%q (max across sessions), got %q", want, count.LastRefreshedAt)
+	}
+}
+
+// TestCountMySessionsNoRotations proves an all-never-refreshed session set yields
+// an empty last_refreshed_at (the card shows "no refreshes yet").
+func TestCountMySessionsNoRotations(t *testing.T) {
+	const userID = "user-1"
+	sessionRepo := &ssoUserSessionRepo{
+		rotations24h: 0,
+		activeSessions: []userSessionEntity.UserSession{
+			{ID: "s1", UserID: userID, LastRefreshedAt: nil, Status: userSessionConstants.UserSessionStatusActive},
+		},
+	}
+	uc := newSessionFixture(sessionRepo)
+
+	count, err := uc.CountMySessions(ctxWithUser(userID, "token-current"))
+	if err != nil {
+		t.Fatalf("expected success, got %v", err)
+	}
+	if count.Rotations24h != 0 {
+		t.Errorf("expected Rotations24h=0, got %d", count.Rotations24h)
+	}
+	if count.LastRefreshedAt != "" {
+		t.Errorf("expected empty LastRefreshedAt when never refreshed, got %q", count.LastRefreshedAt)
+	}
+}
+
+// TestListMySessionsRotationFields proves the per-session refresh_count and
+// last_refreshed_at are mapped through to the DTO, with the never-refreshed
+// session reporting count 0 and empty timestamp.
+func TestListMySessionsRotationFields(t *testing.T) {
+	const userID = "user-1"
+	refreshedAt := time.Now().UTC().Add(-18 * time.Minute)
+
+	sessionRepo := &ssoUserSessionRepo{
+		activeSessions: []userSessionEntity.UserSession{
+			{ID: "s1", UserID: userID, RefreshCount: 12, LastRefreshedAt: &refreshedAt, Status: userSessionConstants.UserSessionStatusActive},
+			{ID: "s2", UserID: userID, RefreshCount: 0, LastRefreshedAt: nil, Status: userSessionConstants.UserSessionStatusActive},
+		},
+	}
+	uc := newSessionFixture(sessionRepo)
+
+	items, err := uc.ListMySessions(ctxWithUser(userID, "token-current"))
+	if err != nil {
+		t.Fatalf("expected success, got %v", err)
+	}
+
+	byID := make(map[string]struct {
+		count int64
+		last  string
+	})
+	for _, item := range items {
+		byID[item.ID] = struct {
+			count int64
+			last  string
+		}{item.RefreshCount, item.LastRefreshedAt}
+	}
+
+	if got := byID["s1"]; got.count != 12 || got.last != refreshedAt.Format(time.RFC3339) {
+		t.Errorf("expected s1 refresh_count=12 + RFC3339 last_refreshed_at, got %+v", got)
+	}
+	if got := byID["s2"]; got.count != 0 || got.last != "" {
+		t.Errorf("expected never-refreshed s2 to have count 0 + empty last_refreshed_at, got %+v", got)
 	}
 }
 
