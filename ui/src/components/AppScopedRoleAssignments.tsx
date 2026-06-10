@@ -87,6 +87,25 @@ export const AppScopedRoleAssignments = ({ apps, value, onChange }: AppScopedRol
 		}
 	}, [value, appById, loadRolesFor]);
 
+	// Reconcile rows whose role_id is empty/stale once the app's roles resolve.
+	// A native <select> visually shows its first <option> when value="", but
+	// state stays empty until an onChange fires — so a seeded/app-switched row
+	// looks filled (e.g. "admin") yet never counts as a complete assignment,
+	// disabling Send. Snap role_id to the first available role as it loads.
+	useEffect(() => {
+		let changed = false;
+		const reconciled = value.map((assignment) => {
+			const app = appById(assignment.app_service_id);
+			if (!app) return assignment;
+			const roles = rolesByApp[app.app_code];
+			if (!roles || roles.length === 0) return assignment;
+			if (roles.some((role) => role.id === assignment.role_id)) return assignment;
+			changed = true;
+			return { ...assignment, role_id: roles[0].id };
+		});
+		if (changed) onChange(reconciled);
+	}, [value, rolesByApp, appById, onChange]);
+
 	const updateRow = (index: number, patch: Partial<InvitationRoleAssignment>) => {
 		onChange(value.map((assignment, position) => (position === index ? { ...assignment, ...patch } : assignment)));
 	};
