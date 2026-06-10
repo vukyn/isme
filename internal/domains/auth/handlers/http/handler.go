@@ -152,3 +152,47 @@ func ExchangeCode(c *fiber.Ctx) error {
 
 	return pkgHttp.OK(c, exchangeCodeResponse)
 }
+
+func SSOCheck(c *fiber.Ctx) error {
+	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
+	defer ctn.Delete()
+
+	uc, err := idi.GetAuthUsecase(ctn)
+	if err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	ssoCheckRequest := models.SSOCheckRequest{}
+	if err := c.BodyParser(&ssoCheckRequest); err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	ssoCheckResponse, err := uc.SSOCheck(pkgCtx.NewContextFromFiberCtx(c), ssoCheckRequest)
+	if err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	return pkgHttp.OK(c, ssoCheckResponse)
+}
+
+func SSOConsent(c *fiber.Ctx) error {
+	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
+	defer ctn.Delete()
+
+	uc, err := idi.GetAuthUsecase(ctn)
+	if err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	ssoConsentRequest := models.SSOConsentRequest{}
+	if err := c.BodyParser(&ssoConsentRequest); err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	ssoConsentResponse, err := uc.SSOConsent(pkgCtx.NewContextFromFiberCtx(c), ssoConsentRequest)
+	if err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	return pkgHttp.OK(c, ssoConsentResponse)
+}

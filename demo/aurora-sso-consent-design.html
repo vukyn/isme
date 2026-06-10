@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>isme — SSO Consent · Aurora UI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  /* ====== Aurora design tokens — copied verbatim from demo/aurora-auth-mockup.html ====== */
+  :root {
+    --bg-0: #07071A;
+    --bg-1: #0B0B23;
+    --bg-2: #12122E;
+    --fg: #F4F5FF;
+    --fg-soft: #C7CAE8;
+    --fg-mute: #8A8FB5;
+    --border: rgba(255,255,255,0.10);
+    --border-strong: rgba(255,255,255,0.18);
+    --glass: rgba(255,255,255,0.06);
+    --glass-strong: rgba(255,255,255,0.10);
+
+    --c-cyan: #22D3EE;
+    --c-blue: #6366F1;
+    --c-violet: #8B5CF6;
+    --c-magenta: #EC4899;
+    --c-amber: #F59E0B;
+    --c-mint: #34D399;
+    --c-red: #F87171;
+
+    --accent: var(--c-violet);
+    --accent-glow: rgba(139,92,246,0.45);
+
+    --radius: 16px;
+    --radius-sm: 12px;
+    --easing: cubic-bezier(.2,.8,.2,1);
+    --shadow-glass: 0 1px 0 rgba(255,255,255,0.06) inset, 0 8px 32px rgba(0,0,0,0.45);
+    --shadow-pop: 0 20px 60px rgba(99,102,241,0.25), 0 4px 12px rgba(0,0,0,0.35);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter','DM Sans',system-ui,-apple-system,sans-serif;
+    color: var(--fg);
+    background: var(--bg-0);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
+    overflow-x: hidden;
+    min-height: 100dvh;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+
+  /* Aurora background — global (same block as the rest of the aurora set) */
+  body::before {
+    content: ""; position: fixed; inset: 0; z-index: -2;
+    background:
+      radial-gradient(60% 50% at 12% 10%, rgba(99,102,241,0.45), transparent 60%),
+      radial-gradient(45% 40% at 88% 18%, rgba(34,211,238,0.35), transparent 60%),
+      radial-gradient(55% 45% at 75% 92%, rgba(236,72,153,0.32), transparent 60%),
+      radial-gradient(50% 40% at 18% 80%, rgba(139,92,246,0.32), transparent 60%),
+      linear-gradient(180deg, #07071A 0%, #0B0B23 60%, #04040E 100%);
+    background-size: 200% 200%;
+    animation: auroraFlow 14s ease-in-out infinite alternate;
+    filter: saturate(1.15);
+  }
+  body::after {
+    content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 3px 3px;
+    mix-blend-mode: overlay;
+    opacity: 0.45;
+  }
+  @keyframes auroraFlow {
+    0%   { background-position: 0% 0%, 100% 0%, 100% 100%, 0% 100%, 0 0; }
+    50%  { background-position: 30% 20%, 60% 30%, 70% 70%, 30% 60%, 0 0; }
+    100% { background-position: 100% 100%, 0% 100%, 0% 0%, 100% 0%, 0 0; }
+  }
+
+  /* ====== Centered single-card scaffold ====== */
+  .sso-wrap { min-height: 100dvh; display: grid; place-items: center; padding: 40px 20px 72px; }
+  .sso-stack { width: 100%; max-width: 460px; display: flex; flex-direction: column; gap: 18px; }
+
+  .brand-row { display: flex; align-items: center; justify-content: center; gap: 11px; }
+  .brand-mark {
+    width: 36px; height: 36px; border-radius: 11px;
+    background: conic-gradient(from 180deg at 50% 50%, var(--c-cyan), var(--c-blue), var(--c-violet), var(--c-magenta), var(--c-cyan));
+    display: grid; place-items: center; box-shadow: 0 8px 24px rgba(99,102,241,0.45);
+  }
+  .brand-mark > span { width: 28px; height: 28px; border-radius: 8px; background: var(--bg-0); display: grid; place-items: center; }
+  .brand-name { font-weight: 700; font-size: 18px; letter-spacing: -0.01em; }
+
+  /* ====== Consent card ====== */
+  .card {
+    position: relative;
+    border-radius: 20px;
+    padding: 30px 30px 26px;
+    border: 1px solid var(--border-strong);
+    background: linear-gradient(180deg, rgba(18,18,46,0.78), rgba(11,11,35,0.82));
+    box-shadow: var(--shadow-pop);
+    backdrop-filter: blur(20px) saturate(1.15);
+    overflow: hidden;
+  }
+  .card .orb { position: absolute; border-radius: 50%; filter: blur(46px); pointer-events: none; }
+  .card .orb-1 { width: 220px; height: 220px; right: -70px; top: -90px; background: radial-gradient(circle, rgba(99,102,241,0.50), transparent 70%); }
+  .card .orb-2 { width: 200px; height: 200px; left: -70px; bottom: -90px; background: radial-gradient(circle, rgba(236,72,153,0.42), transparent 70%); }
+  .card > * { position: relative; z-index: 1; }
+
+  /* ===== Consent header: which app wants access ===== */
+  .sso-context { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 14px; margin-bottom: 20px; }
+  .handshake { display: flex; align-items: center; gap: 14px; }
+  .app-tile { width: 52px; height: 52px; border-radius: 15px; display: grid; place-items: center; flex: 0 0 auto; }
+  .app-tile.medioa { background: rgba(139,92,246,0.18); border: 1px solid rgba(139,92,246,0.45); color: var(--c-violet); box-shadow: 0 0 22px rgba(139,92,246,0.25); }
+  .app-tile.isme { background: conic-gradient(from 180deg, var(--c-cyan), var(--c-blue), var(--c-violet), var(--c-magenta), var(--c-cyan)); }
+  .app-tile.isme > span { width: 40px; height: 40px; border-radius: 11px; background: var(--bg-0); display: grid; place-items: center; }
+  .handshake .conn { color: var(--fg-mute); }
+  .handshake .conn svg { opacity: 0.8; }
+  .sso-context h1 { margin: 0; font-size: 21px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.3; }
+  .sso-context h1 .app { color: var(--fg); }
+  .sso-context .sub { margin: 0; font-size: 14px; color: var(--fg-mute); max-width: 360px; }
+
+  /* ===== Logged-in identity chip (the .user-chip language from aurora-auth-mockup, expanded) ===== */
+  .identity {
+    display: flex; align-items: center; gap: 13px;
+    padding: 13px 14px; margin-bottom: 18px;
+    border-radius: var(--radius); border: 1px solid var(--border-strong);
+    background: var(--glass); backdrop-filter: blur(12px);
+  }
+  .identity .avatar {
+    width: 44px; height: 44px; border-radius: 999px; flex: 0 0 auto;
+    background: conic-gradient(from 200deg, var(--c-cyan), var(--c-blue), var(--c-violet), var(--c-magenta), var(--c-cyan));
+    color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 15px;
+    box-shadow: 0 0 16px var(--accent-glow);
+  }
+  .identity .meta { flex: 1; min-width: 0; }
+  .identity .meta b { display: block; font-size: 14px; font-weight: 600; color: var(--fg); line-height: 1.3; }
+  .identity .meta span { display: block; font-size: 13px; color: var(--fg-mute); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* "Not you? Switch account" → drops to the password login form */
+  .switch-link { font-size: 12.5px; color: var(--fg-soft); text-decoration: none; font-weight: 600; white-space: nowrap; border-bottom: 1px solid transparent; flex: 0 0 auto; }
+  .switch-link:hover { color: var(--c-cyan); border-color: var(--c-cyan); }
+
+  /* ===== Scopes / permissions list ===== */
+  .scopes-lab { font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--fg-mute); margin: 4px 0 12px; }
+  .scopes { display: grid; gap: 9px; margin-bottom: 22px; }
+  .scope {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 12px 14px; border-radius: var(--radius-sm);
+    background: var(--glass); border: 1px solid var(--border);
+  }
+  .scope .s-icon {
+    width: 34px; height: 34px; border-radius: 10px; flex: 0 0 auto;
+    display: grid; place-items: center;
+    background: linear-gradient(135deg, rgba(99,102,241,0.25), rgba(236,72,153,0.18));
+    border: 1px solid var(--border-strong); color: var(--c-cyan);
+  }
+  .scope.violet .s-icon { color: var(--c-violet); }
+  .scope.magenta .s-icon { color: var(--c-magenta); }
+  .scope .s-text { flex: 1; }
+  .scope .s-text h4 { margin: 0 0 2px; font-size: 14px; font-weight: 600; color: var(--fg); }
+  .scope .s-text p { margin: 0; font-size: 12.5px; color: var(--fg-mute); }
+  /* a granted-tick on the right so it reads as "will be allowed" */
+  .scope .s-check { color: var(--c-mint); flex: 0 0 auto; margin-top: 5px; }
+
+  /* ===== Buttons ===== */
+  .btn-row { display: flex; flex-direction: column; gap: 10px; }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+    width: 100%; height: 50px; min-height: 44px;
+    border-radius: var(--radius-sm); border: 1px solid transparent;
+    font: inherit; font-size: 15px; font-weight: 600; cursor: pointer;
+    transition: transform .15s var(--easing), box-shadow .2s var(--easing), background .2s var(--easing);
+    position: relative; overflow: hidden;
+  }
+  .btn:active { transform: translateY(1px) scale(0.995); }
+  .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--c-blue) 0%, var(--c-violet) 50%, var(--c-magenta) 100%);
+    color: #fff;
+    box-shadow: 0 10px 30px rgba(99,102,241,0.45), 0 0 0 1px rgba(255,255,255,0.10) inset;
+    background-size: 200% 200%; background-repeat: no-repeat; background-position: 0% 0%;
+  }
+  .btn-primary:hover:not(:disabled) { background-position: 100% 100%; box-shadow: 0 14px 40px rgba(139,92,246,0.55); }
+  .btn-primary:focus-visible { outline: 0; box-shadow: 0 0 0 4px rgba(139,92,246,0.35), 0 14px 40px rgba(139,92,246,0.55); }
+  .btn-ghost { background: var(--glass); color: var(--fg); border-color: var(--border-strong); backdrop-filter: blur(12px); }
+  .btn-ghost:hover:not(:disabled) { background: var(--glass-strong); border-color: rgba(255,255,255,0.28); }
+
+  .spinner { width: 18px; height: 18px; border: 2.4px solid rgba(255,255,255,0.35); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* trust footer */
+  .secured-pill { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 500; color: var(--fg-soft); padding: 5px 12px; border-radius: 999px; background: var(--glass); border: 1px solid var(--border-strong); backdrop-filter: blur(12px); }
+  .secured-pill svg { color: var(--c-mint); }
+  .sso-foot { text-align: center; font-size: 12px; color: var(--fg-mute); line-height: 1.6; }
+  .sso-foot a { color: var(--fg-soft); text-decoration: none; }
+  .sso-foot a:hover { color: var(--c-cyan); }
+
+  .demo-switch { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); z-index: 100; display: flex; gap: 6px; padding: 6px; border-radius: 999px; background: rgba(7,7,26,0.85); border: 1px solid var(--border-strong); backdrop-filter: blur(20px); box-shadow: var(--shadow-pop); }
+  .demo-switch span { font-size: 11px; color: var(--fg-mute); align-self: center; padding: 0 8px; letter-spacing: 0.08em; text-transform: uppercase; }
+  .demo-switch button { font: inherit; font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 999px; border: 1px solid transparent; background: transparent; color: var(--fg-soft); cursor: pointer; }
+  .demo-switch button.active { background: var(--glass-strong); border-color: var(--border-strong); color: var(--fg); }
+</style>
+</head>
+<body>
+
+<!--
+  ===========================================================================
+  SSO CONSENT — /sso/login?session_id=<id> when a valid isme session exists
+  ===========================================================================
+  Shown INSTEAD of the password form when the user is already authenticated on
+  isme (access token live, or expired but refresh still valid). Rather than
+  re-asking for the password, isme asks the user to CONSENT to granting the
+  requesting app (medioa2) access — OAuth-style consent.
+
+  FLOW: on Allow → isme mints authorization_code + redirect_url for session_id →
+  postMessage to opener tab (or same-tab redirect) → window.close(). Same code
+  path as SSOLogin submit, minus the credential step.
+  On Deny → no code issued; post a denial / close → app shows "access denied".
+  "Not you? Switch account" → clears the isme session for this device and routes
+  to the password login form (aurora-sso-login-design.html).
+
+  STATES (demo switcher — REMOVE on port):
+    • default    → consent card, idle
+    • allowing   → Allow button shows spinner + "Authorizing…", Deny disabled
+-->
+
+<div class="sso-wrap">
+  <div class="sso-stack">
+
+    <div class="brand-row">
+      <div class="brand-mark"><span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 7l8 5 8-5-8-5Z"/><path d="m4 17 8 5 8-5"/><path d="m4 12 8 5 8-5"/></svg></span></div>
+      <div class="brand-name">isme</div>
+    </div>
+
+    <div class="card">
+      <span class="orb orb-1"></span>
+      <span class="orb orb-2"></span>
+
+      <!-- ===== header: app requesting access ===== -->
+      <div class="sso-context">
+        <div class="handshake" aria-hidden="true">
+          <div class="app-tile medioa" title="medioa2">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
+          </div>
+          <div class="conn">
+            <svg width="26" height="16" viewBox="0 0 26 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8h22"/><path d="m7 3-5 5 5 5"/><path d="m19 3 5 5-5 5"/></svg>
+          </div>
+          <div class="app-tile isme" title="isme"><span><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 7l8 5 8-5-8-5Z"/><path d="m4 17 8 5 8-5"/><path d="m4 12 8 5 8-5"/></svg></span></div>
+        </div>
+        <h1><span class="app">medioa2</span> wants to access<br>your isme account</h1>
+        <p class="sub">You're already signed in to isme. Review what medioa2 will be able to do, then continue.</p>
+      </div>
+
+      <!-- ===== logged-in identity ===== -->
+      <div class="identity">
+        <div class="avatar">TN</div>
+        <div class="meta">
+          <b>Thảo Nguyễn</b>
+          <span>thao.nguyen@hasaki.vn</span>
+        </div>
+        <!-- on click: clear isme session for this device → route to password login form -->
+        <a href="#switch" class="switch-link">Not you?<br>Switch account</a>
+      </div>
+
+      <!-- ===== scopes / permissions medioa2 will receive ===== -->
+      <div class="scopes-lab">medioa2 will be able to</div>
+      <div class="scopes">
+        <div class="scope">
+          <div class="s-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+          <div class="s-text">
+            <h4>View your profile &amp; email</h4>
+            <p>Your name, email address and avatar.</p>
+          </div>
+          <svg class="s-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-9"/></svg>
+        </div>
+
+        <div class="scope violet">
+          <div class="s-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V6l-8-4-8 4v6c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg></div>
+          <div class="s-text">
+            <h4>Access your roles &amp; permissions</h4>
+            <p>Your assigned access for medioa2 (e.g. <b>editor</b>).</p>
+          </div>
+          <svg class="s-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-9"/></svg>
+        </div>
+
+        <div class="scope magenta">
+          <div class="s-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="m9 15 2 2 4-4"/></svg></div>
+          <div class="s-text">
+            <h4>Act on your behalf in medioa2</h4>
+            <p>Upload, manage and share files as you.</p>
+          </div>
+          <svg class="s-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-9"/></svg>
+        </div>
+      </div>
+
+      <!-- ===== actions ===== -->
+      <div class="btn-row">
+        <!-- on click: mint authorization_code for session_id → postMessage to opener / redirect -->
+        <button id="allowBtn" class="btn btn-primary" type="button" onclick="allowing()">
+          <span class="cta-label">Allow &amp; continue as Thảo</span>
+          <svg class="cta-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </button>
+        <!-- on click: deny — no code issued; notify opener of denial / close tab -->
+        <button id="denyBtn" class="btn btn-ghost" type="button">Cancel</button>
+      </div>
+    </div>
+
+    <!-- trust footer -->
+    <div class="secured-pill" style="margin:0 auto;">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V6l-8-4-8 4v6c0 6 8 10 8 10Z"/></svg>
+      Protected by isme SSO
+    </div>
+    <div class="sso-foot">
+      You can revoke medioa2's access anytime in <a href="#settings">isme settings</a>.
+    </div>
+
+  </div>
+</div>
+
+<!-- DEMO-ONLY state switcher — REMOVE on port -->
+<div class="demo-switch" role="group" aria-label="Demo state switcher">
+  <span>State</span>
+  <button class="active" onclick="showState('default', this)">Default</button>
+  <button onclick="showState('allowing', this)">Authorizing</button>
+</div>
+
+<script>
+  function allowing(){ document.querySelector('.demo-switch button:nth-child(3)').click(); }
+
+  function showState(which, btn){
+    var allow = document.getElementById('allowBtn');
+    var deny = document.getElementById('denyBtn');
+    var label = allow.querySelector('.cta-label');
+    var arrow = allow.querySelector('.cta-arrow');
+    var old = allow.querySelector('.spinner'); if (old) old.remove();
+
+    allow.disabled = false; deny.disabled = false;
+    label.textContent = 'Allow & continue as Thảo';
+    arrow.style.display = '';
+
+    if (which === 'allowing') {
+      allow.disabled = true; deny.disabled = true;
+      label.textContent = 'Authorizing…';
+      arrow.style.display = 'none';
+      var sp = document.createElement('span'); sp.className = 'spinner';
+      allow.insertBefore(sp, label);
+    }
+
+    document.querySelectorAll('.demo-switch button').forEach(function(b){ b.classList.remove('active'); });
+    if (btn) btn.classList.add('active');
+    else document.querySelector('.demo-switch button:nth-child(3)').classList.add('active');
+  }
+</script>
+
+</body>
+</html>

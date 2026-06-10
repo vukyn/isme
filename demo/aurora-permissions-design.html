@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
 <style>
-  /* ====== Aurora design tokens — extracted from demo/auth-mockup.html ====== */
+  /* ====== Aurora design tokens — extracted from demo/aurora-auth-mockup.html ====== */
   :root {
     --bg-0: #07071A;
     --bg-1: #0B0B23;
@@ -51,7 +51,7 @@
     *, *::before, *::after { animation: none !important; transition: none !important; }
   }
 
-  /* Aurora background — global, same as auth-mockup */
+  /* Aurora background — global, same as aurora-auth-mockup */
   body::before {
     content: ""; position: fixed; inset: 0; z-index: -2;
     background:
@@ -219,7 +219,7 @@
     display: flex; align-items: center; gap: 8px;
   }
 
-  /* role item — selected state mirrors auth-mockup nav active glass treatment */
+  /* role item — selected state mirrors aurora-auth-mockup nav active glass treatment */
   .role-item {
     display: flex; align-items: center; gap: 13px;
     padding: 14px 18px; cursor: pointer;
@@ -345,7 +345,7 @@
   .res-code { font-size: 11px; color: var(--fg-mute); }
   .na { color: var(--fg-mute); opacity: 0.6; font-size: 13px; }
 
-  /* aurora checkbox — same as auth-mockup .check */
+  /* aurora checkbox — same as aurora-auth-mockup .check */
   .check { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; color: var(--fg-soft); font-size: 13px; }
   .check input, .special-chip input {
     appearance: none; -webkit-appearance: none;

@@ -34,6 +34,21 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
 				return null;
 			}
 
+			// The SSO authorize page (/sso/*) runs its own read-only session probe
+			// (ssoCheck) that sends the refresh token in the request body. Firing
+			// /me here on an expired access token would 401 → trigger a refresh that
+			// ROTATES the refresh token out from under the in-flight ssoCheck, so the
+			// probe fails and the page drops to the password form until a manual
+			// reload. The SSO page never needs the isme user (consent renders the
+			// identity from the ssoCheck response), so skip the fetch entirely.
+			if (typeof window !== "undefined" && window.location.pathname.startsWith("/sso")) {
+				setUser(null);
+				setError(null);
+				setLoading(false);
+				inflight.current = null;
+				return null;
+			}
+
 			try {
 				setLoading(true);
 				setError(null);

@@ -8,6 +8,8 @@ export const API_ENDPOINTS = {
 	AUTH_ME: "/api/v1/auth/me",
 	AUTH_REFRESH: "/api/v1/auth/refresh",
 	AUTH_LOGOUT: "/api/v1/auth/logout",
+	AUTH_SSO_CHECK: "/api/v1/auth/sso/check",
+	AUTH_SSO_CONSENT: "/api/v1/auth/sso/consent",
 	AUTH_INVITE_DETAIL: (token: string) => `/api/v1/auth/invites/${encodeURIComponent(token)}`,
 	AUTH_ACCEPT_INVITE: "/api/v1/auth/accept-invite",
 

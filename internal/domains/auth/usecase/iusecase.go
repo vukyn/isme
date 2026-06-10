@@ -15,4 +15,6 @@ type IUseCase interface {
 	Logout(ctx context.Context) error
 	RequestLogin(ctx context.Context, req models.RequestLoginRequest) (models.RequestLoginResponse, error)
 	ExchangeCode(ctx context.Context, req models.ExchangeCodeRequest) (models.ExchangeCodeResponse, error)
+	SSOCheck(ctx context.Context, req models.SSOCheckRequest) (models.SSOCheckResponse, error)
+	SSOConsent(ctx context.Context, req models.SSOConsentRequest) (models.SSOConsentResponse, error)
 }
