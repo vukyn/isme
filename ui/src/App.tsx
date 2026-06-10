@@ -10,6 +10,7 @@ import { Roles } from "./pages/Roles";
 import { AppServices } from "./pages/AppServices";
 import { EditAppService } from "./pages/EditAppService";
 import { Settings } from "./pages/Settings";
+import { Sessions } from "./pages/Sessions";
 import { NotFound } from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AuroraBackground } from "./components/ui/aurora-background";
@@ -77,6 +78,14 @@ function App() {
 						element={
 							<ProtectedRoute>
 								<Settings />
+							</ProtectedRoute>
+						}
+					/>
+					<Route
+						path="/sessions"
+						element={
+							<ProtectedRoute>
+								<Sessions />
 							</ProtectedRoute>
 						}
 					/>

@@ -175,6 +175,74 @@ func SSOCheck(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, ssoCheckResponse)
 }
 
+func ListMySessions(c *fiber.Ctx) error {
+	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
+	defer ctn.Delete()
+
+	uc, err := idi.GetAuthUsecase(ctn)
+	if err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	sessions, err := uc.ListMySessions(pkgCtx.NewContextFromFiberCtx(c))
+	if err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	return pkgHttp.OK(c, sessions)
+}
+
+func CountMySessions(c *fiber.Ctx) error {
+	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
+	defer ctn.Delete()
+
+	uc, err := idi.GetAuthUsecase(ctn)
+	if err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	count, err := uc.CountMySessions(pkgCtx.NewContextFromFiberCtx(c))
+	if err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	return pkgHttp.OK(c, count)
+}
+
+func RevokeMySession(c *fiber.Ctx) error {
+	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
+	defer ctn.Delete()
+
+	uc, err := idi.GetAuthUsecase(ctn)
+	if err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	err = uc.RevokeMySession(pkgCtx.NewContextFromFiberCtx(c), c.Params("id"))
+	if err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	return pkgHttp.OK(c, map[string]string{"message": "Session revoked successfully"})
+}
+
+func RevokeMyOtherSessions(c *fiber.Ctx) error {
+	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
+	defer ctn.Delete()
+
+	uc, err := idi.GetAuthUsecase(ctn)
+	if err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	err = uc.RevokeMyOtherSessions(pkgCtx.NewContextFromFiberCtx(c))
+	if err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	return pkgHttp.OK(c, map[string]string{"message": "Other sessions revoked successfully"})
+}
+
 func SSOConsent(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 	defer ctn.Delete()

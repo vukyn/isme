@@ -9,7 +9,7 @@ export interface StatEntry {
 	title: string;
 	desc: string;
 	stat: string;
-	delta: string;
+	delta?: string;
 }
 
 export interface ActivityEntry {

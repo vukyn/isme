@@ -17,4 +17,8 @@ type IUseCase interface {
 	ExchangeCode(ctx context.Context, req models.ExchangeCodeRequest) (models.ExchangeCodeResponse, error)
 	SSOCheck(ctx context.Context, req models.SSOCheckRequest) (models.SSOCheckResponse, error)
 	SSOConsent(ctx context.Context, req models.SSOConsentRequest) (models.SSOConsentResponse, error)
+	ListMySessions(ctx context.Context) ([]models.MySessionItem, error)
+	CountMySessions(ctx context.Context) (models.MySessionCount, error)
+	RevokeMySession(ctx context.Context, sessionID string) error
+	RevokeMyOtherSessions(ctx context.Context) error
 }

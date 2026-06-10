@@ -1,20 +1,38 @@
 "use client";
 
-import { Box, Button, Center, Flex, Grid, HStack, Heading, Link, Spinner, Stack, Text } from "@chakra-ui/react";
+import { useEffect, useState } from "react";
+import { Box, Center, Flex, Grid, HStack, Heading, Link, Spinner, Stack, Text } from "@chakra-ui/react";
 import { Link as RouterLink } from "react-router-dom";
-import { LuFileText, LuPlus } from "react-icons/lu";
 import { GlassCard } from "@/components/ui/glass-card";
 import { StatCard } from "@/components/ui/stat-card";
 import { ActivityRow } from "@/components/ui/activity-row";
 import { AppShell } from "@/layouts/AppShell";
-import { MOCK_STATS, MOCK_ACTIVITY } from "@/consts/mock";
+import { MOCK_STATS, MOCK_ACTIVITY, type StatEntry } from "@/consts/mock";
 import { useUser } from "@/hooks/useUser";
-import { AURORA_CTA_STYLE } from "@/consts/styles";
+import { getMySessionsCount } from "@/apis";
 
 export const Welcome = () => {
 	const { user, loading, error } = useUser();
 	const name = user?.name || "User";
 	const email = user?.email || "";
+
+	// Live "Active sessions" stat — the first card mirrors the real count + 24h
+	// delta; the other two stay mock until their data sources land.
+	const [sessionStat, setSessionStat] = useState<{ stat: string; delta: string } | null>(null);
+	useEffect(() => {
+		getMySessionsCount()
+			.then((count) =>
+				setSessionStat({
+					stat: String(count.count),
+					delta: `▲ +${count.new_in_24h} new in 24h`,
+				})
+			)
+			.catch(() => setSessionStat(null));
+	}, []);
+
+	const stats: StatEntry[] = MOCK_STATS.map((entry, index) =>
+		index === 0 && sessionStat ? { ...entry, stat: sessionStat.stat, delta: sessionStat.delta } : entry
+	);
 
 	if (error) {
 		return (
@@ -79,41 +97,14 @@ export const Welcome = () => {
 							{name}
 						</Text>
 					</Heading>
-					<Text color="fg.subtle" mb="6" maxW="560px">
+					<Text color="fg.subtle" maxW="560px">
 						Last sign-in just now from this device. Pick up where you left off, or spin up something new.
 					</Text>
-					<HStack gap="2.5" flexWrap="wrap">
-						<Button
-							h="12"
-							px="5.5"
-							color="white"
-							borderRadius="glassSm"
-							boxShadow="ctaGlow"
-							_hover={{ boxShadow: "ctaGlowHi" }}
-							_focusVisible={{ boxShadow: "focusRing" }}
-							css={AURORA_CTA_STYLE}
-						>
-							<HStack gap="2.5"><LuPlus /><Text>Start a project</Text></HStack>
-						</Button>
-						<Button
-							h="12"
-							px="5"
-							variant="outline"
-							color="fg"
-							borderColor="border.strong"
-							bg="bg.glass"
-							borderRadius="glassSm"
-							css={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
-							_hover={{ bg: "bg.glassHi" }}
-						>
-							<HStack gap="2.5"><LuFileText /><Text>View docs</Text></HStack>
-						</Button>
-					</HStack>
 				</Box>
 			</GlassCard>
 
 			<Grid templateColumns={{ base: "1fr", lg: "repeat(3, 1fr)" }} gap="4">
-				{MOCK_STATS.map((s, i) => (
+				{stats.map((s, i) => (
 					<StatCard key={i} {...s} />
 				))}
 			</Grid>

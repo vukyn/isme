@@ -112,6 +112,14 @@ func (f *fakeUserSessionRepository) InactiveSessionByID(ctx context.Context, ses
 	return nil
 }
 
+func (f *fakeUserSessionRepository) InactiveAllUserSessionExcept(ctx context.Context, userID string, exceptTokenID string) error {
+	return nil
+}
+
+func (f *fakeUserSessionRepository) CountActiveByUserIDCreatedAfter(ctx context.Context, userID string, after time.Time) (int, error) {
+	return 0, nil
+}
+
 func (f *fakeUserSessionRepository) InactiveExpiredSessions(ctx context.Context, before time.Time) (int64, error) {
 	return 0, nil
 }

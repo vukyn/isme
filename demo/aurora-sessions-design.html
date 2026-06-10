@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>isme — Active sessions · Aurora UI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  /* ====== Aurora design tokens — IDENTICAL set to aurora-settings / aurora-users / aurora-permissions ====== */
+  :root {
+    --bg-0: #07071A; --bg-1: #0B0B23; --bg-2: #12122E;
+    --fg: #F4F5FF; --fg-soft: #C7CAE8; --fg-mute: #8A8FB5;
+    --border: rgba(255,255,255,0.10); --border-strong: rgba(255,255,255,0.18);
+    --glass: rgba(255,255,255,0.06); --glass-strong: rgba(255,255,255,0.10);
+    --c-cyan: #22D3EE; --c-blue: #6366F1; --c-violet: #8B5CF6;
+    --c-magenta: #EC4899; --c-amber: #F59E0B; --c-mint: #34D399;
+    --accent: var(--c-violet); --accent-glow: rgba(139,92,246,0.45);
+    --radius: 16px; --radius-sm: 12px; --easing: cubic-bezier(.2,.8,.2,1);
+    --shadow-glass: 0 1px 0 rgba(255,255,255,0.06) inset, 0 8px 32px rgba(0,0,0,0.45);
+    --shadow-pop: 0 20px 60px rgba(99,102,241,0.25), 0 4px 12px rgba(0,0,0,0.35);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: 'Inter','DM Sans',system-ui,-apple-system,sans-serif; color: var(--fg); background: var(--bg-0); -webkit-font-smoothing: antialiased; line-height: 1.5; overflow-x: hidden; }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+  /* Aurora background — global, identical to aurora-settings / aurora-auth-mockup */
+  body::before { content: ""; position: fixed; inset: 0; z-index: -2; background: radial-gradient(60% 50% at 12% 10%, rgba(99,102,241,0.45), transparent 60%), radial-gradient(45% 40% at 88% 18%, rgba(34,211,238,0.35), transparent 60%), radial-gradient(55% 45% at 75% 92%, rgba(236,72,153,0.32), transparent 60%), radial-gradient(50% 40% at 18% 80%, rgba(139,92,246,0.32), transparent 60%), linear-gradient(180deg, #07071A 0%, #0B0B23 60%, #04040E 100%); background-size: 200% 200%; animation: auroraFlow 14s ease-in-out infinite alternate; filter: saturate(1.15); }
+  body::after { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px); background-size: 3px 3px; mix-blend-mode: overlay; opacity: 0.45; }
+  @keyframes auroraFlow { 0%{background-position:0% 0%,100% 0%,100% 100%,0% 100%,0 0;} 50%{background-position:30% 20%,60% 30%,70% 70%,30% 60%,0 0;} 100%{background-position:100% 100%,0% 100%,0% 0%,100% 0%,0 0;} }
+
+  /* ====== Topbar shell (aurora AppShell/Topbar — identical to aurora-settings) ====== */
+  .app-bar { position: sticky; top: 0; z-index: 50; height: 64px; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; border-bottom: 1px solid var(--border); background: rgba(7,7,26,0.62); backdrop-filter: blur(20px) saturate(1.2); }
+  .bar-left { display: flex; align-items: center; gap: 24px; } .bar-right { display: flex; align-items: center; gap: 10px; }
+  .brand-row { display: flex; align-items: center; gap: 12px; }
+  .brand-mark { width: 34px; height: 34px; border-radius: 10px; background: conic-gradient(from 180deg at 50% 50%, var(--c-cyan), var(--c-blue), var(--c-violet), var(--c-magenta), var(--c-cyan)); display: grid; place-items: center; box-shadow: 0 8px 24px rgba(99,102,241,0.45); }
+  .brand-mark > span { width: 26px; height: 26px; border-radius: 7px; background: var(--bg-0); display: grid; place-items: center; }
+  .brand-name { font-weight: 700; font-size: 17px; letter-spacing: -0.01em; }
+  .nav { display: flex; gap: 4px; }
+  .nav a { font-size: 14px; padding: 8px 14px; border-radius: 10px; color: var(--fg-mute); text-decoration: none; font-weight: 500; transition: all .15s var(--easing); border: 1px solid transparent; }
+  .nav a.active { color: var(--fg); background: var(--glass); border-color: var(--border-strong); box-shadow: 0 0 20px rgba(99,102,241,0.20); }
+  .nav a:hover { color: var(--fg); }
+  .icon-btn { width: 40px; height: 40px; background: var(--glass); border: 1px solid var(--border-strong); border-radius: 10px; display: grid; place-items: center; color: var(--fg-soft); cursor: pointer; backdrop-filter: blur(12px); transition: all .15s var(--easing); position: relative; }
+  .icon-btn:hover { color: var(--fg); border-color: rgba(255,255,255,0.28); }
+  .icon-btn .badge { position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--c-magenta); box-shadow: 0 0 8px var(--c-magenta); }
+  .user-chip { display: inline-flex; align-items: center; gap: 10px; padding: 4px 10px 4px 4px; border: 1px solid var(--border-strong); border-radius: 999px; background: var(--glass); backdrop-filter: blur(12px); cursor: pointer; transition: all .15s var(--easing); }
+  .user-chip:hover { background: var(--glass-strong); }
+  .avatar-lg { width: 32px; height: 32px; border-radius: 999px; background: conic-gradient(from 200deg, var(--c-cyan), var(--c-blue), var(--c-violet), var(--c-magenta), var(--c-cyan)); color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 13px; box-shadow: 0 0 16px var(--accent-glow); }
+  .user-chip .meta { font-size: 13px; line-height: 1.15; }
+  .user-chip .meta b { display: block; font-weight: 600; color: var(--fg); }
+  .user-chip .meta span { color: var(--fg-mute); font-size: 12px; }
+
+  /* ====== Main layout (centered single column, matches aurora-settings width band) ====== */
+  .app-main { max-width: 920px; margin: 0 auto; padding: 32px 28px 72px; display: grid; gap: 22px; }
+  .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .page-head h1 { margin: 0; font-size: 32px; font-weight: 700; letter-spacing: -0.025em; line-height: 1.1; }
+  .page-sub { margin: 6px 0 0; color: var(--fg-mute); font-size: 14px; }
+  .page-sub .num { color: var(--c-cyan); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .head-actions { display: flex; gap: 10px; }
+
+  /* buttons — aurora baseline (identical to aurora-settings) */
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 9px; height: 44px; padding: 0 18px; border-radius: var(--radius-sm); border: 1px solid transparent; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; transition: transform .15s var(--easing), box-shadow .2s var(--easing), background .2s var(--easing); }
+  .btn:active { transform: translateY(1px) scale(0.995); }
+  .btn-primary { background: linear-gradient(135deg, var(--c-blue) 0%, var(--c-violet) 50%, var(--c-magenta) 100%); background-repeat: no-repeat; background-position: 0% 0%; color: #fff; box-shadow: 0 10px 30px rgba(99,102,241,0.45), 0 0 0 1px rgba(255,255,255,0.10) inset; background-size: 200% 200%; }
+  .btn-primary:hover { background-position: 100% 100%; box-shadow: 0 14px 40px rgba(139,92,246,0.55); }
+  .btn-ghost { background: var(--glass); color: var(--fg); border-color: var(--border-strong); backdrop-filter: blur(12px); }
+  .btn-ghost:hover { background: var(--glass-strong); border-color: rgba(255,255,255,0.28); }
+  /* danger-ghost: a ghost button that signals a destructive intent (revoke-all). */
+  .btn-danger-ghost { background: rgba(236,72,153,0.08); color: var(--c-magenta); border-color: rgba(236,72,153,0.35); backdrop-filter: blur(12px); }
+  .btn-danger-ghost:hover { background: rgba(236,72,153,0.16); border-color: rgba(236,72,153,0.55); }
+  .btn:disabled { opacity: 0.40; cursor: not-allowed; } .btn:disabled:active { transform: none; }
+  .btn-sm { height: 36px; padding: 0 13px; font-size: 13px; border-radius: 10px; }
+
+  /* ====== Glass panel (GlassCard) ====== */
+  .panel { background: var(--glass); border: 1px solid var(--border); border-radius: 20px; backdrop-filter: blur(20px) saturate(1.15); box-shadow: var(--shadow-glass); overflow: hidden; }
+
+  /* ====== Summary strip (count + revoke-all action), the "header" of the list ====== */
+  .summary { display: flex; align-items: center; gap: 16px; padding: 16px 20px; }
+  .summary .sum-icon { width: 42px; height: 42px; border-radius: 13px; flex: 0 0 auto; display: grid; place-items: center; background: linear-gradient(135deg, rgba(99,102,241,0.25), rgba(34,211,238,0.18)); border: 1px solid var(--border-strong); color: var(--c-cyan); box-shadow: 0 0 18px rgba(99,102,241,0.18); }
+  .summary .sum-meta { line-height: 1.3; min-width: 0; flex: 1; }
+  .summary .sum-count { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+  .summary .sum-count em { font-style: normal; color: var(--c-cyan); }
+  .summary .sum-sub { font-size: 12px; color: var(--fg-mute); margin-top: 2px; }
+
+  /* ====== Session list ====== */
+  .session-list { display: grid; gap: 14px; }
+
+  /* one session = a glass card row. The CURRENT session gets a violet ring + faint glow. */
+  .session { display: flex; align-items: center; gap: 16px; padding: 16px 18px; border-radius: var(--radius); border: 1px solid var(--border); background: rgba(7,7,26,0.35); transition: border-color .15s var(--easing), background .15s var(--easing); }
+  .session:hover { background: rgba(255,255,255,0.03); border-color: var(--border-strong); }
+  .session.current { border-color: rgba(139,92,246,0.45); background: rgba(139,92,246,0.07); box-shadow: 0 0 0 1px rgba(139,92,246,0.20), 0 0 28px rgba(139,92,246,0.14) inset; }
+
+  /* device glyph tile — neutral by default, colored ring when current */
+  .dev-tile { width: 46px; height: 46px; border-radius: 13px; flex: 0 0 auto; display: grid; place-items: center; background: var(--glass); border: 1px solid var(--border-strong); color: var(--fg-soft); }
+  .session.current .dev-tile { color: var(--c-violet); border-color: rgba(139,92,246,0.45); background: rgba(139,92,246,0.12); box-shadow: 0 0 16px rgba(139,92,246,0.25); }
+
+  /* center column: device line + meta line(s) */
+  .sess-body { flex: 1; min-width: 0; line-height: 1.35; }
+  .sess-top { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+  .sess-device { font-size: 15px; font-weight: 600; color: var(--fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sess-meta { display: flex; align-items: center; gap: 7px 14px; flex-wrap: wrap; margin-top: 6px; font-size: 12.5px; color: var(--fg-mute); }
+  .sess-meta .mi { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .sess-meta .mi svg { flex: 0 0 auto; color: var(--fg-mute); }
+  .sess-meta .ip { font-variant-numeric: tabular-nums; letter-spacing: 0.01em; }
+  .sess-meta b { color: var(--fg-soft); font-weight: 600; }
+
+  /* right column: app + revoke action stacked, right-aligned */
+  .sess-side { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; flex: 0 0 auto; }
+
+  /* ====== current-session badge ====== */
+  .cur-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 999px; color: var(--c-violet); background: rgba(139,92,246,0.14); border: 1px solid rgba(139,92,246,0.40); white-space: nowrap; }
+  .cur-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--c-violet); box-shadow: 0 0 10px var(--c-violet); }
+
+  /* ====== app chip (which AppService this session belongs to) — reuses aurora app-tile color convention from aurora-users ====== */
+  .app-chip { display: inline-flex; align-items: center; gap: 7px; padding: 4px 11px 4px 5px; border-radius: 999px; background: rgba(7,7,26,0.45); border: 1px solid var(--border); font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .app-chip .app-tile { width: 20px; height: 20px; border-radius: 7px; display: grid; place-items: center; flex: 0 0 auto; }
+  .tile-isme   { background: conic-gradient(from 180deg, var(--c-cyan), var(--c-blue), var(--c-violet), var(--c-magenta), var(--c-cyan)); color: #fff; }
+  .tile-medioa { background: rgba(139,92,246,0.18); border: 1px solid rgba(139,92,246,0.40); color: var(--c-violet); }
+  .tile-rainy  { background: rgba(34,211,238,0.14); border: 1px solid rgba(34,211,238,0.40); color: var(--c-cyan); }
+  .app-chip.isme   .app-name { color: var(--fg); }
+  .app-chip.medioa .app-name { color: var(--c-violet); }
+  .app-chip.rainy  .app-name { color: var(--c-cyan); }
+
+  /* expiry pill — tone shifts as expiry nears (mint = plenty, amber = soon) */
+  .expiry { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 500; padding: 3px 10px; border-radius: 999px; background: var(--glass); border: 1px solid var(--border-strong); color: var(--fg-soft); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .expiry svg { flex: 0 0 auto; }
+  .expiry.ok   { color: var(--c-mint);  border-color: rgba(52,211,153,0.30); background: rgba(52,211,153,0.08); }
+  .expiry.soon { color: var(--c-amber); border-color: rgba(245,158,11,0.35); background: rgba(245,158,11,0.10); }
+
+  /* ====== revoke action (FUTURE / secondary — backend revoke may be deferred) ====== */
+  .revoke-btn { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 12px; border-radius: 10px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; background: rgba(7,7,26,0.55); border: 1px solid var(--border-strong); color: var(--fg-soft); backdrop-filter: blur(12px); transition: all .15s var(--easing); }
+  .revoke-btn svg { flex: 0 0 auto; }
+  .revoke-btn:hover { color: var(--c-magenta); border-color: rgba(236,72,153,0.45); background: rgba(236,72,153,0.12); }
+  /* the current session can't be self-revoked from here → disabled "This device" affordance */
+  .revoke-btn.is-current { cursor: default; color: var(--fg-mute); }
+  .revoke-btn.is-current:hover { color: var(--fg-mute); border-color: var(--border-strong); background: rgba(7,7,26,0.55); }
+
+  /* a tiny "future" tag, so the port keeps revoke visual-only until the backend lands */
+  .soon-tag { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--c-amber); border: 1px solid rgba(245,158,11,0.35); background: rgba(245,158,11,0.10); padding: 2px 7px; border-radius: 999px; }
+
+  /* ====== empty-state variant (no other sessions / signed out everywhere) ====== */
+  .empty { display: grid; place-items: center; gap: 14px; padding: 52px 24px; text-align: center; }
+  .empty .emp-icon { width: 64px; height: 64px; border-radius: 20px; display: grid; place-items: center; background: var(--glass); border: 1px solid var(--border-strong); color: var(--fg-mute); }
+  .empty h3 { margin: 0; font-size: 17px; font-weight: 600; color: var(--fg); }
+  .empty p { margin: 0; font-size: 13px; color: var(--fg-mute); max-width: 360px; }
+
+  /* informational footnote */
+  .foot-note { display: flex; align-items: flex-start; gap: 9px; padding: 13px 16px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--glass); font-size: 12px; color: var(--fg-mute); }
+  .foot-note svg { flex: 0 0 auto; margin-top: 1px; color: var(--c-cyan); }
+  .foot-note b { color: var(--fg-soft); font-weight: 600; }
+
+  .hidden { display: none !important; }
+
+  /* responsive: stack the side column under the body on narrow screens */
+  @media (max-width: 640px) {
+    .session { flex-wrap: wrap; }
+    .sess-side { width: 100%; flex-direction: row; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+
+<!--
+  ===========================================================================
+  ACTIVE SESSIONS page for isme (SSO console) — AURORA theme. NEW screen.
+  Target of the Welcome page "Recent activity → View all →" link; route = /sessions.
+  ===========================================================================
+
+  REUSES the aurora AppShell chrome (topbar + centered single column), the
+  GlassCard (.panel / .session card), the app-tile color convention from
+  aurora-users-design.html (tile-isme conic / tile-medioa violet / tile-rainy
+  cyan), the aurora button system, and the signed-in/pill visual language.
+
+  CONTENT — every ACTIVE user_session row of the CURRENT user. One card per
+  session, each showing:
+    • DEVICE/BROWSER  — parsed from the stored User-Agent ("MacBook · Safari").
+    • LOCATION + IP   — geo of the login IP + the IP itself ("Hồ Chí Minh · 113.161.x.x").
+    • LAST ACTIVE     — relative LastLoginAt ("just now", "2 hours ago").
+    • EXPIRY          — relative ExpiresAt ("expires in 6 days"); pill tone shifts
+                        mint → amber as it nears expiry.
+    • APP SERVICE     — AppServiceID → app identity chip (isme / medioa / rainy).
+    • CURRENT badge   — on the device the user is signed in from right now.
+    • REVOKE action   — per session + a "Revoke all other sessions" header action.
+
+  ⚠️ REVOKE is FUTURE / SECONDARY (backend revoke may be deferred): rendered
+  visual-only here, tagged "SOON". The current session shows a disabled
+  "This device" revoke affordance (you can't self-revoke from this list).
+
+  STATES MOCKED:
+    • CURRENT session   — session #1, violet ring + glow + "Current session" badge.
+    • NORMAL sessions   — #2 (medioa, expires soon → amber), #3 (rainy).
+    • LONG-CONTENT      — #4: very long UA/device string + long location truncate.
+    • EMPTY variant     — #empty-card (display:none): "No other active sessions".
+    • LOADING / ERROR   — design-notes below; port adds Spinner / error Text like Welcome.tsx.
+
+  BACKEND (forward-looking): GET /sessions → list current user's active
+  user_session rows (device, location, ip, last_login_at, expires_at,
+  app_service_id). DELETE /sessions/:id + DELETE /sessions (others) when revoke lands.
+-->
+
+<!-- ====== Topbar shell (aurora AppShell/Topbar — Sessions tab ACTIVE) ======
+     NOTE for port: the React TopbarTab union does not yet include "sessions";
+     the coder must add it (see handoff). Active item here = Sessions. -->
+<header class="app-bar">
+  <div class="bar-left">
+    <div class="brand-row">
+      <div class="brand-mark"><span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 7l8 5 8-5-8-5Z"/><path d="m4 17 8 5 8-5"/><path d="m4 12 8 5 8-5"/></svg></span></div>
+      <div class="brand-name">isme</div>
+    </div>
+    <nav class="nav" aria-label="Primary">
+      <a href="#">Overview</a>
+      <a href="#">Users</a>
+      <a href="#">Roles &amp; Permissions</a>
+      <a href="#">App Services</a>
+      <a href="#" class="active" aria-current="page">Sessions</a>
+      <a href="#">Settings</a>
+    </nav>
+  </div>
+  <div class="bar-right">
+    <button class="icon-btn" aria-label="Notifications">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+      <span class="badge"></span>
+    </button>
+    <div class="user-chip" tabindex="0">
+      <div class="avatar-lg">VK</div>
+      <div class="meta"><b>Vu Ky</b><span>kyndv@hasaki.vn</span></div>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--fg-mute);margin-left:4px;"><path d="m6 9 6 6 6-6"/></svg>
+    </div>
+  </div>
+</header>
+
+<main class="app-main">
+
+  <!-- ====== Page header ====== -->
+  <div class="page-head">
+    <div>
+      <h1>Active sessions</h1>
+      <p class="page-sub">Devices currently signed in to your account · <span class="num">4 active</span></p>
+    </div>
+    <div class="head-actions">
+      <!-- on click (FUTURE): confirm dialog → DELETE /sessions (all but current) → toast + refetch.
+           Disabled-look acceptable until backend revoke lands. -->
+      <button class="btn btn-danger-ghost btn-sm" onclick="confirmRevokeAll()" aria-label="Revoke all other sessions">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+        Revoke all other sessions
+      </button>
+    </div>
+  </div>
+
+  <!-- ====== Summary strip ====== -->
+  <section class="panel">
+    <div class="summary">
+      <div class="sum-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+      </div>
+      <div class="sum-meta">
+        <div class="sum-count"><em>4</em> active sessions</div>
+        <div class="sum-sub">Across 3 apps · 1 on this device. Revoke any session you don't recognise.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====== Session list ====== -->
+  <div class="session-list">
+
+    <!-- ============ SESSION #1 · CURRENT (this device) ============ -->
+    <article class="session current">
+      <div class="dev-tile">
+        <!-- laptop glyph -->
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M2 20h20"/></svg>
+      </div>
+      <div class="sess-body">
+        <div class="sess-top">
+          <span class="sess-device">MacBook · Safari</span>
+          <span class="cur-badge"><span class="dot"></span>Current session</span>
+        </div>
+        <div class="sess-meta">
+          <span class="mi"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>Hồ Chí Minh · <span class="ip">113.161.42.9</span></span>
+          <span class="mi"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Active <b>just now</b></span>
+        </div>
+      </div>
+      <div class="sess-side">
+        <span class="app-chip isme">
+          <span class="app-tile tile-isme"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 7l8 5 8-5-8-5Z"/><path d="m4 17 8 5 8-5"/><path d="m4 12 8 5 8-5"/></svg></span>
+          <span class="app-name">isme</span>
+        </span>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="expiry ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>expires in 6 days</span>
+          <!-- current session: revoke disabled (can't self-revoke from list; user signs out via the user-chip menu) -->
+          <span class="revoke-btn is-current" aria-disabled="true" title="Sign out of this device from the account menu">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+            This device
+          </span>
+        </div>
+      </div>
+    </article>
+
+    <!-- ============ SESSION #2 · medioa · EXPIRES SOON (amber) ============ -->
+    <article class="session">
+      <div class="dev-tile">
+        <!-- phone glyph -->
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg>
+      </div>
+      <div class="sess-body">
+        <div class="sess-top">
+          <span class="sess-device">iPhone 15 · Chrome</span>
+        </div>
+        <div class="sess-meta">
+          <span class="mi"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>Hà Nội · <span class="ip">14.231.118.74</span></span>
+          <span class="mi"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Active <b>2 hours ago</b></span>
+        </div>
+      </div>
+      <div class="sess-side">
+        <span class="app-chip medioa">
+          <span class="app-tile tile-medioa"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19a4.5 4.5 0 1 0 0-9h-1.8A7 7 0 1 0 4 15.7"/></svg></span>
+          <span class="app-name">medioa</span>
+        </span>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="expiry soon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/><path d="M21 5 19 3"/><path d="m3 5 2-2"/><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/></svg>expires in 9 hours</span>
+          <!-- on click (FUTURE): confirm → DELETE /sessions/:id → toast + remove row -->
+          <button class="revoke-btn" onclick="revoke('sess-2')" aria-label="Revoke iPhone 15 session">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
+            Revoke
+          </button>
+        </div>
+      </div>
+    </article>
+
+    <!-- ============ SESSION #3 · rainy ============ -->
+    <article class="session">
+      <div class="dev-tile">
+        <!-- desktop monitor glyph -->
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+      </div>
+      <div class="sess-body">
+        <div class="sess-top">
+          <span class="sess-device">Windows PC · Edge</span>
+        </div>
+        <div class="sess-meta">
+          <span class="mi"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>Đà Nẵng · <span class="ip">42.117.8.201</span></span>
+          <span class="mi"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Active <b>yesterday</b></span>
+        </div>
+      </div>
+      <div class="sess-side">
+        <span class="app-chip rainy">
+          <span class="app-tile tile-rainy"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span>
+          <span class="app-name">rainy</span>
+        </span>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="expiry"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>expires in 3 days</span>
+          <button class="revoke-btn" onclick="revoke('sess-3')" aria-label="Revoke Windows PC session">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
+            Revoke
+          </button>
+        </div>
+      </div>
+    </article>
+
+    <!-- ============ SESSION #4 · LONG-CONTENT OVERFLOW (long UA + long location) ============ -->
+    <article class="session">
+      <div class="dev-tile">
+        <!-- tablet glyph -->
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M12 18h.01"/></svg>
+      </div>
+      <div class="sess-body">
+        <div class="sess-top">
+          <!-- intentionally long device string to prove truncation -->
+          <span class="sess-device">Samsung Galaxy Tab S9 Ultra · Samsung Internet Browser 23.0</span>
+        </div>
+        <div class="sess-meta">
+          <span class="mi"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>Thành phố Hồ Chí Minh, Việt Nam · <span class="ip">171.244.140.18</span></span>
+          <span class="mi"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Active <b>5 days ago</b></span>
+        </div>
+      </div>
+      <div class="sess-side">
+        <span class="app-chip isme">
+          <span class="app-tile tile-isme"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 7l8 5 8-5-8-5Z"/><path d="m4 17 8 5 8-5"/><path d="m4 12 8 5 8-5"/></svg></span>
+          <span class="app-name">isme</span>
+        </span>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="expiry ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>expires in 13 days</span>
+          <button class="revoke-btn" onclick="revoke('sess-4')" aria-label="Revoke Samsung Galaxy Tab session">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
+            Revoke
+          </button>
+        </div>
+      </div>
+    </article>
+
+  </div>
+
+  <!-- ====== Future/secondary note: revoke is visual-only until backend lands ====== -->
+  <div class="foot-note">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+    <span><b>Revoke</b> ends a session immediately on every app — the next request from that device is signed out. <span class="soon-tag">Soon</span> Backend revoke (<code style="font-family:inherit;color:var(--fg-soft)">DELETE /sessions</code>) is not wired yet; the buttons are inert until it ships.</span>
+  </div>
+
+  <!-- ============================================================
+       EMPTY-STATE VARIANT (design-note) — swap visibility with the
+       .session-list + summary above. Shown when the user has only the
+       current session (no others) or has revoked everything.
+       ============================================================ -->
+  <section class="panel hidden" id="empty-card">
+    <div class="empty">
+      <div class="emp-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/><path d="m2 2 20 20"/></svg>
+      </div>
+      <h3>No other active sessions</h3>
+      <p>You're only signed in on this device. New sign-ins from other browsers or devices will appear here.</p>
+    </div>
+  </section>
+
+</main>
+
+<script>
+  /* Visual-only stubs — the React port wires these to GET/DELETE /sessions. */
+
+  // per-session revoke (FUTURE): confirm → DELETE /sessions/:id → toaster + drop the card.
+  function revoke(id){
+    // port: open a confirm Dialog, then DELETE /sessions/:id, then refetch list.
+    alert('Revoke ' + id + ' — visual only in this mock. Port wires DELETE /sessions/:id (confirm dialog + toast).');
+  }
+
+  // header revoke-all (FUTURE): confirm → DELETE /sessions (all but current) → toaster + refetch.
+  function confirmRevokeAll(){
+    alert('Revoke all OTHER sessions — visual only. Port: confirm Dialog → DELETE /sessions → toast, keep current session.');
+  }
+</script>
+
+</body>
+</html>

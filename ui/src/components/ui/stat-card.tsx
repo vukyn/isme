@@ -8,7 +8,7 @@ interface StatCardProps {
 	title: string;
 	desc: string;
 	stat: string;
-	delta: string;
+	delta?: string;
 	tone?: StatTone;
 }
 
@@ -65,9 +65,11 @@ export const StatCard = ({ icon, title, desc, stat, delta, tone = "cyan" }: Stat
 			>
 				{stat}
 			</Heading>
-			<HStack gap="1" mt="1" fontSize="xs" color="success" fontWeight="medium">
-				<Text as="span">{delta}</Text>
-			</HStack>
+			{delta && (
+				<HStack gap="1" mt="1" fontSize="xs" color="success" fontWeight="medium">
+					<Text as="span">{delta}</Text>
+				</HStack>
+			)}
 		</Box>
 	);
 };

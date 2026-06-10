@@ -66,3 +66,4 @@ export type {
 	ListRoleMembersResponse,
 } from "./role";
 export type { SessionRevokeConfig, UpdateSessionRevokeConfigRequest } from "./settings";
+export type { MySessionItem, MySessionCount } from "./session";

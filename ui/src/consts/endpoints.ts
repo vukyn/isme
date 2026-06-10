@@ -12,6 +12,11 @@ export const API_ENDPOINTS = {
 	AUTH_SSO_CONSENT: "/api/v1/auth/sso/consent",
 	AUTH_INVITE_DETAIL: (token: string) => `/api/v1/auth/invites/${encodeURIComponent(token)}`,
 	AUTH_ACCEPT_INVITE: "/api/v1/auth/accept-invite",
+	// Self-service session management for the signed-in user.
+	AUTH_MY_SESSIONS: "/api/v1/auth/sessions",
+	AUTH_MY_SESSIONS_COUNT: "/api/v1/auth/sessions/count",
+	AUTH_MY_SESSION_REVOKE: (sessionId: string) => `/api/v1/auth/sessions/${encodeURIComponent(sessionId)}`,
+	AUTH_MY_OTHER_SESSIONS_REVOKE: "/api/v1/auth/sessions/others",
 
 	// User
 	USER_ME: "/api/user/me",
