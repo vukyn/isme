@@ -103,8 +103,8 @@ export const SessionAutoRevokeCard = () => {
 	const [time, setTime] = useState("03:00");
 	const [weekday, setWeekday] = useState("1");
 	const [advancedOpen, setAdvancedOpen] = useState(false);
-	// Whole-card collapse/expand (header toggles the body + footer).
-	const [cardOpen, setCardOpen] = useState(true);
+	// Whole-card collapse/expand (header toggles the body + footer). Default collapsed.
+	const [cardOpen, setCardOpen] = useState(false);
 
 	// hydrate editable state from a cron string
 	const hydrateFromCron = (cronExpr: string) => {
