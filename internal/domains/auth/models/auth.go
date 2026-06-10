@@ -155,9 +155,10 @@ func (r SSOCheckRequest) Validate() error {
 	if r.SessionID == "" {
 		return errors.New("session_id is required")
 	}
-	if r.AccessToken == "" && r.RefreshToken == "" {
-		return errors.New("access_token or refresh_token is required")
-	}
+	// Tokens are OPTIONAL: with no tokens the probe simply returns valid=false,
+	// but the response still carries the requesting app's name (resolved from
+	// session_id) so the password form can show "continue to <app>" instead of
+	// a generic placeholder.
 	return nil
 }
 

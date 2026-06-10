@@ -516,11 +516,19 @@ func (u *usecase) SSOCheck(ctx context.Context, req models.SSOCheckRequest) (mod
 		return models.SSOCheckResponse{}, pkgErr.InvalidRequest("invalid session_id")
 	}
 
+	// app identity is always returned (even when invalid) so the password form
+	// can render "continue to <app>" instead of a generic placeholder
+	app := models.SSOCheckApp{
+		Name:        appService.AppName,
+		RedirectURL: appService.RedirectURL,
+	}
+
 	// read-only validity probe (NO rotation, NO session mutation)
 	user, valid := u.validateSessionForConsent(ctx, req.AccessToken, req.RefreshToken)
 	if !valid {
-		// not an error: the page renders the password form instead
-		return models.SSOCheckResponse{Valid: false}, nil
+		// not an error: the page renders the password form instead, still
+		// carrying the app name so the header reads "continue to <app>"
+		return models.SSOCheckResponse{Valid: false, App: app}, nil
 	}
 
 	// mint a fresh single-use nonce that /sso/consent will require
@@ -532,10 +540,7 @@ func (u *usecase) SSOCheck(ctx context.Context, req models.SSOCheckRequest) (mod
 			Name:  user.Name,
 			Email: user.Email,
 		},
-		App: models.SSOCheckApp{
-			Name:        appService.AppName,
-			RedirectURL: appService.RedirectURL,
-		},
+		App:    app,
 		Scopes: ssoConsentScopes,
 		Nonce:  nonce,
 	}, nil

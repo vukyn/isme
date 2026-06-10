@@ -66,6 +66,10 @@ export const SSOLogin = () => {
 	const [formErrors, setFormErrors] = useState<Partial<Record<keyof LoginFormData, string>>>({});
 	const [check, setCheck] = useState<CheckState>({ phase: "checking" });
 	const [consentLoading, setConsentLoading] = useState(false);
+	// Requesting-app name shown on the password form. Resolved server-side from
+	// session_id (returned by /sso/check even when no isme session exists), so it
+	// shows "continue to <app>" instead of the generic fallback.
+	const [appName, setAppName] = useState(REQUESTING_APP_NAME);
 
 	const sessionId = searchParams.get("session_id") ?? "";
 
@@ -80,19 +84,17 @@ export const SSOLogin = () => {
 		let cancelled = false;
 		(async () => {
 			const tokens = getTokens();
-			// No isme cookies yet → skip /sso/check (it would 400 on "access_token or
-			// refresh_token is required") and render the password form directly.
-			if (!tokens.access_token && !tokens.refresh_token) {
-				if (!cancelled) setCheck({ phase: "password" });
-				return;
-			}
 			try {
+				// Always probe — tokens are optional. With no isme session the
+				// response is valid=false but still carries the app name, so the
+				// password form header reads "continue to <app>".
 				const res = await ssoCheck({
 					session_id: sessionId,
 					access_token: tokens.access_token || undefined,
 					refresh_token: tokens.refresh_token || undefined,
 				});
 				if (cancelled) return;
+				if (res.data.app?.name) setAppName(res.data.app.name);
 				if (res.data.valid) {
 					setCheck({
 						phase: "consent",
@@ -278,11 +280,11 @@ export const SSOLogin = () => {
 								<BrandMark size="lg" />
 							</HStack>
 							<Heading as="h1" fontSize="22px" fontWeight="bold" letterSpacing="-0.02em" lineHeight="1.25" color="fg">
-								Sign in to continue to {REQUESTING_APP_NAME}
+								Sign in to continue to {appName}
 							</Heading>
 							<Text fontSize="sm" color="fg.muted" maxW="340px">
 								<Text as="b" color="fg.subtle" fontWeight="semibold">
-									{REQUESTING_APP_NAME}
+									{appName}
 								</Text>{" "}
 								uses isme single sign-on. Log in with your isme account to authorize access.
 							</Text>
@@ -393,7 +395,7 @@ export const SSOLogin = () => {
 					Secured by isme SSO
 				</HStack>
 				<Text textAlign="center" fontSize="xs" color="fg.muted">
-					Your password is never shared with {REQUESTING_APP_NAME}.
+					Your password is never shared with {appName}.
 				</Text>
 			</Stack>
 		</Box>

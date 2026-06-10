@@ -253,6 +253,33 @@ func TestSSOCheckRevokedSessionInvalid(t *testing.T) {
 	if res.Nonce != "" {
 		t.Error("expected no nonce when invalid")
 	}
+	// even when invalid, the app name must be returned so the password form
+	// can render "continue to <app>"
+	if res.App.Name != "medioa2" {
+		t.Errorf("expected app name on invalid response, got %q", res.App.Name)
+	}
+}
+
+// (b.2) no tokens at all → invalid, but the app name is still returned so the
+// password form (no isme session yet) can show "continue to <app>".
+func TestSSOCheckNoTokensReturnsAppName(t *testing.T) {
+	f := newSSOFixture(t, userSessionConstants.UserSessionStatusActive, time.Now().Add(time.Hour), userConstants.UserStatusActive)
+
+	res, err := f.usecase.SSOCheck(context.Background(), models.SSOCheckRequest{
+		SessionID: f.sessionID,
+	})
+	if err != nil {
+		t.Fatalf("expected no error with no tokens, got %v", err)
+	}
+	if res.Valid {
+		t.Fatal("expected valid=false with no tokens")
+	}
+	if res.App.Name != "medioa2" {
+		t.Errorf("expected app name returned, got %q", res.App.Name)
+	}
+	if res.Nonce != "" {
+		t.Error("expected no nonce when invalid")
+	}
 }
 
 // (c.2) expired access + inactive user → invalid.
