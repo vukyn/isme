@@ -81,6 +81,9 @@ var ICON_KEYS = map[string]struct{}{
 	"code":       {},
 	"layers":     {},
 	"cloud-rain": {},
+	"album":      {},
+	"playlist":   {},
+	"station":    {},
 	"isme":       {},
 }
 
