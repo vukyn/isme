@@ -137,7 +137,7 @@ func (r *repository) List(ctx context.Context, req models.ListRequest) ([]entity
 
 	// Apply search filter
 	if req.Search != "" {
-		query = query.Where("name ILIKE ? OR email ILIKE ?", "%"+req.Search+"%", "%"+req.Search+"%")
+		query = query.Where("LOWER(name) LIKE LOWER(?) OR LOWER(email) LIKE LOWER(?)", "%"+req.Search+"%", "%"+req.Search+"%")
 	}
 
 	// Apply status filter (only if status is set and non-zero)
