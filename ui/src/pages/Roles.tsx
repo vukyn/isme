@@ -1103,9 +1103,24 @@ export const Roles = () => {
 													</Button>
 												</Box>
 											</Tooltip>
-											<Tooltip content={NO_PERMISSION_TOOLTIP} disabled={canDelete} positioning={{ placement: "top" }}>
+											{/* Delete is blocked while the role has members — the backend
+											    rejects it too ("reassign first"); disabling here makes the
+											    constraint visible without a round-trip. */}
+											<Tooltip
+												content={
+													(selectedRole?.members_count ?? 0) > 0
+														? `Role has ${selectedRole?.members_count} member${selectedRole?.members_count === 1 ? "" : "s"} — reassign them first`
+														: NO_PERMISSION_TOOLTIP
+												}
+												disabled={canDelete && (selectedRole?.members_count ?? 0) === 0}
+												positioning={{ placement: "top" }}
+											>
 												<Box as="span">
-													<Button {...DANGER_SM_BUTTON_PROPS} disabled={!canDelete} onClick={() => setDeleteOpen(true)}>
+													<Button
+														{...DANGER_SM_BUTTON_PROPS}
+														disabled={!canDelete || (selectedRole?.members_count ?? 0) > 0}
+														onClick={() => setDeleteOpen(true)}
+													>
 														<LuTrash2 size={13} /> Delete
 													</Button>
 												</Box>
