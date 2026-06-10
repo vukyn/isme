@@ -83,14 +83,40 @@ func (u *usecase) CountMySessions(ctx context.Context) (models.MySessionCount, e
 		return models.MySessionCount{}, err
 	}
 
-	newIn24h, err := u.userSessionRepo.CountActiveByUserIDCreatedAfter(ctx, userID, time.Now().UTC().Add(-24*time.Hour))
+	since := time.Now().UTC().Add(-24 * time.Hour)
+	newIn24h, err := u.userSessionRepo.CountActiveByUserIDCreatedAfter(ctx, userID, since)
 	if err != nil {
 		return models.MySessionCount{}, err
 	}
 
+	// Accurate sliding-24h rotation count from the event log (never a stored counter).
+	rotations24h, err := u.userSessionRepo.CountRotationsByUserIDSince(ctx, userID, since)
+	if err != nil {
+		return models.MySessionCount{}, err
+	}
+
+	// Most-recent rotation across the user's active sessions drives the card's
+	// "last refreshed {when}" delta. Derived from the session list so no extra query.
+	sessions, err := u.userSessionRepo.GetListActiveByUserID(ctx, userID)
+	if err != nil {
+		return models.MySessionCount{}, err
+	}
+	lastRefreshedAt := ""
+	var latest time.Time
+	for _, session := range sessions {
+		if session.LastRefreshedAt != nil && session.LastRefreshedAt.After(latest) {
+			latest = *session.LastRefreshedAt
+		}
+	}
+	if !latest.IsZero() {
+		lastRefreshedAt = latest.Format(time.RFC3339)
+	}
+
 	return models.MySessionCount{
-		Count:    counts[userID],
-		NewIn24h: newIn24h,
+		Count:           counts[userID],
+		NewIn24h:        newIn24h,
+		Rotations24h:    rotations24h,
+		LastRefreshedAt: lastRefreshedAt,
 	}, nil
 }
 
@@ -155,6 +181,10 @@ func mapMySessionItem(session userSessionEntity.UserSession, currentTokenID stri
 	if !session.ExpiresAt.IsZero() {
 		expiresAt = session.ExpiresAt.Format(time.RFC3339)
 	}
+	lastRefreshedAt := ""
+	if session.LastRefreshedAt != nil && !session.LastRefreshedAt.IsZero() {
+		lastRefreshedAt = session.LastRefreshedAt.Format(time.RFC3339)
+	}
 
 	var appName, appIcon, appColor string
 	if session.AppServiceID != "" {
@@ -172,9 +202,11 @@ func mapMySessionItem(session userSessionEntity.UserSession, currentTokenID stri
 		LastLoginAt:  lastLoginAt,
 		ExpiresAt:    expiresAt,
 		AppServiceID: session.AppServiceID,
-		AppName:      appName,
-		AppIcon:      appIcon,
-		AppColor:     appColor,
-		Current:      session.TokenID == currentTokenID,
+		AppName:         appName,
+		AppIcon:         appIcon,
+		AppColor:        appColor,
+		Current:         session.TokenID == currentTokenID,
+		RefreshCount:    session.RefreshCount,
+		LastRefreshedAt: lastRefreshedAt,
 	}
 }

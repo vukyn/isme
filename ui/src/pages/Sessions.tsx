@@ -10,6 +10,7 @@ import {
 	LuMapPin,
 	LuMonitor,
 	LuMonitorOff,
+	LuRefreshCw,
 	LuSmartphone,
 	LuTrash2,
 	LuTriangleAlert,
@@ -24,7 +25,7 @@ import { useSessions } from "@/hooks/useSessions";
 import { revokeMySession, revokeMyOtherSessions } from "@/apis";
 import type { MySessionItem } from "@/types";
 import { parseUserAgent } from "@/utils/agent";
-import { formatRelativeTime, isZeroTime } from "@/utils/time";
+import { formatRelative, formatRelativeTime, isZeroTime } from "@/utils/time";
 
 type ExpiryTone = "ok" | "soon" | "neutral";
 
@@ -147,6 +148,54 @@ const AppChip = ({ session }: { session: MySessionItem }) => {
 	);
 };
 
+/**
+ * Per-session token-rotation metadata — a faint inline line under the IP/active
+ * meta (no boxed pill), matching the aurora design. A never-refreshed session
+ * (refresh_count 0 / empty last_refreshed_at) collapses to a single dim
+ * "not yet refreshed" phrase instead of the noisier "0× · —".
+ */
+const RotationPill = ({ session }: { session: MySessionItem }) => {
+	const never = session.refresh_count === 0 || isZeroTime(session.last_refreshed_at);
+	const lastRefreshed = formatRelative(session.last_refreshed_at);
+	return (
+		<HStack
+			as="span"
+			gap="1.5"
+			mt="1.5"
+			fontSize="12px"
+			whiteSpace="nowrap"
+			maxW="100%"
+			color="fg.muted"
+			opacity={never ? 0.7 : 1}
+			title={
+				never
+					? "No token refreshes yet on this session"
+					: `This session's access token has been refreshed ${session.refresh_count} time${session.refresh_count > 1 ? "s" : ""}; most recent refresh ${lastRefreshed}`
+			}
+		>
+			<Box as="span" color={never ? "fg.muted" : "aurora.cyan"} opacity={never ? 0.5 : 0.75} display="inline-flex" flex="none">
+				<LuRefreshCw size={12} />
+			</Box>
+			{never ? (
+				<Text as="span">not yet refreshed</Text>
+			) : (
+				<Text as="span">
+					refreshed{" "}
+					<Text as="span" color="fg.subtle" fontWeight="semibold" css={{ fontVariantNumeric: "tabular-nums" }}>
+						{session.refresh_count}×
+					</Text>
+					<Text as="span" color="fg.muted" opacity={0.45} px="1">
+						·
+					</Text>
+					<Text as="span" css={{ fontVariantNumeric: "tabular-nums" }}>
+						{lastRefreshed}
+					</Text>
+				</Text>
+			)}
+		</HStack>
+	);
+};
+
 interface SessionRowProps {
 	session: MySessionItem;
 	onRevoke: (session: MySessionItem) => void;
@@ -224,6 +273,7 @@ const SessionRow = ({ session, onRevoke }: SessionRowProps) => {
 						</Text>
 					</HStack>
 				</HStack>
+				<RotationPill session={session} />
 			</Box>
 
 			<Stack align={{ base: "flex-start", md: "flex-end" }} gap="2.5" flex="none">

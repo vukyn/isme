@@ -318,7 +318,7 @@ func (u *usecase) RefreshToken(ctx context.Context, req models.RefreshTokenReque
 	}
 
 	// update user session
-	err = u.updateUserSession(ctx, userSession.ID, accessTokenClaims.GetTokenID(), newRefreshToken, accessTokenClaims.GetExpiredAt())
+	err = u.updateUserSession(ctx, userSession.ID, userSession.UserID, accessTokenClaims.GetTokenID(), newRefreshToken, accessTokenClaims.GetExpiredAt())
 	if err != nil {
 		return models.RefreshTokenResponse{}, err
 	}

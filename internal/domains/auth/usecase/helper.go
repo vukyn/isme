@@ -114,9 +114,10 @@ func (u *usecase) createUserSession(ctx context.Context, userID, tokenID, email,
 	return res.ID, nil
 }
 
-func (u *usecase) updateUserSession(ctx context.Context, sessionID, tokenID, refreshToken string, expiresAt time.Time) error {
+func (u *usecase) updateUserSession(ctx context.Context, sessionID, userID, tokenID, refreshToken string, expiresAt time.Time) error {
 	err := u.userSessionRepo.UpdateLastLogin(ctx, userSessionModels.UpdateLastLoginRequest{
 		ID:           sessionID,
+		UserID:       userID,
 		TokenID:      tokenID,
 		RefreshToken: refreshToken,
 		ClientIP:     pkgCtx.GetClientIP(ctx),

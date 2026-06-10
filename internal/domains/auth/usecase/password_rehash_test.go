@@ -102,6 +102,10 @@ func (f *fakeUserSessionRepository) CountActiveByUserIDCreatedAfter(ctx context.
 	return 0, nil
 }
 
+func (f *fakeUserSessionRepository) CountRotationsByUserIDSince(ctx context.Context, userID string, since time.Time) (int, error) {
+	return 0, nil
+}
+
 func (f *fakeUserSessionRepository) InactiveExpiredSessions(ctx context.Context, before time.Time) (int64, error) {
 	return 0, nil
 }

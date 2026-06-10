@@ -17,10 +17,20 @@ type MySessionItem struct {
 	AppIcon  string `json:"app_icon"`
 	AppColor string `json:"app_color"`
 	Current  bool   `json:"current"`
+	// RefreshCount is the lifetime token-rotation count for this session.
+	RefreshCount int64 `json:"refresh_count"`
+	// LastRefreshedAt is RFC3339 of the most recent rotation; "" = never refreshed.
+	LastRefreshedAt string `json:"last_refreshed_at"`
 }
 
-// MySessionCount is the active-session summary used by the Welcome stat card.
+// MySessionCount is the active-session summary used by the Welcome stat cards.
 type MySessionCount struct {
 	Count    int `json:"count"`
 	NewIn24h int `json:"new_in_24h"`
+	// Rotations24h is the accurate sliding-24h token-rotation count for the user,
+	// derived from token_rotation_events (drives the "Token rotations" card).
+	Rotations24h int `json:"rotations_24h"`
+	// LastRefreshedAt is RFC3339 of the user's most recent rotation across active
+	// sessions; "" = no refreshes yet.
+	LastRefreshedAt string `json:"last_refreshed_at"`
 }

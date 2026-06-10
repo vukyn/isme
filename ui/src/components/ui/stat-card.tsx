@@ -3,6 +3,9 @@ import type { ReactNode } from "react";
 
 export type StatTone = "cyan" | "violet" | "magenta";
 
+/** Delta line emphasis: a positive trend (mint) vs. an informational note (muted). */
+export type StatDeltaTone = "success" | "neutral";
+
 interface StatCardProps {
 	icon: ReactNode;
 	title: string;
@@ -10,6 +13,7 @@ interface StatCardProps {
 	stat: string;
 	delta?: string;
 	tone?: StatTone;
+	deltaTone?: StatDeltaTone;
 }
 
 const toneColor: Record<StatTone, string> = {
@@ -18,7 +22,7 @@ const toneColor: Record<StatTone, string> = {
 	magenta: "#EC4899",
 };
 
-export const StatCard = ({ icon, title, desc, stat, delta, tone = "cyan" }: StatCardProps) => {
+export const StatCard = ({ icon, title, desc, stat, delta, tone = "cyan", deltaTone = "success" }: StatCardProps) => {
 	return (
 		<Box
 			p="5"
@@ -66,7 +70,7 @@ export const StatCard = ({ icon, title, desc, stat, delta, tone = "cyan" }: Stat
 				{stat}
 			</Heading>
 			{delta && (
-				<HStack gap="1" mt="1" fontSize="xs" color="success" fontWeight="medium">
+				<HStack gap="1" mt="1" fontSize="xs" color={deltaTone === "neutral" ? "fg.muted" : "success"} fontWeight="medium">
 					<Text as="span">{delta}</Text>
 				</HStack>
 			)}

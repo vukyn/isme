@@ -59,25 +59,71 @@ func (r *repository) UpdateLastLogin(ctx context.Context, req models.UpdateLastL
 		return pkgErr.InvalidRequest(err.Error())
 	}
 
+	now := time.Now()
 	userSession := entity.UserSession{
-		ID:           req.ID,
-		LastLoginAt:  time.Now(),
-		ClientIP:     req.ClientIP,
-		UserAgent:    req.UserAgent,
-		TokenID:      req.TokenID,
-		RefreshToken: cryp.HashSHA256(req.RefreshToken),
-		ExpiresAt:    req.ExpiresAt,
+		ID:              req.ID,
+		LastLoginAt:     now,
+		ClientIP:        req.ClientIP,
+		UserAgent:       req.UserAgent,
+		TokenID:         req.TokenID,
+		RefreshToken:    cryp.HashSHA256(req.RefreshToken),
+		ExpiresAt:       req.ExpiresAt,
+		LastRefreshedAt: &now,
 	}
 
-	_, err := r.db.NewUpdate().
-		Model(&userSession).
-		Column("last_login_at", "refresh_token", "client_ip", "user_agent", "expires_at", "token_id").
-		Where("id = ?", req.ID).
-		Exec(ctx)
+	rotationEvent := entity.TokenRotationEvent{
+		ID:        cryp.ULID(),
+		UserID:    req.UserID,
+		SessionID: req.ID,
+		RotatedAt: now,
+	}
+
+	// Rotate the session (bump refresh_count + stamp last_refreshed_at) and
+	// record the rotation event atomically so the per-session counters and the
+	// 24h event log never diverge.
+	err := r.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
+		if _, err := tx.NewUpdate().
+			Model(&userSession).
+			Column("last_login_at", "refresh_token", "client_ip", "user_agent", "expires_at", "token_id", "last_refreshed_at").
+			Set("refresh_count = refresh_count + 1").
+			Where("id = ?", req.ID).
+			Exec(ctx); err != nil {
+			return err
+		}
+		if _, err := tx.NewInsert().
+			Model(&rotationEvent).
+			Exec(ctx); err != nil {
+			return err
+		}
+		return nil
+	})
 	if err != nil {
 		return pkgErr.DatabaseError(err.Error())
 	}
 	return nil
+}
+
+// CountRotationsByUserIDSince returns the number of token rotation events for a
+// user at or after the given time — the accurate sliding-window count for the
+// Welcome "Token rotations" card.
+//
+// NOTE: token_rotation_events grows unbounded (one row per refresh). A periodic
+// prune (e.g. delete rows older than the widest window the UI uses) is deferred;
+// the user/rotated_at index keeps this count cheap regardless of table size.
+func (r *repository) CountRotationsByUserIDSince(ctx context.Context, userID string, since time.Time) (int, error) {
+	if userID == "" {
+		return 0, pkgErr.InvalidRequest("user_id is required")
+	}
+
+	count, err := r.db.NewSelect().
+		Model((*entity.TokenRotationEvent)(nil)).
+		Where("user_id = ?", userID).
+		Where("rotated_at >= ?", since).
+		Count(ctx)
+	if err != nil {
+		return 0, pkgErr.DatabaseError(err.Error())
+	}
+	return count, nil
 }
 
 func (r *repository) InactiveAllUserSession(ctx context.Context, userID string) error {

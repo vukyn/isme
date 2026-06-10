@@ -20,7 +20,14 @@ type UserSession struct {
 	UserAgent     string    `bun:"user_agent"`
 	TokenID       string    `bun:"token_id,notnull"`
 	AppServiceID  string    `bun:"app_service_id"`
-	CreatedAt     time.Time `bun:"created_at,default:current_timestamp,notnull"`
+	// RefreshCount is the lifetime number of token rotations for this session;
+	// incremented on every refresh. Used only for the per-session UI, never for
+	// the sliding-24h Welcome card.
+	RefreshCount int64 `bun:"refresh_count"`
+	// LastRefreshedAt is the timestamp of the most recent rotation. Nil = never
+	// refreshed since creation (pointer so NULL is representable).
+	LastRefreshedAt *time.Time `bun:"last_refreshed_at"`
+	CreatedAt       time.Time  `bun:"created_at,default:current_timestamp,notnull"`
 }
 
 // === Hooks ===

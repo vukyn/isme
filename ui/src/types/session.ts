@@ -19,10 +19,18 @@ export interface MySessionItem {
 	app_color: string;
 	/** True for the session the current request is authenticated with. */
 	current: boolean;
+	/** Lifetime token-rotation count for this session. */
+	refresh_count: number;
+	/** RFC3339 of the most recent rotation; empty = never refreshed. */
+	last_refreshed_at: string;
 }
 
 /** Maps to internal/domains/auth/models.MySessionCount. */
 export interface MySessionCount {
 	count: number;
 	new_in_24h: number;
+	/** Accurate sliding-24h token-rotation count for the user. */
+	rotations_24h: number;
+	/** RFC3339 of the user's most recent rotation; empty = no refreshes yet. */
+	last_refreshed_at: string;
 }

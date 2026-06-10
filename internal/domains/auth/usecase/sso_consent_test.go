@@ -61,8 +61,13 @@ type ssoUserSessionRepo struct {
 	// session-manager test controls (used by session_test.go)
 	activeSessions     []userSessionEntity.UserSession
 	newIn24h           int
+	rotations24h       int
 	inactiveByIDCalls  []string
 	exceptTokenIDCalls []string
+
+	// records the requests passed to UpdateLastLogin so a rotation test can
+	// assert the user_id is attributed for the event row.
+	updateLastLoginReqs []userSessionModels.UpdateLastLoginRequest
 }
 
 func (s *ssoUserSessionRepo) Create(ctx context.Context, req userSessionModels.CreateRequest) (userSessionEntity.UserSession, error) {
@@ -72,6 +77,7 @@ func (s *ssoUserSessionRepo) Create(ctx context.Context, req userSessionModels.C
 }
 func (s *ssoUserSessionRepo) UpdateLastLogin(ctx context.Context, req userSessionModels.UpdateLastLoginRequest) error {
 	s.updateCalls++
+	s.updateLastLoginReqs = append(s.updateLastLoginReqs, req)
 	return nil
 }
 func (s *ssoUserSessionRepo) InactiveAllUserSession(ctx context.Context, userID string) error {
@@ -90,6 +96,9 @@ func (s *ssoUserSessionRepo) InactiveAllUserSessionExcept(ctx context.Context, u
 }
 func (s *ssoUserSessionRepo) CountActiveByUserIDCreatedAfter(ctx context.Context, userID string, after time.Time) (int, error) {
 	return s.newIn24h, nil
+}
+func (s *ssoUserSessionRepo) CountRotationsByUserIDSince(ctx context.Context, userID string, since time.Time) (int, error) {
+	return s.rotations24h, nil
 }
 func (s *ssoUserSessionRepo) InactiveExpiredSessions(ctx context.Context, before time.Time) (int64, error) {
 	return 0, nil

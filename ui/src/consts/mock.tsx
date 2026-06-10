@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { LuMonitor, LuClock, LuShieldCheck, LuCheck, LuKey, LuUserPlus } from "react-icons/lu";
-import type { StatTone } from "@/components/ui/stat-card";
+import type { StatTone, StatDeltaTone } from "@/components/ui/stat-card";
 import type { ActivityTone } from "@/components/ui/activity-row";
 
 export interface StatEntry {
@@ -10,6 +10,7 @@ export interface StatEntry {
 	desc: string;
 	stat: string;
 	delta?: string;
+	deltaTone?: StatDeltaTone;
 }
 
 export interface ActivityEntry {
@@ -34,7 +35,9 @@ export const MOCK_STATS: StatEntry[] = [
 		title: "Token rotations",
 		desc: "Refreshes in last 24h.",
 		stat: "128",
-		delta: "▲ +12% w/w",
+		// Informational (relative last-refreshed time), not a positive trend → muted.
+		delta: "↻ last refreshed 3m ago",
+		deltaTone: "neutral",
 	},
 	{
 		tone: "magenta",

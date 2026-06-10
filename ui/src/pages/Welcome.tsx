@@ -10,28 +10,38 @@ import { AppShell } from "@/layouts/AppShell";
 import { MOCK_STATS, MOCK_ACTIVITY, type StatEntry } from "@/consts/mock";
 import { useUser } from "@/hooks/useUser";
 import { getMySessionsCount } from "@/apis";
+import { formatRelative } from "@/utils/time";
 
 export const Welcome = () => {
 	const { user, loading, error } = useUser();
 	const name = user?.name || "User";
 	const email = user?.email || "";
 
-	// Live "Active sessions" stat — the first card mirrors the real count + 24h
-	// delta; the other two stay mock until their data sources land.
-	const [sessionStat, setSessionStat] = useState<{ stat: string; delta: string } | null>(null);
+	// Live stats from a single /sessions/count response: card #0 "Active sessions"
+	// (count + 24h delta) and card #1 "Token rotations" (sliding-24h rotation count
+	// + relative last-refreshed delta). Card #2 (security score) stays mock.
+	const [liveStats, setLiveStats] = useState<Record<number, { stat: string; delta: string }> | null>(null);
 	useEffect(() => {
 		getMySessionsCount()
 			.then((count) =>
-				setSessionStat({
-					stat: String(count.count),
-					delta: `▲ +${count.new_in_24h} new in 24h`,
+				setLiveStats({
+					0: {
+						stat: String(count.count),
+						delta: `▲ +${count.new_in_24h} new in 24h`,
+					},
+					1: {
+						stat: String(count.rotations_24h),
+						delta: count.last_refreshed_at
+							? `↻ last refreshed ${formatRelative(count.last_refreshed_at)}`
+							: "↻ no refreshes yet",
+					},
 				})
 			)
-			.catch(() => setSessionStat(null));
+			.catch(() => setLiveStats(null));
 	}, []);
 
 	const stats: StatEntry[] = MOCK_STATS.map((entry, index) =>
-		index === 0 && sessionStat ? { ...entry, stat: sessionStat.stat, delta: sessionStat.delta } : entry
+		liveStats?.[index] ? { ...entry, stat: liveStats[index].stat, delta: liveStats[index].delta } : entry
 	);
 
 	if (error) {
