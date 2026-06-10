@@ -8,11 +8,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { loginSchema, type LoginFormData } from "@/validators";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { GlassCard } from "@/components/ui/glass-card";
 import { BrandMark } from "@/components/ui/brand-mark";
 import { PasswordField } from "@/components/ui/password-field";
-import { Link } from "@/components/ui/link";
 import { toaster } from "@/components/ui/toaster";
 import { AURORA_CTA_STYLE } from "@/consts/styles";
 import { ssoCheck, ssoConsent } from "@/apis/auth";
@@ -193,8 +191,6 @@ export const SSOLogin = () => {
 		setCheck({ phase: "password" });
 	}, []);
 
-	const forgotHref = sessionId ? `/forgot-password?session_id=${encodeURIComponent(sessionId)}` : "/forgot-password";
-
 	// While the silent-authorize probe is in flight, render nothing structural
 	// (the aurora background still shows) to avoid flashing the password form.
 	if (check.phase === "checking") {
@@ -342,19 +338,9 @@ export const SSOLogin = () => {
 								/>
 							</Box>
 
-							<HStack justify="space-between" align="center" mt="1" mb="5">
-								<Checkbox disabled={loading} colorPalette="purple">
-									<Text fontSize="sm" color="fg.subtle">
-										Keep me signed in
-									</Text>
-								</Checkbox>
-								<Link to={forgotHref} fontSize="sm" fontWeight="medium" color="fg.subtle" _hover={{ color: "accentAlt" }}>
-									Forgot password?
-								</Link>
-							</HStack>
-
 							<Button
 								type="submit"
+								mt="5"
 								h="50px"
 								loading={loading}
 								loadingText="Signing in…"

@@ -313,11 +313,6 @@
           </div>
         </label>
 
-        <div class="row">
-          <label class="check"><input type="checkbox" /> Keep me signed in</label>
-          <!-- on click: route to /forgot-password (preserves session_id) -->
-          <a href="#forgot" class="link">Forgot password?</a>
-        </div>
 
         <!-- on submit: POST login { email, password, session_id } → mint code → postMessage to opener -->
         <button id="cta" class="btn btn-primary" type="submit">
