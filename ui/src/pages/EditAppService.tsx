@@ -1,0 +1,558 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { Box, Button, Center, Flex, Grid, Heading, HStack, Input, Spinner, Stack, Text } from "@chakra-ui/react";
+import { LuArrowLeft, LuArrowRight, LuCheck, LuInfo, LuLock, LuPencil, LuSave } from "react-icons/lu";
+import { getAppService, updateAppServiceAppearance } from "@/apis";
+import { AppTile } from "@/components/AppTile";
+import { toaster } from "@/components/ui/toaster";
+import { APP_COLOR_KEYS, APP_COLORS, ICON_KEYS, renderIcon } from "@/consts";
+import { AURORA_CTA_STYLE } from "@/consts/styles";
+import { useUser } from "@/hooks/useUser";
+import { usePermissions } from "@/hooks/usePermissions";
+import { AppShell } from "@/layouts/AppShell";
+import type { AppService } from "@/types";
+
+const GHOST_BUTTON_PROPS = {
+	variant: "outline",
+	borderRadius: "glassSm",
+	borderColor: "border.strong",
+	bg: "bg.glass",
+	color: "fg",
+	fontWeight: "semibold",
+	css: { backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" },
+	_hover: { bg: "bg.glassHi", borderColor: "rgba(255,255,255,0.28)" },
+} as const;
+
+const PANEL_PROPS = {
+	bg: "bg.glass",
+	borderWidth: "1px",
+	borderColor: "border",
+	borderRadius: "20px",
+	overflow: "hidden",
+	css: { backdropFilter: "blur(20px) saturate(1.15)", WebkitBackdropFilter: "blur(20px) saturate(1.15)" },
+} as const;
+
+const FIELD_LABEL_PROPS = {
+	display: "block",
+	fontSize: "13px",
+	fontWeight: "medium",
+	color: "fg.subtle",
+	mb: "8px",
+} as const;
+
+const PV_CAP_PROPS = {
+	fontSize: "11px",
+	fontWeight: "semibold",
+	letterSpacing: "0.12em",
+	textTransform: "uppercase",
+	color: "fg.muted",
+} as const;
+
+export const EditAppService = () => {
+	const { id = "" } = useParams();
+	const navigate = useNavigate();
+	const { user: currentUser } = useUser();
+	const { can } = usePermissions();
+	const canUpdate = can("app_service:update");
+
+	const [app, setApp] = useState<AppService | null>(null);
+	const [loading, setLoading] = useState(true);
+	const [saving, setSaving] = useState(false);
+
+	// saved (server) values vs. local edits
+	const [savedName, setSavedName] = useState("");
+	const [savedIcon, setSavedIcon] = useState("");
+	const [savedColor, setSavedColor] = useState("");
+	const [name, setName] = useState("");
+	const [icon, setIcon] = useState("");
+	const [color, setColor] = useState("");
+
+	useEffect(() => {
+		let active = true;
+		setLoading(true);
+		getAppService(id)
+			.then((data) => {
+				if (!active) return;
+				// isme is the read-only platform app — block direct URL access
+				// (the backend rejects the PATCH too, this just avoids a dead form).
+				if (data.app_code === "isme") {
+					toaster.create({ title: "The isme platform app is read-only", type: "error", meta: { closable: true } });
+					navigate("/app-services", { replace: true });
+					return;
+				}
+				setApp(data);
+				setSavedName(data.app_name);
+				setSavedIcon(data.icon);
+				setSavedColor(data.color);
+				setName(data.app_name);
+				setIcon(data.icon);
+				setColor(data.color);
+			})
+			.catch(() => {
+				if (active) toaster.create({ title: "Failed to load app service", type: "error", meta: { closable: true } });
+			})
+			.finally(() => {
+				if (active) setLoading(false);
+			});
+		return () => {
+			active = false;
+		};
+	}, [id, navigate]);
+
+	const dirty = name !== savedName || icon !== savedIcon || color !== savedColor;
+	const colorHex = useMemo(() => (color && color in APP_COLORS ? APP_COLORS[color as keyof typeof APP_COLORS].hex : ""), [color]);
+
+	const discard = () => {
+		setName(savedName);
+		setIcon(savedIcon);
+		setColor(savedColor);
+	};
+
+	const handleSave = async () => {
+		if (!dirty || !app) return;
+		setSaving(true);
+		try {
+			await updateAppServiceAppearance(app.id, {
+				app_name: name !== savedName ? name : undefined,
+				icon: icon !== savedIcon ? icon : undefined,
+				color: color !== savedColor ? color : undefined,
+			});
+			toaster.create({ title: "Appearance saved", type: "success", meta: { closable: true } });
+			navigate("/app-services");
+		} catch (error: unknown) {
+			const err = error as { response?: { data?: { message?: string } } };
+			toaster.create({ title: err?.response?.data?.message || "Failed to save appearance", type: "error", meta: { closable: true } });
+		} finally {
+			setSaving(false);
+		}
+	};
+
+	const userMeta = { name: currentUser?.name || "User", email: currentUser?.email || "" };
+	const displayName = name || "—";
+
+	return (
+		<AppShell active="appServices" user={userMeta}>
+			{/* breadcrumb */}
+			<HStack gap="9px" fontSize="13px" color="fg.muted">
+				<Text as="button" color="fg.muted" _hover={{ color: "fg" }} onClick={() => navigate("/app-services")}>
+					App Services
+				</Text>
+				<Text opacity="0.5">/</Text>
+				<Text color="fg.subtle">{app ? app.app_name : "…"}</Text>
+				<Text opacity="0.5">/</Text>
+				<Text color="fg.subtle">Edit appearance</Text>
+			</HStack>
+
+			{/* page head */}
+			<Flex align="flex-end" justify="space-between" gap="16px" flexWrap="wrap">
+				<Box>
+					<Heading as="h1" fontSize="32px" fontWeight="bold" letterSpacing="-0.025em" lineHeight="1.1">
+						Edit App Service
+					</Heading>
+					<Text mt="6px" color="fg.muted" fontSize="14px">
+						Set the icon and color used for{" "}
+						<Text as="code" color="fg.subtle" fontFamily="inherit">
+							{app?.app_code || "…"}
+						</Text>{" "}
+						across tiles, chips, and the app detail header.
+					</Text>
+				</Box>
+				<Button h="11" px="4.5" fontSize="sm" {...GHOST_BUTTON_PROPS} onClick={() => navigate("/app-services")}>
+					<LuArrowLeft size={16} /> Back
+				</Button>
+			</Flex>
+
+			{loading ? (
+				<Center py="20">
+					<Spinner color="aurora.violet" />
+				</Center>
+			) : !app ? (
+				<Center py="20">
+					<Text color="fg.muted">App service not found.</Text>
+				</Center>
+			) : (
+				<Grid gap="20px" alignItems="start" gridTemplateColumns={{ base: "1fr", lg: "1fr 340px" }}>
+					{/* ===== LEFT: edit form ===== */}
+					<Box {...PANEL_PROPS}>
+						{/* section head */}
+						<HStack gap="12px" px="20px" py="16px" borderBottomWidth="1px" borderColor="border">
+							<Center
+								w="36px"
+								h="36px"
+								borderRadius="11px"
+								flex="none"
+								color="aurora.cyan"
+								borderWidth="1px"
+								borderColor="border.strong"
+								css={{ background: "linear-gradient(135deg, rgba(99,102,241,0.25), rgba(236,72,153,0.20))" }}
+							>
+								<LuPencil size={16} />
+							</Center>
+							<Box lineHeight="1.25">
+								<Text fontSize="15px" fontWeight="semibold">
+									Appearance &amp; identity
+								</Text>
+								<Text fontSize="12px" color="fg.muted">
+									app_id ·{" "}
+									<Text as="code" color="fg.subtle" fontFamily="inherit">
+										{app.id}
+									</Text>
+								</Text>
+							</Box>
+						</HStack>
+
+						<Stack gap="20px" p="20px">
+							{/* app_code — LOCKED identity key */}
+							<Box>
+								<Text {...FIELD_LABEL_PROPS}>
+									App code{" "}
+									<Text as="span" color="fg.muted" fontWeight="normal" fontSize="12px">
+										· identity key, immutable after register
+									</Text>
+								</Text>
+								<HStack
+									gap="10px"
+									h="44px"
+									px="14px"
+									borderRadius="glassSm"
+									borderWidth="1px"
+									borderStyle="dashed"
+									borderColor="border.strong"
+									css={{ background: "rgba(7,7,26,0.40)" }}
+								>
+									<Input
+										value={app.app_code}
+										readOnly
+										tabIndex={-1}
+										flex="1"
+										h="full"
+										border="0"
+										bg="transparent"
+										px="0"
+										fontSize="14px"
+										color="fg.subtle"
+										cursor="not-allowed"
+										css={{ fontVariantNumeric: "tabular-nums", outline: "none", boxShadow: "none" }}
+									/>
+									<Box color="fg.muted" flex="none">
+										<LuLock size={14} />
+									</Box>
+								</HStack>
+								<Text mt="8px" fontSize="12px" color="fg.muted">
+									The app code is part of the SSO contract (used in{" "}
+									<Text as="code" color="fg.subtle" fontFamily="inherit">
+										resource_access
+									</Text>{" "}
+									token keys) — it can't be changed.
+								</Text>
+							</Box>
+
+							{/* app_name — editable */}
+							<Box>
+								<Text {...FIELD_LABEL_PROPS}>Display name</Text>
+								<HStack
+									gap="10px"
+									h="44px"
+									px="14px"
+									borderRadius="glassSm"
+									borderWidth="1px"
+									borderColor="border.strong"
+									bg="bg.glass"
+									_focusWithin={{ borderColor: "aurora.violet", boxShadow: "focusRing", bg: "rgba(255,255,255,0.08)" }}
+								>
+									<Input
+										value={name}
+										onChange={(event) => setName(event.target.value)}
+										flex="1"
+										h="full"
+										border="0"
+										bg="transparent"
+										px="0"
+										fontSize="14px"
+										color="fg"
+										css={{ outline: "none", boxShadow: "none" }}
+									/>
+								</HStack>
+							</Box>
+
+							{/* ICON PICKER — 20-icon grid */}
+							<Box>
+								<Text {...FIELD_LABEL_PROPS}>
+									Icon{" "}
+									<Text as="span" color="fg.muted" fontWeight="normal" fontSize="12px">
+										· pick from the shared icon set
+									</Text>
+								</Text>
+								<Flex
+									wrap="wrap"
+									gap="8px"
+									p="12px"
+									borderRadius="glassSm"
+									borderWidth="1px"
+									borderColor="border"
+									css={{ background: "rgba(7,7,26,0.35)" }}
+									role="radiogroup"
+									aria-label="App icon"
+								>
+									{ICON_KEYS.map((key) => {
+										const selected = icon === key;
+										return (
+											<Center
+												key={key}
+												as="button"
+												role="radio"
+												aria-checked={selected}
+												aria-label={key}
+												title={key}
+												onClick={() => setIcon(key)}
+												w="38px"
+												h="38px"
+												borderRadius="9px"
+												cursor="pointer"
+												borderWidth="1px"
+												borderColor={selected ? "aurora.violet" : "border.strong"}
+												color={selected ? "aurora.violet" : "fg.subtle"}
+												css={{
+													background: selected
+														? "linear-gradient(135deg, rgba(139,92,246,0.22), rgba(99,102,241,0.14))"
+														: "rgba(255,255,255,0.06)",
+													boxShadow: selected ? "0 0 0 3px rgba(139,92,246,0.25), 0 0 16px rgba(139,92,246,0.20) inset" : "none",
+												}}
+												_hover={{ color: "fg", borderColor: "rgba(255,255,255,0.30)" }}
+											>
+												{renderIcon(key, 17)}
+											</Center>
+										);
+									})}
+								</Flex>
+								<Text mt="8px" fontSize="12px" color="fg.muted">
+									Stored as a string key (e.g.{" "}
+									<Text as="code" color="fg.subtle" fontFamily="inherit">
+										{icon || "neutral"}
+									</Text>
+									). Same 20-icon allowlist used by the permission catalog.
+								</Text>
+							</Box>
+
+							{/* COLOR PICKER — fixed aurora palette */}
+							<Box>
+								<Text {...FIELD_LABEL_PROPS}>
+									Color{" "}
+									<Text as="span" color="fg.muted" fontWeight="normal" fontSize="12px">
+										· aurora palette
+									</Text>
+								</Text>
+								<Flex
+									wrap="wrap"
+									gap="12px"
+									p="14px"
+									borderRadius="glassSm"
+									borderWidth="1px"
+									borderColor="border"
+									css={{ background: "rgba(7,7,26,0.35)" }}
+									role="radiogroup"
+									aria-label="App color"
+								>
+									{APP_COLOR_KEYS.map((key) => {
+										const selected = color === key;
+										const hex = APP_COLORS[key].hex;
+										return (
+											<Center
+												key={key}
+												as="button"
+												role="radio"
+												aria-checked={selected}
+												aria-label={`${key} (${hex})`}
+												title={key}
+												onClick={() => setColor(key)}
+												position="relative"
+												w="36px"
+												h="36px"
+												borderRadius="full"
+												cursor="pointer"
+												borderWidth="2px"
+												borderColor="transparent"
+												css={{
+													background: hex,
+													boxShadow: selected
+														? `0 0 0 2px #0B0B23, 0 0 0 4px ${hex}, 0 0 16px ${hex}`
+														: "0 0 0 1px rgba(255,255,255,0.12) inset",
+													transition: "transform .15s ease, box-shadow .15s ease",
+												}}
+												_hover={{ transform: "scale(1.08)" }}
+											>
+												{selected && <LuCheck size={16} color="white" />}
+											</Center>
+										);
+									})}
+								</Flex>
+								<Text mt="10px" fontSize="12px" color="fg.muted">
+									Stored as palette key{" "}
+									<Text as="b" color="fg.subtle" fontWeight="semibold">
+										{color || "neutral"}
+									</Text>
+									{colorHex && (
+										<>
+											{" "}
+											· <Text as="span" css={{ fontVariantNumeric: "tabular-nums" }}>{colorHex}</Text>
+										</>
+									)}
+								</Text>
+							</Box>
+
+							{/* note */}
+							<HStack
+								gap="9px"
+								px="14px"
+								py="11px"
+								borderRadius="glassSm"
+								borderWidth="1px"
+								borderColor="border"
+								bg="bg.glass"
+								fontSize="12px"
+								color="fg.muted"
+								alignItems="flex-start"
+							>
+								<Box color="aurora.cyan" mt="1px" flex="none">
+									<LuInfo size={15} />
+								</Box>
+								<Box>
+									Icon and color are stored on{" "}
+									<Text as="code" color="fg.subtle" fontFamily="inherit">
+										app_service
+									</Text>{" "}
+									as{" "}
+									<Text as="code" color="fg.subtle" fontFamily="inherit">
+										icon
+									</Text>{" "}
+									(string key) and{" "}
+									<Text as="code" color="fg.subtle" fontFamily="inherit">
+										color
+									</Text>{" "}
+									(palette key). They drive every rendered tile/chip — no more hashed gradients.
+								</Box>
+							</HStack>
+						</Stack>
+
+						{/* footer actions */}
+						<HStack gap="10px" px="20px" py="16px" borderTopWidth="1px" borderColor="border">
+							{dirty && (
+								<HStack gap="8px" fontSize="13px" color="aurora.violet" fontWeight="semibold">
+									<Box w="7px" h="7px" borderRadius="full" bg="aurora.violet" css={{ boxShadow: "0 0 10px #8B5CF6" }} />
+									Unsaved changes
+								</HStack>
+							)}
+							<Box flex="1" />
+							<Button h="11" px="4.5" fontSize="sm" {...GHOST_BUTTON_PROPS} disabled={!dirty} onClick={discard}>
+								Cancel
+							</Button>
+							<Button
+								h="11"
+								px="4.5"
+								borderRadius="glassSm"
+								fontSize="sm"
+								fontWeight="semibold"
+								color="white"
+								css={AURORA_CTA_STYLE}
+								boxShadow="ctaGlow"
+								_hover={{ boxShadow: "ctaGlowHi", backgroundPosition: "100% 100%" }}
+								disabled={!dirty || !canUpdate}
+								loading={saving}
+								onClick={handleSave}
+							>
+								<LuSave size={15} /> Save changes
+							</Button>
+						</HStack>
+					</Box>
+
+					{/* ===== RIGHT: live preview rail ===== */}
+					<Box {...PANEL_PROPS} position="sticky" top="84px">
+						<Text px="18px" py="14px" borderBottomWidth="1px" borderColor="border" {...PV_CAP_PROPS} letterSpacing="0.14em">
+							Live preview
+						</Text>
+						<Stack gap="22px" p="20px">
+							{/* detail hero (64px) */}
+							<Stack gap="10px">
+								<Text {...PV_CAP_PROPS}>Detail header</Text>
+								<HStack gap="14px">
+									<AppTile iconKey={icon} colorKey={color} size="detail" fallbackSeed={app.id} appCode={app.app_code} />
+									<Box lineHeight="1.3" minW="0">
+										<Text fontSize="16px" fontWeight="bold" letterSpacing="-0.01em" truncate>
+											{displayName}
+										</Text>
+										<Text fontSize="12px" color="fg.muted" css={{ fontVariantNumeric: "tabular-nums" }}>
+											{app.app_code}
+										</Text>
+									</Box>
+								</HStack>
+							</Stack>
+
+							{/* list row (34px) */}
+							<Stack gap="10px">
+								<Text {...PV_CAP_PROPS}>List row</Text>
+								<HStack gap="12px" px="12px" py="10px" borderRadius="12px" borderWidth="1px" borderColor="border" bg="rgba(255,255,255,0.03)">
+									<AppTile iconKey={icon} colorKey={color} size="list" fallbackSeed={app.id} appCode={app.app_code} />
+									<Box minW="0" lineHeight="1.25">
+										<Text fontSize="14px" fontWeight="semibold" truncate>
+											{displayName}
+										</Text>
+										<Text fontSize="12px" color="fg.muted" css={{ fontVariantNumeric: "tabular-nums" }}>
+											{app.app_code}
+										</Text>
+									</Box>
+								</HStack>
+							</Stack>
+
+							{/* role chip (22px) */}
+							<Stack gap="10px">
+								<Text {...PV_CAP_PROPS}>Role chip (AppRoleChip)</Text>
+								<HStack
+									as="span"
+									display="inline-flex"
+									gap="8px"
+									pl="5px"
+									pr="12px"
+									py="5px"
+									borderRadius="full"
+									bg="bg.glass"
+									borderWidth="1px"
+									borderColor="border.strong"
+									fontSize="13px"
+									fontWeight="medium"
+									color="fg.subtle"
+									w="fit-content"
+								>
+									<AppTile iconKey={icon} colorKey={color} size="chip" fallbackSeed={app.id} appCode={app.app_code} />
+									<Text as="span" truncate maxW="200px">
+										{displayName}
+									</Text>
+								</HStack>
+							</Stack>
+
+							{/* before → after */}
+							<Stack gap="10px">
+								<Text {...PV_CAP_PROPS}>Before → after</Text>
+								<HStack gap="14px" align="center">
+									<Stack gap="7px" align="center">
+										{/* BEFORE: today's fallback (hashed gradient / APP_META) — no stored color */}
+										<AppTile size="list" fallbackSeed={app.id} appCode={app.app_code} />
+										<Text {...PV_CAP_PROPS}>before</Text>
+									</Stack>
+									<Box color="fg.muted">
+										<LuArrowRight size={18} />
+									</Box>
+									<Stack gap="7px" align="center">
+										<AppTile iconKey={icon} colorKey={color} size="list" fallbackSeed={app.id} appCode={app.app_code} />
+										<Text {...PV_CAP_PROPS}>stored</Text>
+									</Stack>
+								</HStack>
+							</Stack>
+						</Stack>
+					</Box>
+				</Grid>
+			)}
+		</AppShell>
+	);
+};

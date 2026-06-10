@@ -18,5 +18,7 @@ func SetupAppServiceRoutes(router fiber.Router) {
 	rAppService.Post(constants.APP_SERVICE_ENDPOINT_VERIFY, VerifyApp)
 	rAppService.Post(constants.APP_SERVICE_ENDPOINT_REFRESH, middleware.AuthMiddleware, RefreshApp)
 	rAppService.Get(constants.APP_SERVICE_ENDPOINT_ROOT, middleware.AuthMiddleware, rbac.RequirePermission(roleConstants.PERM_APP_SERVICE_READ), ListApps)
+	rAppService.Get(constants.APP_SERVICE_ENDPOINT_DETAIL, middleware.AuthMiddleware, rbac.RequirePermission(roleConstants.PERM_APP_SERVICE_READ), GetApp)
+	rAppService.Patch(constants.APP_SERVICE_ENDPOINT_DETAIL, middleware.AuthMiddleware, rbac.RequirePermission(roleConstants.PERM_APP_SERVICE_UPDATE), UpdateAppAppearance)
 	rAppService.Patch(constants.APP_SERVICE_ENDPOINT_STATUS, middleware.AuthMiddleware, rbac.RequirePermission(roleConstants.PERM_APP_SERVICE_UPDATE), UpdateAppStatus)
 }

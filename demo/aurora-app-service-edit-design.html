@@ -1,0 +1,692 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>isme — Edit App Service (icon + color) · Aurora UI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  /* ====== Aurora design tokens — same set as aurora-app-services / aurora-permissions / aurora-rbac-roles ====== */
+  :root {
+    --bg-0: #07071A;
+    --bg-1: #0B0B23;
+    --bg-2: #12122E;
+    --fg: #F4F5FF;
+    --fg-soft: #C7CAE8;
+    --fg-mute: #8A8FB5;
+    --border: rgba(255,255,255,0.10);
+    --border-strong: rgba(255,255,255,0.18);
+    --glass: rgba(255,255,255,0.06);
+    --glass-strong: rgba(255,255,255,0.10);
+
+    --c-cyan: #22D3EE;
+    --c-blue: #6366F1;
+    --c-violet: #8B5CF6;
+    --c-magenta: #EC4899;
+    --c-amber: #F59E0B;
+    --c-mint: #34D399;
+    /* aurora-consistent extension hues (used only by the color picker swatch set) */
+    --c-rose: #FB7185;
+    --c-sky: #38BDF8;
+    --c-teal: #2DD4BF;
+
+    --accent: var(--c-violet);
+    --accent-glow: rgba(139,92,246,0.45);
+
+    --radius: 16px;
+    --radius-sm: 12px;
+    --easing: cubic-bezier(.2,.8,.2,1);
+    --shadow-glass: 0 1px 0 rgba(255,255,255,0.06) inset, 0 8px 32px rgba(0,0,0,0.45);
+    --shadow-pop: 0 20px 60px rgba(99,102,241,0.25), 0 4px 12px rgba(0,0,0,0.35);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter','DM Sans',system-ui,-apple-system,sans-serif;
+    color: var(--fg);
+    background: var(--bg-0);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
+    overflow-x: hidden;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+
+  /* Aurora background — global, same as aurora-auth-mockup */
+  body::before {
+    content: ""; position: fixed; inset: 0; z-index: -2;
+    background:
+      radial-gradient(60% 50% at 12% 10%, rgba(99,102,241,0.45), transparent 60%),
+      radial-gradient(45% 40% at 88% 18%, rgba(34,211,238,0.35), transparent 60%),
+      radial-gradient(55% 45% at 75% 92%, rgba(236,72,153,0.32), transparent 60%),
+      radial-gradient(50% 40% at 18% 80%, rgba(139,92,246,0.32), transparent 60%),
+      linear-gradient(180deg, #07071A 0%, #0B0B23 60%, #04040E 100%);
+    background-size: 200% 200%;
+    animation: auroraFlow 14s ease-in-out infinite alternate;
+    filter: saturate(1.15);
+  }
+  body::after {
+    content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 3px 3px;
+    mix-blend-mode: overlay;
+    opacity: 0.45;
+  }
+  @keyframes auroraFlow {
+    0%   { background-position: 0% 0%, 100% 0%, 100% 100%, 0% 100%, 0 0; }
+    50%  { background-position: 30% 20%, 60% 30%, 70% 70%, 30% 60%, 0 0; }
+    100% { background-position: 100% 100%, 0% 100%, 0% 0%, 100% 0%, 0 0; }
+  }
+
+  /* ====== Topbar shell (identical to aurora-app-services-design.html) ====== */
+  .app-bar {
+    position: sticky; top: 0; z-index: 50;
+    height: 64px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 28px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(7,7,26,0.62);
+    backdrop-filter: blur(20px) saturate(1.2);
+  }
+  .bar-left { display: flex; align-items: center; gap: 24px; }
+  .bar-right { display: flex; align-items: center; gap: 10px; }
+  .brand-row { display: flex; align-items: center; gap: 12px; }
+  .brand-mark {
+    width: 34px; height: 34px; border-radius: 10px;
+    background: conic-gradient(from 180deg at 50% 50%, var(--c-cyan), var(--c-blue), var(--c-violet), var(--c-magenta), var(--c-cyan));
+    display: grid; place-items: center;
+    box-shadow: 0 8px 24px rgba(99,102,241,0.45);
+  }
+  .brand-mark > span { width: 26px; height: 26px; border-radius: 7px; background: var(--bg-0); display: grid; place-items: center; }
+  .brand-name { font-weight: 700; font-size: 17px; letter-spacing: -0.01em; }
+  .nav { display: flex; gap: 4px; }
+  .nav a {
+    font-size: 14px; padding: 8px 14px; border-radius: 10px;
+    color: var(--fg-mute); text-decoration: none; font-weight: 500;
+    transition: all .15s var(--easing); border: 1px solid transparent;
+  }
+  .nav a.active { color: var(--fg); background: var(--glass); border-color: var(--border-strong); box-shadow: 0 0 20px rgba(99,102,241,0.20); }
+  .nav a:hover { color: var(--fg); }
+  .icon-btn {
+    width: 40px; height: 40px; background: var(--glass); border: 1px solid var(--border-strong);
+    border-radius: 10px; display: grid; place-items: center;
+    color: var(--fg-soft); cursor: pointer; backdrop-filter: blur(12px);
+    transition: all .15s var(--easing); position: relative;
+  }
+  .icon-btn:hover { color: var(--fg); border-color: rgba(255,255,255,0.28); }
+  .icon-btn .badge { position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--c-magenta); box-shadow: 0 0 8px var(--c-magenta); }
+  .user-chip {
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 4px 10px 4px 4px; border: 1px solid var(--border-strong); border-radius: 999px;
+    background: var(--glass); backdrop-filter: blur(12px); cursor: pointer; transition: all .15s var(--easing);
+  }
+  .user-chip:hover { background: var(--glass-strong); }
+  .avatar-lg {
+    width: 32px; height: 32px; border-radius: 999px;
+    background: conic-gradient(from 200deg, var(--c-cyan), var(--c-blue), var(--c-violet), var(--c-magenta), var(--c-cyan));
+    color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 13px; box-shadow: 0 0 16px var(--accent-glow);
+  }
+  .user-chip .meta { font-size: 13px; line-height: 1.15; }
+  .user-chip .meta b { display: block; font-weight: 600; color: var(--fg); }
+  .user-chip .meta span { color: var(--fg-mute); font-size: 12px; }
+
+  /* ====== Main layout ====== */
+  .app-main { max-width: 1280px; margin: 0 auto; padding: 32px 28px 72px; display: grid; gap: 20px; }
+  .crumbs { display: flex; align-items: center; gap: 9px; font-size: 13px; color: var(--fg-mute); }
+  .crumbs a { color: var(--fg-mute); text-decoration: none; }
+  .crumbs a:hover { color: var(--fg); }
+  .crumbs .sep { opacity: 0.5; }
+  .crumbs .cur { color: var(--fg-soft); }
+  .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .page-head h1 { margin: 0; font-size: 32px; font-weight: 700; letter-spacing: -0.025em; line-height: 1.1; }
+  .page-sub { margin: 6px 0 0; color: var(--fg-mute); font-size: 14px; }
+  .page-sub code { color: var(--fg-soft); font-family: inherit; }
+
+  /* buttons — aurora baseline */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+    height: 44px; padding: 0 18px; border-radius: var(--radius-sm); border: 1px solid transparent;
+    font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+    transition: transform .15s var(--easing), box-shadow .2s var(--easing), background .2s var(--easing);
+  }
+  .btn:active { transform: translateY(1px) scale(0.995); }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--c-blue) 0%, var(--c-violet) 50%, var(--c-magenta) 100%);
+    background-repeat: no-repeat; background-position: 0% 0%; color: #fff;
+    box-shadow: 0 10px 30px rgba(99,102,241,0.45), 0 0 0 1px rgba(255,255,255,0.10) inset; background-size: 200% 200%;
+  }
+  .btn-primary:hover { background-position: 100% 100%; box-shadow: 0 14px 40px rgba(139,92,246,0.55); }
+  .btn-primary:focus-visible { outline: 0; box-shadow: 0 0 0 4px rgba(139,92,246,0.35), 0 14px 40px rgba(139,92,246,0.55); }
+  .btn-ghost { background: var(--glass); color: var(--fg); border-color: var(--border-strong); backdrop-filter: blur(12px); }
+  .btn-ghost:hover { background: var(--glass-strong); border-color: rgba(255,255,255,0.28); }
+  .btn:disabled { opacity: 0.40; cursor: not-allowed; }
+  .btn:disabled:active { transform: none; }
+  .btn-sm { height: 34px; padding: 0 12px; font-size: 13px; border-radius: 10px; }
+
+  /* ====== Glass panel ====== */
+  .panel {
+    background: var(--glass); border: 1px solid var(--border); border-radius: 20px;
+    backdrop-filter: blur(20px) saturate(1.15); box-shadow: var(--shadow-glass); overflow: hidden;
+  }
+
+  /* ====== Edit form layout: two-column (form left, live preview right rail) ====== */
+  .edit-grid { display: grid; grid-template-columns: 1fr 340px; gap: 20px; align-items: start; }
+  @media (max-width: 980px) { .edit-grid { grid-template-columns: 1fr; } }
+
+  .sect-head {
+    padding: 16px 20px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .sect-head .sh-icon {
+    width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center;
+    background: linear-gradient(135deg, rgba(99,102,241,0.25), rgba(236,72,153,0.20));
+    border: 1px solid var(--border-strong); color: var(--c-cyan); flex: 0 0 auto;
+  }
+  .sect-head .sh-meta { line-height: 1.25; }
+  .sect-head .sh-title { font-size: 15px; font-weight: 600; }
+  .sect-head .sh-sub { font-size: 12px; color: var(--fg-mute); }
+  .sect-body { padding: 20px; display: grid; gap: 20px; }
+
+  /* fields */
+  .field-label { display: block; font-size: 13px; font-weight: 500; color: var(--fg-soft); margin-bottom: 8px; }
+  .field-label .opt { color: var(--fg-mute); font-weight: 400; font-size: 12px; }
+  .field-label .req { color: var(--c-magenta); }
+  .helper { font-size: 12px; color: var(--fg-mute); margin-top: 8px; }
+  .helper code { color: var(--fg-soft); font-family: inherit; }
+  .input-wrap {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--glass); border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+    padding: 0 14px; height: 44px;
+    transition: border-color .2s var(--easing), box-shadow .2s var(--easing), background .2s var(--easing);
+    backdrop-filter: blur(12px);
+  }
+  .input-wrap:hover { border-color: rgba(255,255,255,0.28); }
+  .input-wrap:focus-within { border-color: var(--c-violet); box-shadow: 0 0 0 4px rgba(139,92,246,0.18), 0 0 24px rgba(139,92,246,0.25); background: rgba(255,255,255,0.08); }
+  .input-wrap svg { color: var(--fg-mute); flex: 0 0 auto; }
+  .input-wrap:focus-within svg { color: var(--c-cyan); }
+  .input-wrap input { flex: 1; border: 0; outline: 0; background: transparent; font: inherit; font-size: 14px; color: var(--fg); height: 100%; }
+  .input-wrap input::placeholder { color: var(--fg-mute); }
+  /* read-only / locked field — app_code is an identity key, immutable after register */
+  .input-wrap.locked { background: rgba(7,7,26,0.40); border-style: dashed; border-color: var(--border-strong); }
+  .input-wrap.locked input { color: var(--fg-soft); cursor: not-allowed; font-variant-numeric: tabular-nums; }
+  .input-wrap.locked .lock { color: var(--fg-mute); margin-left: auto; }
+
+  /* ====== ICON PICKER — exact reuse of aurora-rbac-roles .iconpick-grid / .icon-opt ====== */
+  .iconpick-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, 38px); gap: 8px; justify-content: start;
+    padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: rgba(7,7,26,0.35);
+  }
+  .icon-opt {
+    width: 38px; height: 38px; display: grid; place-items: center; cursor: pointer;
+    border-radius: 9px; border: 1px solid var(--border-strong);
+    background: var(--glass); color: var(--fg-soft); padding: 0;
+    transition: all .15s var(--easing);
+  }
+  .icon-opt svg { width: 17px; height: 17px; }
+  .icon-opt:hover { color: var(--fg); border-color: rgba(255,255,255,0.30); background: var(--glass-strong); }
+  .icon-opt:focus-visible { outline: 0; border-color: var(--c-violet); box-shadow: 0 0 0 3px rgba(139,92,246,0.30); }
+  .icon-opt.sel {
+    color: var(--c-violet);
+    background: linear-gradient(135deg, rgba(139,92,246,0.22), rgba(99,102,241,0.14));
+    border-color: var(--c-violet); box-shadow: 0 0 0 3px rgba(139,92,246,0.25), 0 0 16px rgba(139,92,246,0.20) inset;
+  }
+
+  /* ====== COLOR PICKER — fixed aurora swatch palette (palette KEY, not free hex) ====== */
+  .swatch-row {
+    display: flex; flex-wrap: wrap; gap: 12px;
+    padding: 14px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: rgba(7,7,26,0.35);
+  }
+  .swatch-opt {
+    --sw: var(--c-violet);
+    position: relative; width: 36px; height: 36px; border-radius: 999px; cursor: pointer; padding: 0;
+    border: 2px solid transparent;
+    background:
+      linear-gradient(rgba(7,7,26,0.6), rgba(7,7,26,0.6)) padding-box,
+      var(--sw) padding-box;
+    background: var(--sw);
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.12) inset;
+    transition: transform .15s var(--easing), box-shadow .15s var(--easing);
+  }
+  .swatch-opt:hover { transform: scale(1.08); }
+  .swatch-opt:focus-visible { outline: 0; box-shadow: 0 0 0 3px rgba(255,255,255,0.55); }
+  /* selected: ring in the swatch's own hue + check glyph */
+  .swatch-opt.sel {
+    box-shadow: 0 0 0 2px var(--bg-1), 0 0 0 4px var(--sw), 0 0 16px var(--sw);
+  }
+  .swatch-opt.sel::after {
+    content: ""; position: absolute; inset: 0; margin: auto; width: 16px; height: 16px;
+    background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='3,8.5 7,12 13,4'/></svg>") center/contain no-repeat;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6));
+  }
+  .swatch-key {
+    margin-top: 10px; font-size: 12px; color: var(--fg-mute);
+  }
+  .swatch-key b { color: var(--fg-soft); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  /* ====== LIVE PREVIEW (right rail) ====== */
+  .preview-head {
+    padding: 14px 18px; border-bottom: 1px solid var(--border);
+    font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--fg-mute);
+  }
+  .preview-body { padding: 20px; display: grid; gap: 22px; }
+  .pv-block { display: grid; gap: 10px; }
+  .pv-cap { font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg-mute); }
+
+  /* tinted-tile helper: the chosen swatch key drives a soft tinted glass tile
+     (matches aurora-app-detail .tile-medioa / .tile-rainy style: hue@16% bg + hue@.45 border + hue-colored glyph) */
+  .app-tile, .app-tile-lg, .chip-tile {
+    --hue: var(--c-violet); --hue-rgb: 139,92,246;
+    display: grid; place-items: center; color: var(--hue); flex: 0 0 auto;
+    background: rgba(var(--hue-rgb), 0.16);
+    border: 1px solid rgba(var(--hue-rgb), 0.42);
+    box-shadow: 0 0 18px rgba(var(--hue-rgb), 0.20);
+  }
+  /* list-tile size = exactly the 34px tile used in aurora-app-services list rows */
+  .app-tile { width: 34px; height: 34px; border-radius: 10px; }
+  .app-tile svg { width: 16px; height: 16px; }
+  /* hero / detail size = 64px, matches aurora-app-detail .app-tile-lg */
+  .app-tile-lg { width: 64px; height: 64px; border-radius: 18px; }
+  .app-tile-lg svg { width: 30px; height: 30px; }
+  /* chip-tile = 22px, the AppRoleChip avatar size */
+  .chip-tile { width: 22px; height: 22px; border-radius: 7px; }
+  .chip-tile svg { width: 12px; height: 12px; }
+
+  /* preview: a real list row (mirrors aurora-app-services .a-cell) */
+  .pv-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border); background: rgba(255,255,255,0.03); }
+  .pv-row .a-meta { min-width: 0; line-height: 1.25; }
+  .pv-row .a-name { font-size: 14px; font-weight: 600; color: var(--fg); }
+  .pv-row .a-code { font-size: 12px; color: var(--fg-mute); font-variant-numeric: tabular-nums; }
+  /* preview: AppRoleChip-style pill (rounded, tile + name) */
+  .pv-chip { display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px 5px 5px; border-radius: 999px; background: var(--glass); border: 1px solid var(--border-strong); font-size: 13px; font-weight: 500; color: var(--fg-soft); }
+  /* preview: hero header (detail page) */
+  .pv-hero { display: flex; align-items: center; gap: 14px; }
+  .pv-hero .h-meta { line-height: 1.3; }
+  .pv-hero .h-name { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
+  .pv-hero .h-code { font-size: 12px; color: var(--fg-mute); font-variant-numeric: tabular-nums; }
+
+  /* before/after strip */
+  .ba { display: flex; align-items: center; gap: 14px; }
+  .ba .col { display: grid; gap: 7px; place-items: center; }
+  .ba .ba-lbl { font-size: 11px; color: var(--fg-mute); letter-spacing: 0.1em; text-transform: uppercase; }
+  .ba .arrow { color: var(--fg-mute); }
+
+  /* footer action bar inside the form panel */
+  .form-foot {
+    display: flex; align-items: center; gap: 10px; padding: 16px 20px; border-top: 1px solid var(--border);
+  }
+  .form-foot .changed { font-size: 13px; color: var(--c-violet); font-weight: 600; display: inline-flex; align-items: center; gap: 8px; }
+  .form-foot .changed .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--c-violet); box-shadow: 0 0 10px var(--c-violet); }
+  .form-foot .spacer { flex: 1; }
+
+  /* note line (informational) */
+  .note {
+    display: flex; align-items: flex-start; gap: 9px; padding: 11px 14px;
+    border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--glass);
+    font-size: 12px; color: var(--fg-mute);
+  }
+  .note svg { flex: 0 0 auto; margin-top: 1px; color: var(--c-cyan); }
+  .note code { color: var(--fg-soft); font-family: inherit; }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<!--
+  EDIT APP SERVICE (icon + color) — isme SSO admin console · AURORA theme.
+  NEW feature mock. Companion to aurora-app-services-design.html (list/management)
+  and aurora-app-detail.html (single-app detail). Reuses the aurora topbar shell,
+  glass panels, buttons, and — crucially — the EXACT icon-picker pattern from
+  aurora-rbac-roles.html (.iconpick-grid / .icon-opt / .icon-opt.sel) so the icon
+  grid looks identical to the permission resource-icon picker.
+
+  WHY this feature: app_service has no stored icon/color today. The React UI fakes
+  visuals — AppRoleChip.tsx APP_META maps app_code→icon, AppServices.tsx tileGradient(id)
+  hashes the id to a gradient. We are moving to BACKEND-STORED icon + color so tiles,
+  chips, and the detail hero all render from real data.
+
+  LOCKED ARCHITECTURE (design to these):
+   • ICON  — a single shared allowlist of 20 string keys (the permission icon set
+     generalized): file folder database box image music video shield key user users
+     globe tag lock bell star settings server cloud code. Stored as the string key.
+   • COLOR — a FIXED aurora swatch palette (NOT a free hex picker). Stored as a
+     palette KEY string. Swatches pull straight from the aurora :root tokens:
+       violet  #8B5CF6  (--c-violet)   indigo #6366F1 (--c-blue)
+       cyan    #22D3EE  (--c-cyan)     magenta #EC4899 (--c-magenta)
+       mint    #34D399  (--c-mint)     amber   #F59E0B (--c-amber)
+       rose    #FB7185                 sky     #38BDF8
+       teal    #2DD4BF
+     (rose/sky/teal are aurora-consistent extension hues for palette breadth.)
+
+  app_code is an IDENTITY KEY → rendered locked/read-only (cannot change after
+  register). app_name is editable here as a convenience; the FEATURE FOCUS is
+  icon + color. The live preview (right rail) re-renders the list tile, the
+  AppRoleChip pill, and the detail hero with the chosen icon+color — the payoff.
+
+  Backend: needs a PATCH/PUT /app-service/{id} endpoint (icon, color, app_name).
+  Today only register/verify/refresh exist (see aurora-app-services notes), so this
+  edit endpoint is forward-looking like the list/status endpoints there.
+
+  STATES MOCKED: default (dirty form, save enabled), pristine variant note,
+  long-name overflow handled by the preview tiles, and the locked app_code field.
+-->
+
+<!-- ====== Topbar shell (aurora AppShell/Topbar — App Services tab active) ====== -->
+<header class="app-bar">
+  <div class="bar-left">
+    <div class="brand-row">
+      <div class="brand-mark"><span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 7l8 5 8-5-8-5Z"/><path d="m4 17 8 5 8-5"/><path d="m4 12 8 5 8-5"/></svg></span></div>
+      <div class="brand-name">isme</div>
+    </div>
+    <nav class="nav" aria-label="Primary">
+      <a href="#">Overview</a>
+      <a href="#">Users</a>
+      <a href="#">Roles &amp; Permissions</a>
+      <a href="#" class="active">App Services</a>
+      <a href="#">Sessions</a>
+    </nav>
+  </div>
+  <div class="bar-right">
+    <button class="icon-btn" aria-label="Notifications">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+      <span class="badge"></span>
+    </button>
+    <div class="user-chip" tabindex="0">
+      <div class="avatar-lg">VK</div>
+      <div class="meta"><b>Vu Ky</b><span>kyndv@hasaki.vn</span></div>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--fg-mute);margin-left:4px;"><path d="m6 9 6 6 6-6"/></svg>
+    </div>
+  </div>
+</header>
+
+<main class="app-main">
+
+  <!-- breadcrumb back to list/detail -->
+  <div class="crumbs">
+    <a href="#">App Services</a>
+    <span class="sep">/</span>
+    <a href="#">Medioa Cloud Storage</a>
+    <span class="sep">/</span>
+    <span class="cur">Edit appearance</span>
+  </div>
+
+  <div class="page-head">
+    <div>
+      <h1>Edit App Service</h1>
+      <p class="page-sub">Set the icon and color used for <code>medioa</code> across tiles, chips, and the app detail header.</p>
+    </div>
+    <button class="btn btn-ghost" onclick="history.back()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+      Back
+    </button>
+  </div>
+
+  <div class="edit-grid">
+
+    <!-- ============ LEFT: edit form ============ -->
+    <section class="panel">
+      <div class="sect-head">
+        <div class="sh-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3Z"/></svg>
+        </div>
+        <div class="sh-meta">
+          <div class="sh-title">Appearance &amp; identity</div>
+          <div class="sh-sub">app_id · <code style="color:var(--fg-soft);font-family:inherit;">app_medioa</code></div>
+        </div>
+      </div>
+
+      <div class="sect-body">
+
+        <!-- app_code — LOCKED identity key -->
+        <div>
+          <span class="field-label">App code <span class="opt">· identity key, immutable after register</span></span>
+          <label class="input-wrap locked" aria-disabled="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg>
+            <input type="text" value="medioa" readonly tabindex="-1" />
+            <svg class="lock" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Locked"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          </label>
+          <div class="helper">The app code is part of the SSO contract (used in <code>resource_access</code> token keys) — it can't be changed.</div>
+        </div>
+
+        <!-- app_name — editable convenience field -->
+        <div>
+          <span class="field-label">Display name</span>
+          <label class="input-wrap">
+            <input type="text" id="f-name" value="Medioa Cloud Storage" oninput="syncPreview()" />
+          </label>
+        </div>
+
+        <!-- ICON PICKER — 20-icon grid, exact aurora-rbac-roles styling -->
+        <div>
+          <span class="field-label">Icon <span class="opt" id="icon-hint">· pick from the shared icon set</span></span>
+          <div class="iconpick-grid" id="icongrid" role="radiogroup" aria-label="App icon"><!-- icon options injected by JS --></div>
+          <div class="helper">Stored as a string key (e.g. <code id="icon-key-hint">cloud</code>). Same 20-icon allowlist used by the permission catalog.</div>
+        </div>
+
+        <!-- COLOR PICKER — fixed aurora swatch palette -->
+        <div>
+          <span class="field-label">Color <span class="opt">· aurora palette</span></span>
+          <div class="swatch-row" id="swatchrow" role="radiogroup" aria-label="App color"><!-- swatches injected by JS --></div>
+          <div class="swatch-key">Stored as palette key <b id="color-key-hint">violet</b> · <span id="color-hex-hint" style="font-variant-numeric:tabular-nums;">#8B5CF6</span></div>
+        </div>
+
+        <div class="note">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+          <span>Icon and color are stored on <code>app_service</code> as <code>icon</code> (string key) and <code>color</code> (palette key). They drive every rendered tile/chip — no more hashed gradients.</span>
+        </div>
+      </div>
+
+      <!-- footer actions — dirty state shown -->
+      <div class="form-foot">
+        <!-- on toggle: shown only when icon/color/name differ from saved values -->
+        <span class="changed" id="dirty"><span class="dot"></span>Unsaved changes</span>
+        <span class="spacer"></span>
+        <!-- on click: discard local edits, revert pickers to saved icon+color -->
+        <button class="btn btn-ghost" onclick="discard()">Cancel</button>
+        <!-- on click: PATCH /app-service/{id} { app_name, icon, color } → toast + back to detail -->
+        <button class="btn btn-primary" id="save-btn">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg>
+          Save changes
+        </button>
+      </div>
+    </section>
+
+    <!-- ============ RIGHT: live preview rail ============ -->
+    <aside class="panel" style="position:sticky; top:84px;">
+      <div class="preview-head">Live preview</div>
+      <div class="preview-body">
+
+        <!-- detail hero (64px tile) -->
+        <div class="pv-block">
+          <div class="pv-cap">Detail header</div>
+          <div class="pv-hero">
+            <div class="app-tile-lg" id="pv-hero-tile"></div>
+            <div class="h-meta">
+              <div class="h-name" id="pv-hero-name">Medioa Cloud Storage</div>
+              <div class="h-code">medioa</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- list row (34px tile, exactly the app-services list tile) -->
+        <div class="pv-block">
+          <div class="pv-cap">List row</div>
+          <div class="pv-row">
+            <div class="app-tile" id="pv-row-tile"></div>
+            <div class="a-meta">
+              <div class="a-name" id="pv-row-name">Medioa Cloud Storage</div>
+              <div class="a-code">medioa</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- AppRoleChip pill (22px tile) -->
+        <div class="pv-block">
+          <div class="pv-cap">Role chip (AppRoleChip)</div>
+          <span class="pv-chip">
+            <span class="chip-tile" id="pv-chip-tile"></span>
+            <span id="pv-chip-name">Medioa Cloud Storage</span>
+          </span>
+        </div>
+
+        <!-- before / after -->
+        <div class="pv-block">
+          <div class="pv-cap">Before → after</div>
+          <div class="ba">
+            <div class="col">
+              <!-- BEFORE: today's hashed gradient tile (tileGradient(id)) + APP_META icon -->
+              <div class="app-tile" style="--hue-rgb:99,102,241; background:linear-gradient(135deg,#6366F1,#22D3EE); border:0; color:#fff; box-shadow:0 0 14px rgba(99,102,241,0.30);">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
+              </div>
+              <span class="ba-lbl">hashed</span>
+            </div>
+            <svg class="arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            <div class="col">
+              <div class="app-tile" id="pv-after-tile"></div>
+              <span class="ba-lbl">stored</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </aside>
+
+  </div>
+
+</main>
+
+<script>
+  /* ===== 20-icon registry (string key → inline SVG). Identical glyph set to
+     aurora-rbac-roles.html ICONS picker block — same shapes, aurora stroke. ===== */
+  var ICONS = {
+    file:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><path d="M14 2v6h6"/></svg>',
+    folder:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>',
+    database:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>',
+    box:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>',
+    image:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.5-3.5a2 2 0 0 0-2.8 0L6 21"/></svg>',
+    music:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>',
+    video:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 8-6 4 6 4V8Z"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg>',
+    shield:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V6l-8-4-8 4v6c0 6 8 10 8 10Z"/></svg>',
+    key:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg>',
+    user:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+    users:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+    globe:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10Z"/></svg>',
+    tag:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.432 0l6.58-6.58a2.426 2.426 0 0 0 0-3.432z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></svg>',
+    lock:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
+    bell:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>',
+    star:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>',
+    settings:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2Z"/><circle cx="12" cy="12" r="3"/></svg>',
+    server:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="8" rx="2"/><rect x="2" y="13" width="20" height="8" rx="2"/><path d="M6 7h.01"/><path d="M6 17h.01"/></svg>',
+    cloud:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>',
+    code:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg>'
+  };
+  // the 20 selectable icons in display order — identical allowlist to the permission catalog
+  var PICK_ICONS = ['file','folder','database','box','image','music','video','shield','key','user','users','globe','tag','lock','bell','star','settings','server','cloud','code'];
+
+  /* ===== Fixed aurora swatch palette (key → hex + rgb triplet for tints).
+     Hexes come straight from the aurora :root tokens; rose/sky/teal are
+     aurora-consistent extension hues. Stored value is the KEY string. ===== */
+  var PALETTE = [
+    { key:'violet',  hex:'#8B5CF6', rgb:'139,92,246'  },
+    { key:'indigo',  hex:'#6366F1', rgb:'99,102,241'  },
+    { key:'cyan',    hex:'#22D3EE', rgb:'34,211,238'  },
+    { key:'sky',     hex:'#38BDF8', rgb:'56,189,248'  },
+    { key:'teal',    hex:'#2DD4BF', rgb:'45,212,191'  },
+    { key:'mint',    hex:'#34D399', rgb:'52,211,153'  },
+    { key:'amber',   hex:'#F59E0B', rgb:'245,158,11'  },
+    { key:'rose',    hex:'#FB7185', rgb:'251,113,133' },
+    { key:'magenta', hex:'#EC4899', rgb:'236,72,153'  }
+  ];
+
+  /* ===== saved (server) values + current selection ===== */
+  var SAVED = { name:'Medioa Cloud Storage', icon:'cloud', color:'violet' };
+  var sel = { name:SAVED.name, icon:SAVED.icon, color:SAVED.color };
+
+  function paletteOf(key){ return PALETTE.find(function(p){ return p.key === key; }) || PALETTE[0]; }
+
+  /* ---- build icon grid (mirrors aurora-rbac-roles buildIconGrid) ---- */
+  (function buildIconGrid(){
+    var grid = document.getElementById('icongrid');
+    grid.innerHTML = PICK_ICONS.map(function(name){
+      return '<button type="button" class="icon-opt" role="radio" aria-checked="false"'
+        + ' data-icon="'+name+'" aria-label="'+name+'" title="'+name+'"'
+        + ' onclick="pickIcon(\''+name+'\')">'+ICONS[name]+'</button>';
+    }).join('');
+  })();
+
+  /* ---- build swatch row ---- */
+  (function buildSwatches(){
+    var row = document.getElementById('swatchrow');
+    row.innerHTML = PALETTE.map(function(p){
+      return '<button type="button" class="swatch-opt" role="radio" aria-checked="false"'
+        + ' data-color="'+p.key+'" aria-label="'+p.key+' ('+p.hex+')" title="'+p.key+'"'
+        + ' style="--sw:'+p.hex+';" onclick="pickColor(\''+p.key+'\')"></button>';
+    }).join('');
+  })();
+
+  function pickIcon(name){
+    sel.icon = name;
+    document.querySelectorAll('#icongrid .icon-opt').forEach(function(b){
+      var on = b.getAttribute('data-icon') === name;
+      b.classList.toggle('sel', on);
+      b.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+    document.getElementById('icon-key-hint').textContent = name;
+    syncPreview();
+  }
+
+  function pickColor(key){
+    sel.color = key;
+    document.querySelectorAll('#swatchrow .swatch-opt').forEach(function(b){
+      var on = b.getAttribute('data-color') === key;
+      b.classList.toggle('sel', on);
+      b.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+    var p = paletteOf(key);
+    document.getElementById('color-key-hint').textContent = key;
+    document.getElementById('color-hex-hint').textContent = p.hex;
+    syncPreview();
+  }
+
+  /* ---- re-render all preview surfaces from sel ---- */
+  function applyTile(el){
+    var p = paletteOf(sel.color);
+    el.style.setProperty('--hue', p.hex);
+    el.style.setProperty('--hue-rgb', p.rgb);
+    el.innerHTML = ICONS[sel.icon];
+  }
+  function syncPreview(){
+    sel.name = document.getElementById('f-name').value || '—';
+    ['pv-hero-tile','pv-row-tile','pv-chip-tile','pv-after-tile'].forEach(function(id){ applyTile(document.getElementById(id)); });
+    document.getElementById('pv-hero-name').textContent = sel.name;
+    document.getElementById('pv-row-name').textContent = sel.name;
+    document.getElementById('pv-chip-name').textContent = sel.name;
+
+    // dirty-state + save enable
+    var dirty = sel.name !== SAVED.name || sel.icon !== SAVED.icon || sel.color !== SAVED.color;
+    document.getElementById('dirty').style.visibility = dirty ? 'visible' : 'hidden';
+    document.getElementById('save-btn').disabled = !dirty;
+  }
+
+  function discard(){
+    sel = { name:SAVED.name, icon:SAVED.icon, color:SAVED.color };
+    document.getElementById('f-name').value = SAVED.name;
+    pickIcon(SAVED.icon);
+    pickColor(SAVED.color);
+  }
+
+  /* init — preselect saved icon/color. Demo opens with a DIRTY edit (icon nudged
+     cloud→server, color violet→cyan would feel arbitrary) so the picker shows a
+     non-default selected state; instead we open clean but pre-highlight the saved
+     pair, then leave a sample dirty change visible: bump color to 'cyan'. */
+  pickIcon(SAVED.icon);
+  pickColor(SAVED.color);
+  // show an in-progress edit so reviewers see selected highlight + dirty bar:
+  pickColor('cyan');
+</script>
+
+</body>
+</html>

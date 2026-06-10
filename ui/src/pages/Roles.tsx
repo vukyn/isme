@@ -38,7 +38,7 @@ import {
 	setRolePermissions,
 	updateRole,
 } from "@/apis";
-import { AppTile } from "@/components/AppRoleChip";
+import { AppTile } from "@/components/AppTile";
 import { CreateRoleDialog } from "@/components/CreateRoleDialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -949,7 +949,7 @@ export const Roles = () => {
 								_hover={{ color: "fg" }}
 								onClick={() => setSelectedAppId(app.id)}
 							>
-								<AppTile appCode={app.app_code} size="22px" />
+								<AppTile iconKey={app.icon} colorKey={app.color} size="chip" fallbackSeed={app.id} appCode={app.app_code} />
 								<Box lineHeight="1.2" textAlign="left">
 									<Text fontSize="13px" fontWeight="semibold">
 										{app.app_code}

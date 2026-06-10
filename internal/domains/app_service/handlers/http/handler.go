@@ -97,6 +97,44 @@ func ListApps(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, listResponse)
 }
 
+func GetApp(c *fiber.Ctx) error {
+	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
+	defer ctn.Delete()
+
+	uc, err := idi.GetAppServiceUsecase(ctn)
+	if err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	appService, err := uc.GetApp(pkgCtx.NewContextFromFiberCtx(c), c.Params("appServiceID"))
+	if err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	return pkgHttp.OK(c, appService)
+}
+
+func UpdateAppAppearance(c *fiber.Ctx) error {
+	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
+	defer ctn.Delete()
+
+	uc, err := idi.GetAppServiceUsecase(ctn)
+	if err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	updateAppearanceRequest := models.UpdateAppearanceRequest{}
+	if err := c.BodyParser(&updateAppearanceRequest); err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	if err := uc.UpdateAppearance(pkgCtx.NewContextFromFiberCtx(c), c.Params("appServiceID"), updateAppearanceRequest); err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	return pkgHttp.OK(c, nil)
+}
+
 func UpdateAppStatus(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 	defer ctn.Delete()

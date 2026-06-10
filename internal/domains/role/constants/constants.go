@@ -51,11 +51,11 @@ const (
 	ROLE_ID_VIEWER = "rol_viewer"
 )
 
-// PERMISSION_ICON_KEYS is the allowlist of per-resource icon keys a caller may
-// store on a permission. Shared intent with the frontend icon registry
-// (ui/src/consts/permissionIcons.ts). An empty icon is always allowed and
-// resolves to a neutral default in the UI.
-var PERMISSION_ICON_KEYS = map[string]struct{}{
+// ICON_KEYS is the shared allowlist of icon keys a caller may store on any
+// entity that carries an icon (permission resource, app_service tile). Shared
+// intent with the frontend icon registry (ui/src/consts/permissionIcons.tsx).
+// An empty icon is always allowed and resolves to a neutral default in the UI.
+var ICON_KEYS = map[string]struct{}{
 	"file":     {},
 	"folder":   {},
 	"database": {},
@@ -76,14 +76,23 @@ var PERMISSION_ICON_KEYS = map[string]struct{}{
 	"server":   {},
 	"cloud":    {},
 	"code":     {},
+	"layers":   {},
 }
 
-// IsValidPermissionIcon reports whether the icon key is allowed. The empty
-// string (neutral default) is valid; any other value must be in the allowlist.
-func IsValidPermissionIcon(icon string) bool {
+// IsValidIcon reports whether the icon key is allowed. The empty string
+// (neutral default) is valid; any other value must be in the allowlist.
+func IsValidIcon(icon string) bool {
 	if icon == "" {
 		return true
 	}
-	_, ok := PERMISSION_ICON_KEYS[icon]
+	_, ok := ICON_KEYS[icon]
 	return ok
+}
+
+// PERMISSION_ICON_KEYS aliases ICON_KEYS — kept for the permission call sites.
+var PERMISSION_ICON_KEYS = ICON_KEYS
+
+// IsValidPermissionIcon aliases IsValidIcon — kept for the permission call sites.
+func IsValidPermissionIcon(icon string) bool {
+	return IsValidIcon(icon)
 }

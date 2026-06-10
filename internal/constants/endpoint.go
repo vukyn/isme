@@ -21,6 +21,7 @@ const (
 	APP_SERVICE_ENDPOINT_REGISTER = "/register"
 	APP_SERVICE_ENDPOINT_VERIFY   = "/verify"
 	APP_SERVICE_ENDPOINT_REFRESH  = "/refresh"
+	APP_SERVICE_ENDPOINT_DETAIL   = "/:appServiceID"
 	APP_SERVICE_ENDPOINT_STATUS   = "/:appServiceID/status"
 
 	// User

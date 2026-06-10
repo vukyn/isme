@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/vukyn/isme/internal/domains/app_service/constants"
+	roleConstants "github.com/vukyn/isme/internal/domains/role/constants"
 )
 
 type RegisterRequest struct {
@@ -11,6 +12,8 @@ type RegisterRequest struct {
 	AppName     string `json:"app_name"`
 	RedirectURL string `json:"redirect_url"`
 	CtxInfo     string `json:"ctx_info"`
+	Icon        string `json:"icon"`  // optional appearance icon key; empty = neutral
+	Color       string `json:"color"` // optional appearance palette key; empty = neutral
 }
 
 func (r RegisterRequest) Validate() error {
@@ -25,6 +28,12 @@ func (r RegisterRequest) Validate() error {
 	}
 	if r.CtxInfo == "" {
 		return errors.New("ctx_info is required")
+	}
+	if !roleConstants.IsValidIcon(r.Icon) {
+		return errors.New("icon is not a known icon key")
+	}
+	if !constants.IsValidColor(r.Color) {
+		return errors.New("color is not a known palette key")
 	}
 	return nil
 }
@@ -123,6 +132,8 @@ type AppServiceListItem struct {
 	RedirectURL    string `json:"redirect_url"`
 	CtxInfo        string `json:"ctx_info"`
 	Status         int32  `json:"status"`
+	Icon           string `json:"icon"`
+	Color          string `json:"color"`
 	CreatedAt      string `json:"created_at"`
 	CreatedBy      string `json:"created_by"`       // creator user id
 	CreatedByEmail string `json:"created_by_email"` // resolved creator email (empty when unresolvable)
@@ -147,6 +158,31 @@ func (r UpdateStatusRequest) Validate() error {
 		r.Status != constants.AppServiceStatusInactive &&
 		r.Status != constants.AppServiceStatusTerminated {
 		return errors.New("invalid status, must be 1 (active), 2 (inactive) or 3 (terminated)")
+	}
+	return nil
+}
+
+// UpdateAppearanceRequest is a partial update of an app service's display
+// fields. All fields are optional pointers; nil means "leave unchanged". At
+// least one field must be present.
+type UpdateAppearanceRequest struct {
+	AppName *string `json:"app_name"`
+	Icon    *string `json:"icon"`
+	Color   *string `json:"color"`
+}
+
+func (r UpdateAppearanceRequest) Validate() error {
+	if r.AppName == nil && r.Icon == nil && r.Color == nil {
+		return errors.New("at least one field is required")
+	}
+	if r.AppName != nil && *r.AppName == "" {
+		return errors.New("app_name must not be empty")
+	}
+	if r.Icon != nil && !roleConstants.IsValidIcon(*r.Icon) {
+		return errors.New("icon is not a known icon key")
+	}
+	if r.Color != nil && !constants.IsValidColor(*r.Color) {
+		return errors.New("color is not a known palette key")
 	}
 	return nil
 }

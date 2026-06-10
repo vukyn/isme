@@ -83,13 +83,16 @@ const appServiceCtxInfoSchema = z.enum(["authen", "app_service"], "Context must 
 
 /**
  * Register app service form schema (App Services management)
- * Mirrors models.RegisterRequest.Validate() — all four fields required.
+ * Mirrors models.RegisterRequest.Validate() — the four core fields are required;
+ * icon/color are optional appearance keys (empty = neutral, validated server-side).
  */
 export const registerAppServiceSchema = z.object({
 	app_code: z.string().min(1, "App code is required"),
 	app_name: z.string().min(1, "App name is required"),
 	redirect_url: z.url("Redirect URL must be a valid URL"),
 	ctx_info: appServiceCtxInfoSchema,
+	icon: z.string().optional(),
+	color: z.string().optional(),
 });
 
 export type RegisterAppServiceFormData = z.infer<typeof registerAppServiceSchema>;

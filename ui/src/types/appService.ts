@@ -21,6 +21,10 @@ export interface AppService {
 	redirect_url: string;
 	ctx_info: AppServiceCtxInfo;
 	status: AppServiceStatus;
+	/** Appearance icon key (shared allowlist); empty = neutral fallback. */
+	icon: string;
+	/** Appearance color palette key; empty = neutral fallback. */
+	color: string;
 	created_at: string;
 	created_by: string;
 	created_by_email: string;
@@ -51,6 +55,20 @@ export interface RegisterAppServiceRequest {
 	app_name: string;
 	redirect_url: string;
 	ctx_info: AppServiceCtxInfo;
+	/** Optional appearance icon key; empty = neutral. */
+	icon?: string;
+	/** Optional appearance color palette key; empty = neutral. */
+	color?: string;
+}
+
+/**
+ * Maps to models.UpdateAppearanceRequest (PATCH /api/v1/app-service/:id).
+ * Partial update — only the provided fields change.
+ */
+export interface UpdateAppServiceAppearanceRequest {
+	app_name?: string;
+	icon?: string;
+	color?: string;
 }
 
 /** Maps to models.RegisterResponse — plaintext secret, returned exactly once. */

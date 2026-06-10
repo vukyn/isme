@@ -19,6 +19,7 @@ import {
 	LuGlobe,
 	LuImage,
 	LuKey,
+	LuLayers,
 	LuLock,
 	LuMusic,
 	LuServer,
@@ -57,6 +58,7 @@ export const PERMISSION_ICON_KEYS = [
 	"server",
 	"cloud",
 	"code",
+	"layers",
 ] as const;
 
 export type PermissionIconKey = (typeof PERMISSION_ICON_KEYS)[number];
@@ -82,6 +84,7 @@ const REGISTRY: Record<PermissionIconKey, IconRenderer> = {
 	server: (size) => <LuServer size={size} />,
 	cloud: (size) => <LuCloud size={size} />,
 	code: (size) => <LuCode size={size} />,
+	layers: (size) => <LuLayers size={size} />,
 };
 
 /** Neutral fallback for an empty or unknown icon key. */
@@ -120,3 +123,13 @@ export const resolveResourceIconKey = (resource: string, storedKey: string | und
 	if (storedKey) return storedKey;
 	return ISME_RESOURCE_ICON_KEYS[resource] ?? "";
 };
+
+/**
+ * Generic aliases — the icon registry is shared by the permission catalog AND
+ * the app_service appearance tile (same backend allowlist, roleConstants.ICON_KEYS).
+ * Prefer these names outside the permission domain.
+ */
+export const ICON_KEYS = PERMISSION_ICON_KEYS;
+export type IconKey = PermissionIconKey;
+export const renderIcon = renderPermissionIcon;
+export const renderDefaultIcon = renderDefaultPermissionIcon;
