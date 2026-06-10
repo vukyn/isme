@@ -1,4 +1,5 @@
 import type {
+	AppService,
 	AppServiceStatus,
 	ListAppServicesRequest,
 	ListAppServicesResponse,
@@ -6,6 +7,7 @@ import type {
 	RefreshAppServiceResponse,
 	RegisterAppServiceRequest,
 	RegisterAppServiceResponse,
+	UpdateAppServiceAppearanceRequest,
 	VerifyAppServiceRequest,
 	VerifyAppServiceResponse,
 } from "@/types";
@@ -63,9 +65,26 @@ export const listAppServices = async (request: ListAppServicesRequest): Promise<
 };
 
 /**
+ * GET /api/v1/app-service/:appServiceID (AuthMiddleware + app_service:read) —
+ * single app by id. Backs the edit page (supports F5 / deep-link).
+ */
+export const getAppService = async (appServiceId: string): Promise<AppService> => {
+	const response = await apiClient.get<Envelope<AppService>>(API_ENDPOINTS.APP_SERVICE_DETAIL(appServiceId));
+	return response.data.data;
+};
+
+/**
  * PATCH /api/v1/app-service/:appServiceID/status (AuthMiddleware + app_service:update).
  * Terminated (3) is terminal server-side; same-status updates are a no-op.
  */
 export const updateAppServiceStatus = async (appServiceId: string, status: AppServiceStatus): Promise<void> => {
 	await apiClient.patch(API_ENDPOINTS.APP_SERVICE_STATUS(appServiceId), { status });
+};
+
+/**
+ * PATCH /api/v1/app-service/:appServiceID (AuthMiddleware + app_service:update) —
+ * partial appearance update (app_name, icon, color). Allowed regardless of status.
+ */
+export const updateAppServiceAppearance = async (appServiceId: string, request: UpdateAppServiceAppearanceRequest): Promise<void> => {
+	await apiClient.patch(API_ENDPOINTS.APP_SERVICE_DETAIL(appServiceId), request);
 };

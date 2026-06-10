@@ -43,6 +43,7 @@ export type {
 	ListAppServicesResponse,
 	RegisterAppServiceRequest,
 	RegisterAppServiceResponse,
+	UpdateAppServiceAppearanceRequest,
 	VerifyAppServiceRequest,
 	VerifyAppServiceResponse,
 	RefreshAppServiceRequest,

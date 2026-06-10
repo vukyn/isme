@@ -32,6 +32,7 @@ type fakeAppServiceRepository struct {
 	listRequests      []models.ListRequest
 	updatedStatuses   map[string]int32
 	updatedSecrets    map[string]string
+	updateRequests    []entity.UpdateRequest
 }
 
 var _ appServiceRepo.IRepository = (*fakeAppServiceRepository)(nil)
@@ -68,6 +69,7 @@ func (f *fakeAppServiceRepository) GetByCode(ctx context.Context, code string) (
 }
 
 func (f *fakeAppServiceRepository) Update(ctx context.Context, req entity.UpdateRequest) error {
+	f.updateRequests = append(f.updateRequests, req)
 	if req.AppSecret != nil {
 		f.updatedSecrets[req.ID] = *req.AppSecret
 	}
@@ -466,4 +468,161 @@ func TestRefreshApp(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetApp(t *testing.T) {
+	t.Run("returns appearance fields", func(t *testing.T) {
+		fakeAppService := newFakeAppServiceRepository()
+		fakeAppService.appServicesByID["app-1"] = entity.AppService{
+			ID:      "app-1",
+			AppCode: "code-1",
+			AppName: "App One",
+			Status:  constants.AppServiceStatusActive,
+			Icon:    "shield",
+			Color:   "violet",
+		}
+		testUsecase := newTestUsecase(fakeAppService)
+
+		item, err := testUsecase.GetApp(context.Background(), "app-1")
+		if err != nil {
+			t.Fatalf("GetApp() error = %v", err)
+		}
+		if item.Icon != "shield" || item.Color != "violet" {
+			t.Errorf("appearance = %q/%q, want shield/violet", item.Icon, item.Color)
+		}
+	})
+
+	t.Run("unknown id rejected", func(t *testing.T) {
+		fakeAppService := newFakeAppServiceRepository()
+		testUsecase := newTestUsecase(fakeAppService)
+
+		_, err := testUsecase.GetApp(context.Background(), "missing")
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if err.Error() != "app service not found" {
+			t.Errorf("error = %q, want %q", err.Error(), "app service not found")
+		}
+	})
+}
+
+func TestUpdateAppearance(t *testing.T) {
+	strPtr := func(s string) *string { return &s }
+
+	t.Run("persists partial fields", func(t *testing.T) {
+		fakeAppService := newFakeAppServiceRepository()
+		fakeAppService.appServicesByID["app-1"] = entity.AppService{
+			ID:     "app-1",
+			Status: constants.AppServiceStatusTerminated, // appearance edits allowed regardless of status
+		}
+		testUsecase := newTestUsecase(fakeAppService)
+
+		err := testUsecase.UpdateAppearance(context.Background(), "app-1", models.UpdateAppearanceRequest{
+			Icon:  strPtr("database"),
+			Color: strPtr("cyan"),
+		})
+		if err != nil {
+			t.Fatalf("UpdateAppearance() error = %v", err)
+		}
+		if len(fakeAppService.updateRequests) != 1 {
+			t.Fatalf("repo Update calls = %d, want 1", len(fakeAppService.updateRequests))
+		}
+		req := fakeAppService.updateRequests[0]
+		if req.Icon == nil || *req.Icon != "database" || req.Color == nil || *req.Color != "cyan" {
+			t.Errorf("unexpected update request: %+v", req)
+		}
+		if req.AppName != nil {
+			t.Errorf("app_name should be nil, got %v", *req.AppName)
+		}
+	})
+
+	t.Run("rejects unknown id", func(t *testing.T) {
+		fakeAppService := newFakeAppServiceRepository()
+		testUsecase := newTestUsecase(fakeAppService)
+
+		err := testUsecase.UpdateAppearance(context.Background(), "missing", models.UpdateAppearanceRequest{
+			Icon: strPtr("shield"),
+		})
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if err.Error() != "app service not found" {
+			t.Errorf("error = %q, want %q", err.Error(), "app service not found")
+		}
+		if len(fakeAppService.updateRequests) != 0 {
+			t.Error("repo Update called despite unknown id")
+		}
+	})
+
+	t.Run("validation failures", func(t *testing.T) {
+		tests := []struct {
+			name    string
+			request models.UpdateAppearanceRequest
+		}{
+			{"no fields", models.UpdateAppearanceRequest{}},
+			{"empty app_name", models.UpdateAppearanceRequest{AppName: strPtr("")}},
+			{"invalid icon", models.UpdateAppearanceRequest{Icon: strPtr("not-an-icon")}},
+			{"invalid color", models.UpdateAppearanceRequest{Color: strPtr("chartreuse")}},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				fakeAppService := newFakeAppServiceRepository()
+				fakeAppService.appServicesByID["app-1"] = entity.AppService{ID: "app-1"}
+				testUsecase := newTestUsecase(fakeAppService)
+
+				err := testUsecase.UpdateAppearance(context.Background(), "app-1", tt.request)
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				if len(fakeAppService.updateRequests) != 0 {
+					t.Error("repo Update called despite validation failure")
+				}
+			})
+		}
+	})
+}
+
+// The seeded isme self-app is read-only — the usecase must reject every mutation
+// so the API/URL cannot bypass the disabled UI controls.
+func TestPlatformAppReadOnly(t *testing.T) {
+	strPtr := func(s string) *string { return &s }
+
+	t.Run("UpdateAppearance rejects the isme platform app", func(t *testing.T) {
+		fakeAppService := newFakeAppServiceRepository()
+		fakeAppService.appServicesByID[constants.PlatformAppID] = entity.AppService{
+			ID:      constants.PlatformAppID,
+			AppCode: constants.PlatformAppCode,
+		}
+		testUsecase := newTestUsecase(fakeAppService)
+
+		err := testUsecase.UpdateAppearance(context.Background(), constants.PlatformAppID, models.UpdateAppearanceRequest{
+			Icon: strPtr("database"),
+		})
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if len(fakeAppService.updateRequests) != 0 {
+			t.Error("repo Update called for the read-only platform app")
+		}
+	})
+
+	t.Run("UpdateStatus rejects the isme platform app", func(t *testing.T) {
+		fakeAppService := newFakeAppServiceRepository()
+		fakeAppService.appServicesByID[constants.PlatformAppID] = entity.AppService{
+			ID:      constants.PlatformAppID,
+			AppCode: constants.PlatformAppCode,
+			Status:  constants.AppServiceStatusActive,
+		}
+		testUsecase := newTestUsecase(fakeAppService)
+
+		err := testUsecase.UpdateStatus(context.Background(), constants.PlatformAppID, models.UpdateStatusRequest{
+			Status: constants.AppServiceStatusInactive,
+		})
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if len(fakeAppService.updatedStatuses) != 0 {
+			t.Error("repo UpdateStatus called for the read-only platform app")
+		}
+	})
 }

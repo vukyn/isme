@@ -3,6 +3,7 @@
 import { Box, HStack, Text } from "@chakra-ui/react";
 import type { ReactNode } from "react";
 import { LuLayers, LuCloud, LuMusic } from "react-icons/lu";
+import { renderIcon, resolveAppColor } from "@/consts";
 
 /**
  * Per-app role chip — `app:role` — reused across the user list, the invite
@@ -105,10 +106,39 @@ interface AppTileProps {
 	appCode: string;
 	size?: string;
 	radius?: string;
+	/** Stored appearance icon key — when set (with colorKey), overrides APP_META. */
+	iconKey?: string;
+	/** Stored appearance color palette key — when set, renders the tinted-glass tile. */
+	colorKey?: string;
 }
 
 /** Square app identity tile (gradient/tinted) reused in chips, cards, rows. */
-export const AppTile = ({ appCode, size = "22px", radius = "7px" }: AppTileProps) => {
+export const AppTile = ({ appCode, size = "22px", radius = "7px", iconKey, colorKey }: AppTileProps) => {
+	// Stored-appearance path: tinted-glass tile from the color key (matches the
+	// shared AppTile look). Falls back to APP_META when no color is stored, so
+	// existing invite/user-list callers (which pass no keys) are unchanged.
+	if (colorKey) {
+		const color = resolveAppColor(colorKey);
+		return (
+			<Box
+				as="span"
+				display="grid"
+				placeItems="center"
+				w={size}
+				h={size}
+				flex="none"
+				borderRadius={radius}
+				color={color.hex}
+				css={{
+					background: `rgba(${color.rgb}, 0.16)`,
+					border: `1px solid rgba(${color.rgb}, 0.42)`,
+				}}
+			>
+				{renderIcon(iconKey, 12)}
+			</Box>
+		);
+	}
+
 	const meta = appMeta(appCode);
 	return (
 		<Box

@@ -11,15 +11,16 @@ import {
 	LuCircleCheck,
 	LuCircleSlash,
 	LuCircleX,
-	LuCopy,
 	LuKeyRound,
 	LuLock,
+	LuPencil,
 	LuPlus,
 	LuRefreshCw,
 	LuSearch,
 } from "react-icons/lu";
 import { listAppServices, updateAppServiceStatus } from "@/apis";
 import { AppServiceSecretDialog } from "@/components/AppServiceSecretDialog";
+import { AppTile } from "@/components/AppTile";
 import { RegisterAppServiceDialog } from "@/components/RegisterAppServiceDialog";
 import { RotateAppServiceSecretDialog } from "@/components/RotateAppServiceSecretDialog";
 import { TerminateAppServiceDialog } from "@/components/TerminateAppServiceDialog";
@@ -32,7 +33,7 @@ import { useUser } from "@/hooks/useUser";
 import { usePermissions } from "@/hooks/usePermissions";
 import { AppShell } from "@/layouts/AppShell";
 import type { AppService, AppServiceCtxInfo, AppServiceStatus } from "@/types";
-import { copyToClipboard, formatDateOnly } from "@/utils";
+import { formatDateOnly } from "@/utils";
 
 type StatusFilter = (typeof APP_SERVICE_STATUS_FILTER_OPTIONS)[number];
 
@@ -47,11 +48,6 @@ const STATUS_FILTER_ICONS: Partial<Record<StatusFilter, React.ReactNode>> = {
 	inactive: <LuCircleSlash size={13} />,
 	terminated: <LuCircleX size={13} />,
 };
-
-const TILE_GRADIENTS = [
-	"conic-gradient(from 200deg, #22D3EE, #6366F1, #8B5CF6, #EC4899, #22D3EE)",
-	"linear-gradient(135deg, #22D3EE, #34D399)",
-];
 
 /** Uppercase micro-label (mock thead th). */
 const LABEL_PROPS = {
@@ -96,12 +92,6 @@ const GHOST_BUTTON_PROPS = {
 	_hover: { bg: "bg.glassHi", borderColor: "rgba(255,255,255,0.28)" },
 } as const;
 
-const tileGradient = (id: string) => {
-	let hash = 0;
-	for (const char of id) hash = (hash * 31 + char.charCodeAt(0)) % 997;
-	return TILE_GRADIENTS[hash % TILE_GRADIENTS.length];
-};
-
 const StatusPill = ({ status }: { status: AppServiceStatus }) => {
 	if (status === APP_SERVICE_STATUS.ACTIVE) {
 		return (
@@ -142,42 +132,6 @@ const CtxPill = ({ ctxInfo }: { ctxInfo: AppService["ctx_info"] }) => {
 	);
 };
 
-const AppTile = ({ service }: { service: AppService }) => {
-	if (service.status === APP_SERVICE_STATUS.TERMINATED) {
-		return (
-			<Center
-				w="34px"
-				h="34px"
-				flex="none"
-				borderRadius="10px"
-				bg="bg.glass"
-				borderWidth="1.5px"
-				borderStyle="dashed"
-				borderColor="border.strong"
-				color="fg.muted"
-			>
-				<LuAppWindow size={16} />
-			</Center>
-		);
-	}
-	const inactive = service.status === APP_SERVICE_STATUS.INACTIVE;
-	return (
-		<Center
-			w="34px"
-			h="34px"
-			flex="none"
-			borderRadius="10px"
-			color={inactive ? "fg.subtle" : "white"}
-			css={{
-				background: inactive ? "linear-gradient(135deg, #3A3F6E, #23264A)" : tileGradient(service.id),
-				boxShadow: inactive ? "none" : "0 0 14px rgba(99,102,241,0.30)",
-			}}
-		>
-			<LuAppWindow size={16} />
-		</Center>
-	);
-};
-
 const QuickActionButton = ({
 	label,
 	color,
@@ -209,7 +163,6 @@ const QuickActionButton = ({
 			color={color}
 			cursor={disabled ? "not-allowed" : "pointer"}
 			opacity={disabled ? 0.35 : 1}
-			title={tooltip ? undefined : label}
 			aria-label={label}
 			css={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
 			_hover={
@@ -227,17 +180,17 @@ const QuickActionButton = ({
 			{children}
 		</Center>
 	);
-	if (tooltip) {
-		return (
-			<Tooltip content={tooltip} positioning={{ placement: "top" }}>
-				{button}
-			</Tooltip>
-		);
-	}
-	return button;
+	// Every action shows the styled Tooltip: the disabled-state explanation when
+	// provided, otherwise the plain action label.
+	return (
+		<Tooltip content={tooltip ?? label} positioning={{ placement: "top" }}>
+			{button}
+		</Tooltip>
+	);
 };
 
 const NO_PERMISSION_TOOLTIP = "You don't have permission";
+const PLATFORM_APP_TOOLTIP = "The isme platform app is read-only";
 
 /**
  * Secret column sub-line: secrets are AES-encrypted at rest and irrecoverable
@@ -341,14 +294,6 @@ export const AppServices = () => {
 	const activeCount = services.filter((service) => service.status === APP_SERVICE_STATUS.ACTIVE).length;
 	const terminatedCount = services.filter((service) => service.status === APP_SERVICE_STATUS.TERMINATED).length;
 
-	const handleCopyCode = async (service: AppService) => {
-		try {
-			await copyToClipboard(service.app_code);
-			toaster.create({ title: `Copied "${service.app_code}"`, type: "success", meta: { closable: true } });
-		} catch {
-			toaster.create({ title: "Failed to copy app code", type: "error", meta: { closable: true } });
-		}
-	};
 
 	// Activate ⇄ deactivate (PATCH 1/2). Terminate (3) goes through the
 	// type-to-confirm dialog instead — it is terminal server-side.
@@ -633,6 +578,10 @@ export const AppServices = () => {
 								{paged.map((service) => {
 									const terminated = service.status === APP_SERVICE_STATUS.TERMINATED;
 									const inactive = service.status === APP_SERVICE_STATUS.INACTIVE;
+									// isme is the platform's own app — read-only: no appearance edit,
+									// secret rotation, status change, or termination (the backend
+									// rejects these too, so the API/URL can't bypass the disabled UI).
+									const isPlatform = service.app_code === "isme";
 									return (
 										<Table.Row
 											key={service.id}
@@ -647,7 +596,14 @@ export const AppServices = () => {
 										>
 											<Table.Cell px="3.5" py="13px">
 												<HStack gap="3" minW="0" maxW="280px">
-													<AppTile service={service} />
+													<AppTile
+														iconKey={service.icon}
+														colorKey={service.color}
+														size="list"
+														status={service.status}
+														fallbackSeed={service.id}
+														appCode={service.app_code}
+													/>
 													<Box minW="0" lineHeight="1.25">
 														<Text
 															fontSize="sm"
@@ -710,33 +666,39 @@ export const AppServices = () => {
 														{service.app_code === "isme" ? <LuLock size={14} /> : <LuKeyRound size={14} />}
 													</QuickActionButton>
 													<QuickActionButton
-														label={terminated ? "Terminated apps cannot rotate secrets" : "Rotate secret"}
+														label={isPlatform ? PLATFORM_APP_TOOLTIP : "Edit appearance"}
 														color="aurora.cyan"
-														disabled={terminated || !canRotateSecret}
-														tooltip={!terminated && !canRotateSecret ? NO_PERMISSION_TOOLTIP : undefined}
+														disabled={isPlatform || !canUpdate}
+														tooltip={isPlatform ? PLATFORM_APP_TOOLTIP : canUpdate ? undefined : NO_PERMISSION_TOOLTIP}
+														onClick={() => navigate(`/app-services/${service.id}/edit`)}
+													>
+														<LuPencil size={14} />
+													</QuickActionButton>
+													<QuickActionButton
+														label={isPlatform ? PLATFORM_APP_TOOLTIP : terminated ? "Terminated apps cannot rotate secrets" : "Rotate secret"}
+														color="aurora.cyan"
+														disabled={isPlatform || terminated || !canRotateSecret}
+														tooltip={isPlatform ? PLATFORM_APP_TOOLTIP : !terminated && !canRotateSecret ? NO_PERMISSION_TOOLTIP : undefined}
 														onClick={() => setRotateTarget(service)}
 													>
 														<LuRefreshCw size={14} />
 													</QuickActionButton>
-													<QuickActionButton label="Copy app code" color="fg.subtle" onClick={() => handleCopyCode(service)}>
-														<LuCopy size={14} />
-													</QuickActionButton>
 													{service.status === APP_SERVICE_STATUS.ACTIVE ? (
 														<QuickActionButton
-															label="Deactivate"
+															label={isPlatform ? PLATFORM_APP_TOOLTIP : "Deactivate"}
 															color="aurora.amber"
-															disabled={!canUpdate}
-															tooltip={canUpdate ? undefined : NO_PERMISSION_TOOLTIP}
+															disabled={isPlatform || !canUpdate}
+															tooltip={isPlatform ? PLATFORM_APP_TOOLTIP : canUpdate ? undefined : NO_PERMISSION_TOOLTIP}
 															onClick={() => handleToggleStatus(service)}
 														>
 															<LuCircleSlash size={14} />
 														</QuickActionButton>
 													) : (
 														<QuickActionButton
-															label={terminated ? "Termination is permanent" : "Activate"}
+															label={isPlatform ? PLATFORM_APP_TOOLTIP : terminated ? "Termination is permanent" : "Activate"}
 															color="aurora.mint"
-															disabled={terminated || !canUpdate}
-															tooltip={!terminated && !canUpdate ? NO_PERMISSION_TOOLTIP : undefined}
+															disabled={isPlatform || terminated || !canUpdate}
+															tooltip={isPlatform ? PLATFORM_APP_TOOLTIP : !terminated && !canUpdate ? NO_PERMISSION_TOOLTIP : undefined}
 															onClick={() => handleToggleStatus(service)}
 														>
 															<LuCircleCheck size={14} />
@@ -744,11 +706,11 @@ export const AppServices = () => {
 													)}
 													{!terminated && (
 														<QuickActionButton
-															label="Terminate"
+															label={isPlatform ? PLATFORM_APP_TOOLTIP : "Terminate"}
 															color="aurora.magenta"
 															danger
-															disabled={!canDelete}
-															tooltip={canDelete ? undefined : NO_PERMISSION_TOOLTIP}
+															disabled={isPlatform || !canDelete}
+															tooltip={isPlatform ? PLATFORM_APP_TOOLTIP : canDelete ? undefined : NO_PERMISSION_TOOLTIP}
 															onClick={() => setTerminateTarget(service)}
 														>
 															<LuCircleX size={14} />

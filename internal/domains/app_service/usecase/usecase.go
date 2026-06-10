@@ -71,6 +71,8 @@ func (u *usecase) RegisterApp(ctx context.Context, req models.RegisterRequest) (
 		RedirectURL: req.RedirectURL,
 		CtxInfo:     req.CtxInfo,
 		Status:      constants.AppServiceStatusActive,
+		Icon:        req.Icon,
+		Color:       req.Color,
 	})
 	if err != nil {
 		return models.RegisterResponse{}, err
@@ -158,6 +160,11 @@ func (u *usecase) RefreshApp(ctx context.Context, req models.RefreshRequest) (mo
 	// check if app_code is valid
 	if appService.ID == "" {
 		return models.RefreshResponse{}, pkgErr.InvalidRequest("app_code not found")
+	}
+
+	// the isme platform app is read-only — its secret cannot be rotated
+	if constants.IsPlatformApp(appService.ID) {
+		return models.RefreshResponse{}, pkgErr.Forbidden("the isme platform app is read-only and cannot be modified")
 	}
 
 	// terminated app services cannot be refreshed
@@ -251,6 +258,8 @@ func (u *usecase) ListApps(ctx context.Context, req models.ListRequest) (models.
 			RedirectURL:    appService.RedirectURL,
 			CtxInfo:        appService.CtxInfo,
 			Status:         appService.Status,
+			Icon:           appService.Icon,
+			Color:          appService.Color,
 			CreatedAt:      createdAt,
 			CreatedBy:      appService.CreatedBy,
 			CreatedByEmail: creatorEmails[appService.CreatedBy],
@@ -281,6 +290,12 @@ func (u *usecase) UpdateStatus(ctx context.Context, id string, req models.Update
 		return pkgErr.NotFound("app service not found")
 	}
 
+	// the isme platform app is read-only — block at the usecase so the API/URL
+	// can't bypass the disabled UI controls
+	if constants.IsPlatformApp(appService.ID) {
+		return pkgErr.Forbidden("the isme platform app is read-only and cannot be modified")
+	}
+
 	// terminated is a terminal state
 	if appService.Status == constants.AppServiceStatusTerminated {
 		return pkgErr.InvalidRequest("app service is terminated")
@@ -292,4 +307,78 @@ func (u *usecase) UpdateStatus(ctx context.Context, id string, req models.Update
 	}
 
 	return u.appServiceRepo.UpdateStatus(ctx, id, req.Status)
+}
+
+func (u *usecase) GetApp(ctx context.Context, id string) (models.AppServiceListItem, error) {
+	appService, err := u.appServiceRepo.GetByID(ctx, id)
+	if err != nil {
+		return models.AppServiceListItem{}, err
+	}
+	if appService.ID == "" {
+		return models.AppServiceListItem{}, pkgErr.NotFound("app service not found")
+	}
+
+	// resolve creator email (best-effort, mirrors ListApps)
+	creatorEmail := ""
+	if appService.CreatedBy != "" {
+		creator, err := u.userRepo.GetByID(ctx, appService.CreatedBy)
+		if err != nil {
+			return models.AppServiceListItem{}, err
+		}
+		creatorEmail = creator.Email
+	}
+
+	updatedAt := ""
+	if !appService.UpdatedAt.IsZero() {
+		updatedAt = appService.UpdatedAt.Format(time.RFC3339)
+	}
+	createdAt := ""
+	if !appService.CreatedAt.IsZero() {
+		createdAt = appService.CreatedAt.Format(time.RFC3339)
+	}
+
+	return models.AppServiceListItem{
+		ID:             appService.ID,
+		AppCode:        appService.AppCode,
+		AppName:        appService.AppName,
+		RedirectURL:    appService.RedirectURL,
+		CtxInfo:        appService.CtxInfo,
+		Status:         appService.Status,
+		Icon:           appService.Icon,
+		Color:          appService.Color,
+		CreatedAt:      createdAt,
+		CreatedBy:      appService.CreatedBy,
+		CreatedByEmail: creatorEmail,
+		UpdatedAt:      updatedAt,
+		UpdatedBy:      appService.UpdatedBy,
+	}, nil
+}
+
+func (u *usecase) UpdateAppearance(ctx context.Context, id string, req models.UpdateAppearanceRequest) error {
+	// validation
+	if err := req.Validate(); err != nil {
+		return pkgErr.InvalidRequest(err.Error())
+	}
+
+	// check app service exists (appearance edits are allowed regardless of status)
+	appService, err := u.appServiceRepo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if appService.ID == "" {
+		return pkgErr.NotFound("app service not found")
+	}
+
+	// the isme platform app is read-only — block at the usecase so the API/URL
+	// can't bypass the disabled UI controls
+	if constants.IsPlatformApp(appService.ID) {
+		return pkgErr.Forbidden("the isme platform app is read-only and cannot be modified")
+	}
+
+	return u.appServiceRepo.Update(ctx, entity.UpdateRequest{
+		ID:      id,
+		AppName: req.AppName,
+		Icon:    req.Icon,
+		Color:   req.Color,
+	})
 }

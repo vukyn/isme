@@ -29,6 +29,7 @@ export const API_ENDPOINTS = {
 	APP_SERVICE_REGISTER: "/api/v1/app-service/register",
 	APP_SERVICE_VERIFY: "/api/v1/app-service/verify",
 	APP_SERVICE_REFRESH: "/api/v1/app-service/refresh",
+	APP_SERVICE_DETAIL: (appServiceId: string) => `/api/v1/app-service/${appServiceId}`,
 	APP_SERVICE_STATUS: (appServiceId: string) => `/api/v1/app-service/${appServiceId}/status`,
 
 	// Role / RBAC

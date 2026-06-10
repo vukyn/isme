@@ -36,6 +36,8 @@ func (r *repository) Create(ctx context.Context, req entity.CreateRequest) (stri
 		RedirectURL: req.RedirectURL,
 		CtxInfo:     req.CtxInfo,
 		Status:      req.Status,
+		Icon:        req.Icon,
+		Color:       req.Color,
 		CreatedBy:   userID,
 	}
 	_, err := r.db.NewInsert().
@@ -120,6 +122,21 @@ func (r *repository) Update(ctx context.Context, req entity.UpdateRequest) error
 	if req.AppSecret != nil {
 		appService.AppSecret = *req.AppSecret
 		fields = append(fields, "app_secret")
+	}
+
+	if req.AppName != nil {
+		appService.AppName = *req.AppName
+		fields = append(fields, "app_name")
+	}
+
+	if req.Icon != nil {
+		appService.Icon = *req.Icon
+		fields = append(fields, "icon")
+	}
+
+	if req.Color != nil {
+		appService.Color = *req.Color
+		fields = append(fields, "color")
 	}
 
 	if len(fields) > 0 {

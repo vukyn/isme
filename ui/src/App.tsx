@@ -10,6 +10,7 @@ import { Users } from "./pages/Users";
 import { InviteUser } from "./pages/InviteUser";
 import { Roles } from "./pages/Roles";
 import { AppServices } from "./pages/AppServices";
+import { EditAppService } from "./pages/EditAppService";
 import { Settings } from "./pages/Settings";
 import { NotFound } from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -78,6 +79,14 @@ function App() {
 						element={
 							<ProtectedRoute requiredPermission="app_service:read">
 								<AppServices />
+							</ProtectedRoute>
+						}
+					/>
+					<Route
+						path="/app-services/:id/edit"
+						element={
+							<ProtectedRoute requiredPermission="app_service:update">
+								<EditAppService />
 							</ProtectedRoute>
 						}
 					/>

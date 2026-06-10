@@ -16,6 +16,8 @@ type AppService struct {
 	RedirectURL   string    `bun:"redirect_url,notnull"`
 	CtxInfo       string    `bun:"ctx_info,notnull"`
 	Status        int32     `bun:"status,notnull"`
+	Icon          string    `bun:"icon,nullzero"`
+	Color         string    `bun:"color,nullzero"`
 	CreatedAt     time.Time `bun:"created_at,default:current_timestamp"`
 	CreatedBy     string    `bun:"created_by,nullzero"`
 	UpdatedAt     time.Time `bun:"updated_at,default:current_timestamp"`
@@ -31,11 +33,16 @@ type CreateRequest struct {
 	RedirectURL string
 	CtxInfo     string
 	Status      int32
+	Icon        string
+	Color       string
 }
 
 type UpdateRequest struct {
 	ID        string
+	AppName   *string
 	AppSecret *string
+	Icon      *string
+	Color     *string
 }
 
 // === Hooks ===
