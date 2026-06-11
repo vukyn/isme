@@ -5,7 +5,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { BrandMark } from "./brand-mark";
 import { UserChip } from "./user-chip";
 
-export type TopbarTab = "overview" | "users" | "roles" | "appServices" | "sessions" | "settings";
+export type TopbarTab = "overview" | "users" | "roles" | "appServices" | "sessions" | "activity" | "settings";
 
 interface TopbarProps {
 	active: TopbarTab;
@@ -20,6 +20,9 @@ const NAV: { key: TopbarTab; label: string; to: string; perm?: string }[] = [
 	{ key: "roles", label: "Roles & Permissions", to: "/roles", perm: "role:read" },
 	{ key: "appServices", label: "App Services", to: "/app-services", perm: "app_service:read" },
 	{ key: "sessions", label: "Sessions", to: "/sessions" },
+	// "activity" is intentionally NOT a nav entry — the Activity page is reached
+	// only from the Welcome "Recent activity → View all" link. The TopbarTab union
+	// keeps "activity" so the page can pass a valid (un-highlighted) active value.
 	{ key: "settings", label: "Settings", to: "/settings", perm: "settings:read" },
 ];
 

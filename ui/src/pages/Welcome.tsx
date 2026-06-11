@@ -1,70 +1,18 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { Box, Center, Flex, Grid, HStack, Heading, Link, Spinner, Stack, Text } from "@chakra-ui/react";
-import { LuCheck, LuKey, LuLogOut, LuUserPlus } from "react-icons/lu";
 import { Link as RouterLink } from "react-router-dom";
 import { GlassCard } from "@/components/ui/glass-card";
 import { StatCard } from "@/components/ui/stat-card";
-import { ActivityRow, type ActivityTone } from "@/components/ui/activity-row";
+import { ActivityRow } from "@/components/ui/activity-row";
 import { AppShell } from "@/layouts/AppShell";
 import { MOCK_STATS, type StatEntry } from "@/consts/mock";
-import type { ActivityItem } from "@/types";
 import { useUser } from "@/hooks/useUser";
 import { useActivity } from "@/hooks/useActivity";
 import { getMySessionsCount } from "@/apis";
 import { formatRelative } from "@/utils/time";
-
-interface ActivityRowData {
-	tone: ActivityTone;
-	icon: ReactNode;
-	body: ReactNode;
-	time: string;
-}
-
-/** Maps a structured activity record to its display row. The server sends only
- *  {type, meta}; the copy/icon/tone are composed here from the type. */
-const activityToRow = (item: ActivityItem): ActivityRowData => {
-	const time = item.created_at ? formatRelative(item.created_at) : "";
-	switch (item.type) {
-		case "sign_in": {
-			const device = typeof item.meta.device === "string" ? item.meta.device : "this device";
-			const clientIp = typeof item.meta.client_ip === "string" ? item.meta.client_ip : "";
-			return {
-				tone: "ok",
-				icon: <LuCheck />,
-				body: (
-					<>
-						Sign-in from <b>{device}</b>
-						{clientIp ? ` · ${clientIp}` : ""}
-					</>
-				),
-				time,
-			};
-		}
-		case "invitation_sent": {
-			const email = typeof item.meta.email === "string" ? item.meta.email : "someone";
-			const roles = Array.isArray(item.meta.roles) ? (item.meta.roles as unknown[]).filter((r): r is string => typeof r === "string") : [];
-			return {
-				tone: "magenta",
-				icon: <LuUserPlus />,
-				body: (
-					<>
-						Invited <b>{email}</b>
-						{roles.length > 0 ? ` as ${roles.join(", ")}` : ""}
-					</>
-				),
-				time,
-			};
-		}
-		case "password_changed":
-			return { tone: "violet", icon: <LuKey />, body: <>Password changed</>, time };
-		case "sign_out":
-			return { tone: "violet", icon: <LuLogOut />, body: <>Signed out</>, time };
-		default:
-			return { tone: "violet", icon: <LuCheck />, body: <>{item.type}</>, time };
-	}
-};
+import { activityToRow } from "@/utils/activity";
 
 export const Welcome = () => {
 	const { user, loading, error } = useUser();
@@ -195,7 +143,7 @@ export const Welcome = () => {
 						Recent activity
 					</Heading>
 					<Link asChild fontSize="sm" color="fg.subtle" _hover={{ color: "accentAlt" }}>
-						<RouterLink to="/sessions">View all →</RouterLink>
+						<RouterLink to="/activity">View all →</RouterLink>
 					</Link>
 				</Flex>
 				<GlassCard p="2">

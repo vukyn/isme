@@ -11,6 +11,7 @@ import { AppServices } from "./pages/AppServices";
 import { EditAppService } from "./pages/EditAppService";
 import { Settings } from "./pages/Settings";
 import { Sessions } from "./pages/Sessions";
+import { Activity } from "./pages/Activity";
 import { NotFound } from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AuroraBackground } from "./components/ui/aurora-background";
@@ -86,6 +87,14 @@ function App() {
 						element={
 							<ProtectedRoute>
 								<Sessions />
+							</ProtectedRoute>
+						}
+					/>
+					<Route
+						path="/activity"
+						element={
+							<ProtectedRoute>
+								<Activity />
 							</ProtectedRoute>
 						}
 					/>
