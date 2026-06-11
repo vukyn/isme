@@ -145,4 +145,6 @@ export interface GetMeResponse {
 	id: string;
 	name: string;
 	email: string;
+	/** RFC3339 account-creation time; drives the Welcome "member since" stat. */
+	created_at: string;
 }

@@ -9,9 +9,10 @@ import (
 )
 
 type GetMeResponse struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	Email string `json:"email"`
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Email     string `json:"email"`
+	CreatedAt string `json:"created_at"` // RFC3339; drives the "member since" stat
 }
 
 type LoginRequest struct {
