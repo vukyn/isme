@@ -36,6 +36,8 @@ type IRepository interface {
 	CountActiveByUserIDCreatedAfter(ctx context.Context, userID string, after time.Time) (int, error)
 	// Count token rotation events for a user at or after the given time (sliding 24h window)
 	CountRotationsByUserIDSince(ctx context.Context, userID string, since time.Time) (int, error)
+	// Prune token rotation events older than the given time. Returns the number of rows deleted.
+	PruneRotationsBefore(ctx context.Context, before time.Time) (int64, error)
 	// Inactive all active sessions for a user except the one with the given token ID
 	InactiveAllUserSessionExcept(ctx context.Context, userID string, exceptTokenID string) error
 }

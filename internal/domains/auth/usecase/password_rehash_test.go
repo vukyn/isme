@@ -110,6 +110,10 @@ func (f *fakeUserSessionRepository) InactiveExpiredSessions(ctx context.Context,
 	return 0, nil
 }
 
+func (f *fakeUserSessionRepository) PruneRotationsBefore(ctx context.Context, before time.Time) (int64, error) {
+	return 0, nil
+}
+
 func (f *fakeUserSessionRepository) FindByRefreshToken(ctx context.Context, refreshToken string) (userSessionEntity.UserSession, error) {
 	return userSessionEntity.UserSession{}, nil
 }

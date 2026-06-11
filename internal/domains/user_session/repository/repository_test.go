@@ -106,3 +106,62 @@ func TestInactiveExpiredSessionsNoMatches(t *testing.T) {
 		t.Fatalf("expected 0 sessions revoked, got %d", count)
 	}
 }
+
+func insertRotation(t *testing.T, db *bun.DB, id string, rotatedAt time.Time) {
+	t.Helper()
+	event := entity.TokenRotationEvent{
+		ID:        id,
+		UserID:    "user_" + id,
+		SessionID: "sess_" + id,
+		RotatedAt: rotatedAt,
+	}
+	if _, err := db.NewInsert().Model(&event).Exec(context.Background()); err != nil {
+		t.Fatalf("insert rotation %s: %v", id, err)
+	}
+}
+
+func rotationIDs(t *testing.T, db *bun.DB) map[string]bool {
+	t.Helper()
+	var events []entity.TokenRotationEvent
+	if err := db.NewSelect().Model(&events).Scan(context.Background()); err != nil {
+		t.Fatalf("scan rotations: %v", err)
+	}
+	ids := make(map[string]bool, len(events))
+	for _, event := range events {
+		ids[event.ID] = true
+	}
+	return ids
+}
+
+func TestPruneRotationsBefore(t *testing.T) {
+	db := newTestDB(t)
+	repository := NewRepository(db)
+	now := time.Now().UTC()
+	cutoff := now.Add(-48 * time.Hour)
+
+	// older than cutoff -> pruned
+	insertRotation(t, db, "old_a", now.Add(-72*time.Hour))
+	insertRotation(t, db, "old_b", now.Add(-49*time.Hour))
+	// at-or-after cutoff -> survive
+	insertRotation(t, db, "edge_at_cutoff", cutoff)
+	insertRotation(t, db, "recent", now.Add(-1*time.Hour))
+
+	cleaned, err := repository.PruneRotationsBefore(context.Background(), cutoff)
+	if err != nil {
+		t.Fatalf("PruneRotationsBefore: %v", err)
+	}
+	if cleaned != 2 {
+		t.Fatalf("expected 2 rotation events pruned, got %d", cleaned)
+	}
+
+	survivors := rotationIDs(t, db)
+	if len(survivors) != 2 {
+		t.Fatalf("expected 2 survivors, got %d (%v)", len(survivors), survivors)
+	}
+	if !survivors["edge_at_cutoff"] || !survivors["recent"] {
+		t.Fatalf("unexpected survivors: %v", survivors)
+	}
+	if survivors["old_a"] || survivors["old_b"] {
+		t.Fatalf("pruned events still present: %v", survivors)
+	}
+}

@@ -103,6 +103,9 @@ func (s *ssoUserSessionRepo) CountRotationsByUserIDSince(ctx context.Context, us
 func (s *ssoUserSessionRepo) InactiveExpiredSessions(ctx context.Context, before time.Time) (int64, error) {
 	return 0, nil
 }
+func (s *ssoUserSessionRepo) PruneRotationsBefore(ctx context.Context, before time.Time) (int64, error) {
+	return 0, nil
+}
 func (s *ssoUserSessionRepo) FindByRefreshToken(ctx context.Context, refreshToken string) (userSessionEntity.UserSession, error) {
 	return s.session, nil
 }

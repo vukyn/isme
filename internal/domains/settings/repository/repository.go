@@ -76,3 +76,56 @@ func (r *repository) RecordRun(ctx context.Context, ranAt time.Time, revoked int
 	}
 	return nil
 }
+
+func (r *repository) GetRotationCleanup(ctx context.Context) (entity.RotationCleanupConfig, error) {
+	config := entity.RotationCleanupConfig{}
+	err := r.db.NewSelect().
+		Model(&config).
+		Where("id = ?", configRowID).
+		Scan(ctx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return entity.RotationCleanupConfig{}, nil
+		}
+		return entity.RotationCleanupConfig{}, pkgErr.DatabaseError(err.Error())
+	}
+	return config, nil
+}
+
+func (r *repository) UpdateRotationCleanup(ctx context.Context, enabled bool, cron string, retentionHours int64, updatedBy string) error {
+	config := entity.RotationCleanupConfig{
+		ID:             configRowID,
+		Enabled:        enabled,
+		Cron:           cron,
+		RetentionHours: retentionHours,
+		UpdatedBy:      updatedBy,
+	}
+
+	_, err := r.db.NewUpdate().
+		Model(&config).
+		Column("enabled", "cron", "retention_hours", "updated_at", "updated_by").
+		Where("id = ?", configRowID).
+		Exec(ctx)
+	if err != nil {
+		return pkgErr.DatabaseError(err.Error())
+	}
+	return nil
+}
+
+func (r *repository) RecordRotationCleanupRun(ctx context.Context, ranAt time.Time, cleaned int64) error {
+	config := entity.RotationCleanupConfig{
+		ID:               configRowID,
+		LastRunAt:        &ranAt,
+		LastCleanedCount: &cleaned,
+	}
+
+	_, err := r.db.NewUpdate().
+		Model(&config).
+		Column("last_run_at", "last_cleaned_count", "updated_at").
+		Where("id = ?", configRowID).
+		Exec(ctx)
+	if err != nil {
+		return pkgErr.DatabaseError(err.Error())
+	}
+	return nil
+}

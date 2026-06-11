@@ -107,9 +107,9 @@ func (r *repository) UpdateLastLogin(ctx context.Context, req models.UpdateLastL
 // user at or after the given time — the accurate sliding-window count for the
 // Welcome "Token rotations" card.
 //
-// NOTE: token_rotation_events grows unbounded (one row per refresh). A periodic
-// prune (e.g. delete rows older than the widest window the UI uses) is deferred;
-// the user/rotated_at index keeps this count cheap regardless of table size.
+// token_rotation_events grows unbounded (one row per refresh); the periodic
+// prune below (PruneRotationsBefore, driven by the rotation-cleanup scheduler)
+// keeps it bounded. The user/rotated_at index keeps this count cheap regardless.
 func (r *repository) CountRotationsByUserIDSince(ctx context.Context, userID string, since time.Time) (int, error) {
 	if userID == "" {
 		return 0, pkgErr.InvalidRequest("user_id is required")
@@ -120,6 +120,24 @@ func (r *repository) CountRotationsByUserIDSince(ctx context.Context, userID str
 		Where("user_id = ?", userID).
 		Where("rotated_at >= ?", since).
 		Count(ctx)
+	if err != nil {
+		return 0, pkgErr.DatabaseError(err.Error())
+	}
+	return count, nil
+}
+
+// PruneRotationsBefore deletes token rotation events older than the given time
+// and returns the number of rows removed. Driven by the rotation-cleanup
+// scheduler to keep token_rotation_events bounded.
+func (r *repository) PruneRotationsBefore(ctx context.Context, before time.Time) (int64, error) {
+	res, err := r.db.NewDelete().
+		Model((*entity.TokenRotationEvent)(nil)).
+		Where("rotated_at < ?", before).
+		Exec(ctx)
+	if err != nil {
+		return 0, pkgErr.DatabaseError(err.Error())
+	}
+	count, err := res.RowsAffected()
 	if err != nil {
 		return 0, pkgErr.DatabaseError(err.Error())
 	}
