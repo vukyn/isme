@@ -3,6 +3,7 @@ package di
 import (
 	"github.com/vukyn/isme/internal/config"
 	"github.com/vukyn/isme/internal/constants"
+	activityUsecase "github.com/vukyn/isme/internal/domains/activity/usecase"
 	appServiceUsecase "github.com/vukyn/isme/internal/domains/app_service/usecase"
 	authUsecase "github.com/vukyn/isme/internal/domains/auth/usecase"
 	roleUsecase "github.com/vukyn/isme/internal/domains/role/usecase"
@@ -17,6 +18,7 @@ import (
 
 func defineUsecase() []*di.Def {
 	return []*di.Def{
+		defineActivityUsecase(),
 		defineAuthUsecase(),
 		defineAppServiceUsecase(),
 		defineUserUsecase(),
@@ -24,6 +26,34 @@ func defineUsecase() []*di.Def {
 		defineUserInvitationUsecase(),
 		defineSettingsUsecase(),
 	}
+}
+
+func defineActivityUsecase() *di.Def {
+	def := &di.Def{
+		Name:  constants.CONTAINER_NAME_ACTIVITY_USECASE,
+		Scope: di.Request,
+		Build: func(ctn di.Container) (any, error) {
+			activityRepo, err := GetActivityRepository(ctn)
+			if err != nil {
+				return nil, err
+			}
+			log.New().Debug("Activity usecase initialized")
+			return activityUsecase.NewUsecase(activityRepo), nil
+		},
+		Close: func(obj any) error {
+			log.New().Debug("Activity usecase destroyed")
+			return nil
+		},
+	}
+	return def
+}
+
+func GetActivityUsecase(ctn di.Container) (activityUsecase.IUseCase, error) {
+	uc, err := ctn.SafeGet(constants.CONTAINER_NAME_ACTIVITY_USECASE)
+	if err != nil {
+		return nil, err
+	}
+	return uc.(activityUsecase.IUseCase), nil
 }
 
 func defineAuthUsecase() *di.Def {
@@ -49,8 +79,12 @@ func defineAuthUsecase() *di.Def {
 			if err != nil {
 				return nil, err
 			}
+			activityUsecase, err := GetActivityUsecase(ctn)
+			if err != nil {
+				return nil, err
+			}
 			log.New().Debug("Auth usecase initialized")
-			return authUsecase.NewUsecase(cfg, cache, userRepo, userSessionRepo, appServiceRepo, roleRepo), nil
+			return authUsecase.NewUsecase(cfg, cache, userRepo, userSessionRepo, appServiceRepo, roleRepo, activityUsecase), nil
 		},
 		Close: func(obj any) error {
 			log.New().Debug("Auth usecase destroyed")
@@ -199,8 +233,12 @@ func defineUserInvitationUsecase() *di.Def {
 			if err != nil {
 				return nil, err
 			}
+			activityUsecase, err := GetActivityUsecase(ctn)
+			if err != nil {
+				return nil, err
+			}
 			log.New().Debug("User invitation usecase initialized")
-			return userInvitationUsecase.NewUsecase(cfg, userInvitationRepo, userRepo, roleRepo, appServiceRepo), nil
+			return userInvitationUsecase.NewUsecase(cfg, userInvitationRepo, userRepo, roleRepo, appServiceRepo, activityUsecase), nil
 		},
 		Close: func(obj any) error {
 			log.New().Debug("User invitation usecase destroyed")

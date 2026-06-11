@@ -128,6 +128,7 @@ type ssoFixture struct {
 	cache        *pkgCache.Cache[string, string]
 	sessionRepo  *ssoUserSessionRepo
 	cfg          *config.Config
+	activity     *fakeActivityUsecase
 	accessToken  string
 	refreshToken string
 	sessionID    string
@@ -170,7 +171,8 @@ func newSSOFixture(t *testing.T, sessionStatus int32, sessionExpiresAt time.Time
 		},
 	}
 
-	uc := NewUsecase(cfg, cache, userRepo, sessionRepo, appRepo, &fakeRoleRepository{}).(*usecase)
+	activity := &fakeActivityUsecase{}
+	uc := NewUsecase(cfg, cache, userRepo, sessionRepo, appRepo, &fakeRoleRepository{}, activity).(*usecase)
 
 	// live access token (token_id is random; the session stub matches any lookup)
 	accessToken, _, err := jwt.GenerateJWTWithRSAPrivateKey(cfg.Auth.AccessTokenPrivateKey, cfg.Auth.AccessTokenExpireIn, userID, email)
@@ -191,6 +193,7 @@ func newSSOFixture(t *testing.T, sessionStatus int32, sessionExpiresAt time.Time
 		cache:        cache,
 		sessionRepo:  sessionRepo,
 		cfg:          cfg,
+		activity:     activity,
 		accessToken:  accessToken,
 		refreshToken: refreshToken,
 		sessionID:    sessionID,
@@ -378,6 +381,12 @@ func TestSSOConsentMintsCodeAndConsumesNonce(t *testing.T) {
 	}
 	if res.RedirectURL != "https://app.medioa.local/callback" {
 		t.Errorf("unexpected redirect_url: %q", res.RedirectURL)
+	}
+
+	// LOCKED DECISION (a): silent SSO consent is per-app re-consent, NOT a genuine
+	// human login — it must NOT emit a sign_in event (avoids per-app spam).
+	if len(f.activity.signInCalls) != 0 {
+		t.Errorf("SSOConsent must not record a sign_in event, got %d", len(f.activity.signInCalls))
 	}
 
 	// consent must NOT rotate/invalidate the caller's existing browser session

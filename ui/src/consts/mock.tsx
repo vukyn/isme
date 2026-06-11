@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
-import { LuMonitor, LuClock, LuCalendar, LuCheck, LuKey, LuUserPlus } from "react-icons/lu";
+import { LuMonitor, LuClock, LuCalendar } from "react-icons/lu";
 import type { StatTone, StatDeltaTone } from "@/components/ui/stat-card";
-import type { ActivityTone } from "@/components/ui/activity-row";
 
 export interface StatEntry {
 	tone: StatTone;
@@ -11,13 +10,6 @@ export interface StatEntry {
 	stat: string;
 	delta?: string;
 	deltaTone?: StatDeltaTone;
-}
-
-export interface ActivityEntry {
-	tone: ActivityTone;
-	icon: ReactNode;
-	body: ReactNode;
-	time: string;
 }
 
 export const MOCK_STATS: StatEntry[] = [
@@ -47,38 +39,5 @@ export const MOCK_STATS: StatEntry[] = [
 		stat: "—",
 		delta: "● account age",
 		deltaTone: "neutral",
-	},
-];
-
-export const MOCK_ACTIVITY: ActivityEntry[] = [
-	{
-		tone: "ok",
-		icon: <LuCheck />,
-		body: (
-			<>
-				Sign-in from <b>MacBook · Safari</b> · Hồ Chí Minh
-			</>
-		),
-		time: "just now",
-	},
-	{
-		tone: "violet",
-		icon: <LuKey />,
-		body: (
-			<>
-				API key rotated for <b>billing-service</b>
-			</>
-		),
-		time: "2h ago",
-	},
-	{
-		tone: "magenta",
-		icon: <LuUserPlus />,
-		body: (
-			<>
-				Invited <b>thanhlp3@example.com</b> as Admin
-			</>
-		),
-		time: "yesterday",
 	},
 ];

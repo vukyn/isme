@@ -65,13 +65,39 @@ func newSSOLoginFixture(t *testing.T, sessionID string, grouped map[string][]str
 
 	roleRepo := &fakeRoleRepository{groupedPermissionCodes: grouped}
 
-	uc := NewUsecase(cfg, cache, userRepository, sessionRepo, appRepo, roleRepo).(*usecase)
+	uc := NewUsecase(cfg, cache, userRepository, sessionRepo, appRepo, roleRepo, &fakeActivityUsecase{}).(*usecase)
 
 	if sessionID != "" {
 		cache.Set(sessionID, "app-1", time.Minute)
 	}
 
 	return uc, sessionRepo, password
+}
+
+// TestSSOLoginEmitsSingleSignIn proves the password-form SSO login path (a
+// genuine human login) records exactly one sign_in — never one per app session.
+func TestSSOLoginEmitsSingleSignIn(t *testing.T) {
+	const sessionID = "sess-signin"
+	uc, _, password := newSSOLoginFixture(t, sessionID, map[string][]string{
+		"medioa2": {"storage:read"},
+	})
+	activity := uc.activityUsecase.(*fakeActivityUsecase)
+
+	_, err := uc.Login(context.Background(), models.LoginRequest{
+		Email:     "sso@example.com",
+		Password:  password,
+		SessionID: sessionID,
+	})
+	if err != nil {
+		t.Fatalf("expected SSO login to succeed, got %v", err)
+	}
+
+	if len(activity.signInCalls) != 1 {
+		t.Fatalf("expected exactly 1 sign_in for password-form SSO login, got %d", len(activity.signInCalls))
+	}
+	if activity.signInCalls[0].userID != "user-sso" {
+		t.Errorf("expected sign_in for user-sso, got %q", activity.signInCalls[0].userID)
+	}
 }
 
 // TestSSOLoginReturnsIdPTokensAndCode is the regression guard: an SSO login must

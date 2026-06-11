@@ -73,3 +73,4 @@ export type {
 	UpdateRotationCleanupConfigRequest,
 } from "./settings";
 export type { MySessionItem, MySessionCount } from "./session";
+export type { ActivityItem } from "./activity";
