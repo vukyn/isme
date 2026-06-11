@@ -717,10 +717,39 @@ export const Roles = () => {
 		}
 		return byResource;
 	}, [catalog]);
-	// Does the typed resource match an existing one? If so its icon/color are locked.
-	const matchedExistingResource = cleanResource ? existingResourceIconKeys.has(cleanResource) : false;
-	const lockedResourceIconKey = matchedExistingResource ? (existingResourceIconKeys.get(cleanResource) ?? "") : "";
-	const lockedResourceColorKey = matchedExistingResource ? (existingResourceColorKeys.get(cleanResource) ?? "") : "";
+	// Icon/color staged for a resource by an EARLIER queued pair (first pair of
+	// each resource wins) — the backend resolves a resource's icon/color once from
+	// its first row, so subsequent actions of the same resource must reuse it.
+	const queuedResourceIconKeys = useMemo(() => {
+		const byResource = new Map<string, string>();
+		for (const pair of permissionQueue) {
+			if (!byResource.has(pair.resource)) byResource.set(pair.resource, pair.icon ?? "");
+		}
+		return byResource;
+	}, [permissionQueue]);
+	const queuedResourceColorKeys = useMemo(() => {
+		const byResource = new Map<string, string>();
+		for (const pair of permissionQueue) {
+			if (!byResource.has(pair.resource)) byResource.set(pair.resource, pair.color ?? "");
+		}
+		return byResource;
+	}, [permissionQueue]);
+	// Does the typed resource already exist — in the catalog OR already staged in
+	// the queue? If so its icon/color are locked (a resource has ONE appearance,
+	// shared by all its actions; the backend ignores per-action icon/color).
+	const matchedInCatalog = cleanResource ? existingResourceIconKeys.has(cleanResource) : false;
+	const matchedInQueue = cleanResource ? queuedResourceIconKeys.has(cleanResource) : false;
+	const matchedExistingResource = matchedInCatalog || matchedInQueue;
+	const lockedResourceIconKey = matchedInCatalog
+		? (existingResourceIconKeys.get(cleanResource) ?? "")
+		: matchedInQueue
+			? (queuedResourceIconKeys.get(cleanResource) ?? "")
+			: "";
+	const lockedResourceColorKey = matchedInCatalog
+		? (existingResourceColorKeys.get(cleanResource) ?? "")
+		: matchedInQueue
+			? (queuedResourceColorKeys.get(cleanResource) ?? "")
+			: "";
 	// The icon/color that will actually be sent: locked for an existing resource,
 	// the user's pick for a new one.
 	const effectiveIconKey = matchedExistingResource ? lockedResourceIconKey : newResourceIcon;
