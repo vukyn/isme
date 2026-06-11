@@ -25,6 +25,9 @@ type IUseCase interface {
 	CreatePermissions(ctx context.Context, req models.CreatePermissionsRequest) ([]models.PermissionItem, error)
 	// Delete a catalog permission and clear its grants (rejected for the isme system app)
 	DeletePermission(ctx context.Context, permissionID int64) error
+	// Update a resource's appearance (icon + color) across all its catalog rows
+	// (rejected for the isme system app; resource must exist in the app catalog)
+	UpdatePermissionAppearance(ctx context.Context, req models.UpdatePermissionAppearanceRequest) error
 	// ProvisionDefaultRoles seeds the default per-app role set (an admin role
 	// holding the app's full CRUD permission catalog) for a newly created app
 	ProvisionDefaultRoles(ctx context.Context, appID string) error

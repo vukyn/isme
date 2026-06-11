@@ -44,6 +44,7 @@ export const API_ENDPOINTS = {
 	ROLE_MEMBERS: (roleId: string) => `/api/v1/roles/${roleId}/members`,
 	ROLE_MEMBER_DETAIL: (roleId: string, userId: string) => `/api/v1/roles/${roleId}/members/${userId}`,
 	PERMISSIONS: "/api/v1/permissions",
+	PERMISSION_APPEARANCE: "/api/v1/permissions/appearance",
 	PERMISSION_DETAIL: (permissionId: number) => `/api/v1/permissions/${permissionId}`,
 
 	// Settings

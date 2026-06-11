@@ -129,6 +129,39 @@ func (r CreatePermissionsRequest) Validate() error {
 	return nil
 }
 
+// UpdatePermissionAppearanceRequest changes the per-resource appearance (icon +
+// color) of every resource:action row of an (app_id, resource). Icon and color
+// are allowlist keys; empty is allowed (a resource may have no icon/color set).
+type UpdatePermissionAppearanceRequest struct {
+	AppID    string `json:"app_id"`
+	Resource string `json:"resource"`
+	// Icon is the per-resource icon key (allowlist in roleConstants); empty =
+	// neutral default in the UI.
+	Icon string `json:"icon"`
+	// Color is the per-resource color palette key (allowlist in roleConstants);
+	// empty = neutral fallback in the UI.
+	Color string `json:"color"`
+}
+
+func (r UpdatePermissionAppearanceRequest) Validate() error {
+	if r.AppID == "" {
+		return errors.New("app_id is required")
+	}
+	if r.Resource == "" {
+		return errors.New("resource is required")
+	}
+	if !permissionTokenPattern.MatchString(r.Resource) {
+		return errors.New("resource must be lowercase (a-z, 0-9, underscore) with no ':'")
+	}
+	if !roleConstants.IsValidPermissionIcon(r.Icon) {
+		return errors.New("icon is not a known icon key")
+	}
+	if !roleConstants.IsValidColor(r.Color) {
+		return errors.New("color is not a known color key")
+	}
+	return nil
+}
+
 type UpdateRequest struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`

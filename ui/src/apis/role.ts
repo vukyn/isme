@@ -1,6 +1,7 @@
 import type {
 	AddRoleMembersRequest,
 	CreatePermissionsRequest,
+	UpdatePermissionAppearanceRequest,
 	CreateRoleRequest,
 	CreateRoleResponse,
 	ListRoleMembersRequest,
@@ -73,6 +74,12 @@ export const createPermissions = async (appId: string, permissions: PermissionPa
  *  app). The backend clears any role grants referencing it first. */
 export const deletePermission = async (permissionId: number): Promise<void> => {
 	await apiClient.delete(API_ENDPOINTS.PERMISSION_DETAIL(permissionId));
+};
+
+/** Updates a resource's per-resource appearance (icon + color) across every
+ *  catalog row of that (app_id, resource). Rejected for the isme system app. */
+export const updatePermissionAppearance = async (request: UpdatePermissionAppearanceRequest): Promise<void> => {
+	await apiClient.put(API_ENDPOINTS.PERMISSION_APPEARANCE, request);
 };
 
 export const listRoleMembers = async (

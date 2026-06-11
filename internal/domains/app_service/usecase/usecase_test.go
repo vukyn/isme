@@ -170,6 +170,10 @@ func (f *fakeRoleUsecase) DeletePermission(ctx context.Context, permissionID int
 	return nil
 }
 
+func (f *fakeRoleUsecase) UpdatePermissionAppearance(ctx context.Context, req roleModels.UpdatePermissionAppearanceRequest) error {
+	return nil
+}
+
 func (f *fakeRoleUsecase) ProvisionDefaultRoles(ctx context.Context, appID string) error {
 	f.provisionedAppIDs = append(f.provisionedAppIDs, appID)
 	return nil

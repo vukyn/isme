@@ -367,6 +367,32 @@ func (r *repository) DeletePermission(ctx context.Context, permissionID int64) e
 	return nil
 }
 
+// UpdatePermissionAppearance sets the per-resource icon and color on every row
+// of the given (app_id, resource) in one statement. Appearance is shared by all
+// resource:action rows of a resource, so a single NewUpdate touches them all.
+// The permissions table has no audit columns, so none are set (mirrors
+// CreatePermissions).
+func (r *repository) UpdatePermissionAppearance(ctx context.Context, appID string, resource string, icon string, color string) error {
+	if appID == "" {
+		return pkgErr.InvalidRequest("app_id is required")
+	}
+	if resource == "" {
+		return pkgErr.InvalidRequest("resource is required")
+	}
+
+	_, err := r.db.NewUpdate().
+		Model((*entity.Permission)(nil)).
+		Set("icon = ?", icon).
+		Set("color = ?", color).
+		Where("app_id = ?", appID).
+		Where("resource = ?", resource).
+		Exec(ctx)
+	if err != nil {
+		return pkgErr.DatabaseError(err.Error())
+	}
+	return nil
+}
+
 func (r *repository) GetPermissionsByRoleID(ctx context.Context, roleID string) ([]entity.Permission, error) {
 	if roleID == "" {
 		return nil, pkgErr.InvalidRequest("role_id is required")

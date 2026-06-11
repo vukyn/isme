@@ -315,6 +315,70 @@ func TestCreatePermissionsColorPerResource(t *testing.T) {
 	}
 }
 
+// UpdatePermissionAppearance rewrites the icon + color on every resource:action
+// row of an (app_id, resource) in one statement, leaving other resources of the
+// same app untouched.
+func TestUpdatePermissionAppearance(t *testing.T) {
+	db := newTestDB(t)
+	ctx := context.Background()
+	roleRepository := NewRepository(db)
+
+	insertApp(t, db, "app_medioa2", "medioa2", nil)
+
+	// a multi-action resource (report) styled "file"/"violet" at create, plus a
+	// second resource (audit) that must stay untouched
+	if _, err := roleRepository.CreatePermissions(ctx, "app_medioa2", []models.PermissionItem{
+		{Resource: "report", Action: "read", Icon: "file", Color: "violet"},
+		{Resource: "report", Action: "export", Icon: "file", Color: "violet"},
+		{Resource: "report", Action: "delete", Icon: "file", Color: "violet"},
+		{Resource: "audit", Action: "read", Icon: "shield", Color: "amber"},
+	}); err != nil {
+		t.Fatalf("CreatePermissions() error = %v", err)
+	}
+
+	// repaint report → database/cyan across all its rows
+	if err := roleRepository.UpdatePermissionAppearance(ctx, "app_medioa2", "report", "database", "cyan"); err != nil {
+		t.Fatalf("UpdatePermissionAppearance() error = %v", err)
+	}
+
+	permissions, err := roleRepository.ListPermissions(ctx, models.ListPermissionsRequest{AppID: "app_medioa2"})
+	if err != nil {
+		t.Fatalf("ListPermissions() error = %v", err)
+	}
+
+	reportRows := 0
+	for _, permission := range permissions {
+		switch permission.Resource {
+		case "report":
+			reportRows++
+			if permission.Icon != "database" || permission.Color != "cyan" {
+				t.Errorf("report %s: got icon=%q color=%q, want database/cyan", permission.Action, permission.Icon, permission.Color)
+			}
+		case "audit":
+			if permission.Icon != "shield" || permission.Color != "amber" {
+				t.Errorf("audit %s was changed: got icon=%q color=%q, want shield/amber", permission.Action, permission.Icon, permission.Color)
+			}
+		}
+	}
+	if reportRows != 3 {
+		t.Errorf("expected 3 report rows updated, got %d", reportRows)
+	}
+}
+
+// Guard clauses reject empty app id / resource without touching the database.
+func TestUpdatePermissionAppearanceGuards(t *testing.T) {
+	db := newTestDB(t)
+	ctx := context.Background()
+	roleRepository := NewRepository(db)
+
+	if err := roleRepository.UpdatePermissionAppearance(ctx, "", "report", "file", "violet"); err == nil {
+		t.Error("expected error for empty app_id, got nil")
+	}
+	if err := roleRepository.UpdatePermissionAppearance(ctx, "app_medioa2", "", "file", "violet"); err == nil {
+		t.Error("expected error for empty resource, got nil")
+	}
+}
+
 func keysOf(m map[string][]string) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {

@@ -110,6 +110,16 @@ export interface CreatePermissionsRequest {
 	permissions: PermissionPair[];
 }
 
+/** Maps to models.UpdatePermissionAppearanceRequest (PUT /api/v1/permissions/appearance).
+ *  Changes a resource's per-resource icon + color across all its catalog rows
+ *  (rejected for the isme system app). icon/color are allowlist keys; empty allowed. */
+export interface UpdatePermissionAppearanceRequest {
+	app_id: string;
+	resource: string;
+	icon: string;
+	color: string;
+}
+
 /** Maps to models.AddMembersRequest (POST /api/v1/roles/:id/members). */
 export interface AddRoleMembersRequest {
 	user_ids: string[];

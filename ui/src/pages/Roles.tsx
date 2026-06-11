@@ -40,6 +40,7 @@ import {
 } from "@/apis";
 import { AppTile } from "@/components/AppTile";
 import { CreateRoleDialog } from "@/components/CreateRoleDialog";
+import { EditPermissionAppearanceDialog } from "@/components/EditPermissionAppearanceDialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip } from "@/components/ui/tooltip";
 import {
@@ -92,6 +93,12 @@ interface MatrixResource {
 	label: string;
 	accent: { color: string; bg: string };
 	icon: ReactNode;
+	/** The RAW stored icon key (empty when unset) — seeds the appearance editor,
+	 *  NOT the resolved/fallback key used for rendering. */
+	iconKey: string;
+	/** The RAW stored color key (empty when unset) — seeds the appearance editor,
+	 *  NOT the cycling-palette fallback used for rendering. */
+	colorKey: string;
 	/** Which CRUD actions this resource has in the app's catalog. */
 	crud: Record<"read" | "create" | "update" | "delete", boolean>;
 	/** Non-CRUD actions (verify, revoke, rotate_secret, …). */
@@ -154,6 +161,9 @@ const buildMatrix = (catalog: PermissionItem[]): MatrixResource[] => {
 			label: resourceLabel(resource),
 			accent,
 			icon: renderPermissionIcon(iconKey, 14),
+			// raw stored keys (empty when unset) — for seeding the appearance editor
+			iconKey: iconByResource.get(resource) ?? "",
+			colorKey: storedColorKey ?? "",
 			crud: {
 				read: actions.has("read"),
 				create: actions.has("create"),
@@ -467,6 +477,16 @@ export const Roles = () => {
 	// Remove-permission confirm dialog (delete a resource:action from the catalog).
 	const [permissionToDelete, setPermissionToDelete] = useState<PermissionItem | null>(null);
 	const [deletingPermission, setDeletingPermission] = useState(false);
+
+	// Edit-appearance dialog target — the resource whose icon + color are edited
+	// (shared by all its resource:action rows). Carries the RAW stored keys so the
+	// editor seeds from the persisted appearance, not buildMatrix's fallback color.
+	const [appearanceResource, setAppearanceResource] = useState<{
+		resource: string;
+		label: string;
+		iconKey: string;
+		colorKey: string;
+	} | null>(null);
 
 	const selectedApp = useMemo(() => apps.find((app) => app.id === selectedAppId) ?? null, [apps, selectedAppId]);
 	// isme is itself an app whose roles/permissions are system-managed (read-only).
@@ -1593,6 +1613,56 @@ export const Roles = () => {
 																						{resource.resource}
 																					</Text>
 																				</Box>
+																				{!isIsmeApp &&
+																					(() => {
+																						const pencil = (
+																							<Center
+																								as="button"
+																								display="inline-flex"
+																								flex="none"
+																								w="7"
+																								h="7"
+																								borderRadius="8px"
+																								bg="bg.glass"
+																								borderWidth="1px"
+																								borderColor="border.strong"
+																								color="fg.muted"
+																								opacity={canUpdate ? 0.5 : 0.35}
+																								cursor={canUpdate ? "pointer" : "not-allowed"}
+																								title={canUpdate ? "Edit appearance" : undefined}
+																								aria-label={`Edit appearance for ${resource.resource}`}
+																								css={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
+																								_hover={
+																									canUpdate
+																										? {
+																												opacity: 1,
+																												color: "aurora.violet",
+																												borderColor: "aurora.violet",
+																												bg: "rgba(139,92,246,0.12)",
+																											}
+																										: undefined
+																								}
+																								onClick={() => {
+																									if (canUpdate && !isIsmeApp) {
+																										setAppearanceResource({
+																											resource: resource.resource,
+																											label: resource.label,
+																											iconKey: resource.iconKey,
+																											colorKey: resource.colorKey,
+																										});
+																									}
+																								}}
+																							>
+																								<LuPencil size={13} />
+																							</Center>
+																						);
+																						if (canUpdate) return pencil;
+																						return (
+																							<Tooltip content={NO_PERMISSION_TOOLTIP} positioning={{ placement: "top" }}>
+																								{pencil}
+																							</Tooltip>
+																						);
+																					})()}
 																			</HStack>
 																		) : null}
 																	</Table.Cell>
@@ -2447,6 +2517,26 @@ export const Roles = () => {
 					</Dialog.Content>
 				</Dialog.Positioner>
 			</Dialog.Root>
+
+			{/* Edit-appearance dialog — changes a resource's icon + color across all
+			    its catalog rows (rejected for the isme system app). Seeds from the
+			    RAW stored keys carried on the matrix resource. */}
+			<EditPermissionAppearanceDialog
+				open={!!appearanceResource}
+				onOpenChange={(open) => {
+					if (!open) setAppearanceResource(null);
+				}}
+				appId={selectedApp?.id ?? ""}
+				resource={appearanceResource?.resource ?? ""}
+				label={appearanceResource?.label ?? ""}
+				savedIcon={appearanceResource?.iconKey ?? ""}
+				savedColor={appearanceResource?.colorKey ?? ""}
+				canEdit={canUpdate}
+				onSaved={async () => {
+					if (selectedApp) setCatalog(await listPermissions({ app_code: selectedApp.app_code }));
+					setAppearanceResource(null);
+				}}
+			/>
 
 			{/* Remove-permission confirm dialog — deletes a resource:action from the
 			    app's catalog (and clears any role grants referencing it). */}

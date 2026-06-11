@@ -31,6 +31,7 @@ type fakeRoleRepository struct {
 	replacedPermissions  map[string][]int64
 	createdPermissions   map[string][]models.PermissionItem
 	deletedPermissionIDs []int64
+	updatedAppearances   []string
 }
 
 var _ roleRepo.IRepository = (*fakeRoleRepository)(nil)
@@ -133,6 +134,21 @@ func (f *fakeRoleRepository) CreatePermissions(ctx context.Context, appID string
 
 func (f *fakeRoleRepository) GetPermissionByID(ctx context.Context, permissionID int64) (entity.Permission, error) {
 	return f.permissionsByID[permissionID], nil
+}
+
+func (f *fakeRoleRepository) UpdatePermissionAppearance(ctx context.Context, appID string, resource string, icon string, color string) error {
+	updated := false
+	for i := range f.createdPermissions[appID] {
+		if f.createdPermissions[appID][i].Resource == resource {
+			f.createdPermissions[appID][i].Icon = icon
+			f.createdPermissions[appID][i].Color = color
+			updated = true
+		}
+	}
+	if updated {
+		f.updatedAppearances = append(f.updatedAppearances, appID+"\x00"+resource)
+	}
+	return nil
 }
 
 func (f *fakeRoleRepository) DeletePermission(ctx context.Context, permissionID int64) error {
@@ -625,6 +641,161 @@ func TestCreatePermissionsValidation(t *testing.T) {
 			}
 			if !tt.wantErr && err != nil {
 				t.Errorf("CreatePermissions(%q:%q) unexpected error: %v", tt.resource, tt.action, err)
+			}
+		})
+	}
+}
+
+// seedResource adds a resource (one read row) to the fake catalog so appearance
+// edits have something to target.
+func seedResource(t *testing.T, fakeRole *fakeRoleRepository, appID, resource string) {
+	t.Helper()
+	if _, err := newTestUsecase(fakeRole).CreatePermissions(context.Background(), models.CreatePermissionsRequest{
+		AppID:       appID,
+		Permissions: []models.PermissionPair{{Resource: resource, Action: "read"}},
+	}); err != nil {
+		t.Fatalf("seed resource %q: %v", resource, err)
+	}
+}
+
+// The happy path updates the resource's appearance and reaches the repo.
+func TestUpdatePermissionAppearanceHappyPath(t *testing.T) {
+	fakeRole := newFakeRoleRepository()
+	seedResource(t, fakeRole, testAppID, "report")
+
+	err := newTestUsecase(fakeRole).UpdatePermissionAppearance(context.Background(), models.UpdatePermissionAppearanceRequest{
+		AppID:    testAppID,
+		Resource: "report",
+		Icon:     "file",
+		Color:    "violet",
+	})
+	if err != nil {
+		t.Fatalf("UpdatePermissionAppearance() error = %v", err)
+	}
+	if len(fakeRole.updatedAppearances) != 1 {
+		t.Errorf("expected the appearance to be updated once, got %v", fakeRole.updatedAppearances)
+	}
+}
+
+// An empty icon + empty color is allowed (both validators permit empty) and
+// still reaches the repo.
+func TestUpdatePermissionAppearanceAllowsEmpty(t *testing.T) {
+	fakeRole := newFakeRoleRepository()
+	seedResource(t, fakeRole, testAppID, "report")
+
+	err := newTestUsecase(fakeRole).UpdatePermissionAppearance(context.Background(), models.UpdatePermissionAppearanceRequest{
+		AppID:    testAppID,
+		Resource: "report",
+		Icon:     "",
+		Color:    "",
+	})
+	if err != nil {
+		t.Fatalf("UpdatePermissionAppearance() with empty icon/color error = %v", err)
+	}
+	if len(fakeRole.updatedAppearances) != 1 {
+		t.Errorf("expected the appearance to be updated once, got %v", fakeRole.updatedAppearances)
+	}
+}
+
+// Editing the isme system app is rejected by app id.
+func TestUpdatePermissionAppearanceRejectsIsmeByID(t *testing.T) {
+	fakeRole := newFakeRoleRepository()
+
+	err := newTestUsecase(fakeRole).UpdatePermissionAppearance(context.Background(), models.UpdatePermissionAppearanceRequest{
+		AppID:    roleConstants.APP_ID_ISME,
+		Resource: "user",
+		Icon:     "user",
+		Color:    "violet",
+	})
+	if err == nil {
+		t.Fatal("expected error editing the isme system app, got nil")
+	}
+	if !strings.Contains(err.Error(), "read-only") {
+		t.Errorf("error = %q, want it to mention read-only", err.Error())
+	}
+	if len(fakeRole.updatedAppearances) != 0 {
+		t.Error("appearance was updated for the isme system app despite the guard")
+	}
+}
+
+// Editing an app that resolves to the isme app_code is rejected (defense in depth).
+func TestUpdatePermissionAppearanceRejectsIsmeByCode(t *testing.T) {
+	fakeRole := newFakeRoleRepository()
+	fakeAppService := &fakeAppServiceRepository{
+		appServicesByID: map[string]appServiceEntity.AppService{
+			// a non-isme id that nonetheless resolves to the isme app_code
+			"app_alias": {ID: "app_alias", AppCode: roleConstants.APP_CODE_ISME},
+		},
+	}
+	uc := NewUsecase(fakeRole, &fakeUserRepository{}, fakeAppService)
+
+	err := uc.UpdatePermissionAppearance(context.Background(), models.UpdatePermissionAppearanceRequest{
+		AppID:    "app_alias",
+		Resource: "user",
+		Icon:     "user",
+		Color:    "violet",
+	})
+	if err == nil {
+		t.Fatal("expected error editing an app aliased to the isme app_code, got nil")
+	}
+	if !strings.Contains(err.Error(), "read-only") {
+		t.Errorf("error = %q, want it to mention read-only", err.Error())
+	}
+	if len(fakeRole.updatedAppearances) != 0 {
+		t.Error("appearance was updated for the isme-aliased app despite the guard")
+	}
+}
+
+// A resource that is not in the app catalog is rejected with not-found.
+func TestUpdatePermissionAppearanceUnknownResource(t *testing.T) {
+	fakeRole := newFakeRoleRepository()
+	seedResource(t, fakeRole, testAppID, "report")
+
+	err := newTestUsecase(fakeRole).UpdatePermissionAppearance(context.Background(), models.UpdatePermissionAppearanceRequest{
+		AppID:    testAppID,
+		Resource: "ghost",
+		Icon:     "file",
+		Color:    "violet",
+	})
+	if err == nil {
+		t.Fatal("expected not-found error for an unknown resource, got nil")
+	}
+	if !strings.Contains(err.Error(), "not found") {
+		t.Errorf("error = %q, want it to mention not found", err.Error())
+	}
+	if len(fakeRole.updatedAppearances) != 0 {
+		t.Error("appearance was updated for a resource missing from the catalog")
+	}
+}
+
+// Unknown icon and unknown color keys are rejected by validation.
+func TestUpdatePermissionAppearanceValidation(t *testing.T) {
+	tests := []struct {
+		name    string
+		icon    string
+		color   string
+		wantErr bool
+	}{
+		{"known icon + color", "file", "violet", false},
+		{"empty icon + color allowed", "", "", false},
+		{"unknown icon rejected", "rocket", "violet", true},
+		{"unknown color rejected", "file", "neon", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fakeRole := newFakeRoleRepository()
+			seedResource(t, fakeRole, testAppID, "report")
+			err := newTestUsecase(fakeRole).UpdatePermissionAppearance(context.Background(), models.UpdatePermissionAppearanceRequest{
+				AppID:    testAppID,
+				Resource: "report",
+				Icon:     tt.icon,
+				Color:    tt.color,
+			})
+			if tt.wantErr && err == nil {
+				t.Errorf("UpdatePermissionAppearance(icon=%q,color=%q) expected error, got nil", tt.icon, tt.color)
+			}
+			if !tt.wantErr && err != nil {
+				t.Errorf("UpdatePermissionAppearance(icon=%q,color=%q) unexpected error: %v", tt.icon, tt.color, err)
 			}
 		})
 	}
