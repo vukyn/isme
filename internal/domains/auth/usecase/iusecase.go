@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 
+	activityModels "github.com/vukyn/isme/internal/domains/activity/models"
 	"github.com/vukyn/isme/internal/domains/auth/models"
 )
 
@@ -21,4 +22,5 @@ type IUseCase interface {
 	CountMySessions(ctx context.Context) (models.MySessionCount, error)
 	RevokeMySession(ctx context.Context, sessionID string) error
 	RevokeMyOtherSessions(ctx context.Context) error
+	GetMyActivity(ctx context.Context, limit int) ([]activityModels.ActivityItem, error)
 }

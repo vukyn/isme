@@ -16,6 +16,7 @@ const (
 	CONTAINER_NAME_ROLE_REPOSITORY            = "role_repository"
 	CONTAINER_NAME_USER_INVITATION_REPOSITORY = "user_invitation_repository"
 	CONTAINER_NAME_SETTINGS_REPOSITORY        = "settings_repository"
+	CONTAINER_NAME_ACTIVITY_REPOSITORY        = "activity_repository"
 
 	// Usecases
 	CONTAINER_NAME_AUTH_USECASE            = "auth_usecase"
@@ -24,4 +25,5 @@ const (
 	CONTAINER_NAME_ROLE_USECASE            = "role_usecase"
 	CONTAINER_NAME_USER_INVITATION_USECASE = "user_invitation_usecase"
 	CONTAINER_NAME_SETTINGS_USECASE        = "settings_usecase"
+	CONTAINER_NAME_ACTIVITY_USECASE        = "activity_usecase"
 )

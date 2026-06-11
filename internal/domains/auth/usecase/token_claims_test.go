@@ -30,7 +30,7 @@ func TestFirstPartyLoginAccessTokenCarriesResourceAccess(t *testing.T) {
 		},
 	}
 	cfg := newTestConfig(t)
-	authUsecase := NewUsecase(cfg, nil, userRepository, &fakeUserSessionRepository{}, nil, roleRepository)
+	authUsecase := NewUsecase(cfg, nil, userRepository, &fakeUserSessionRepository{}, nil, roleRepository, &fakeActivityUsecase{})
 
 	res, err := authUsecase.Login(context.Background(), models.LoginRequest{
 		Email:    "member@example.com",
@@ -74,7 +74,7 @@ func TestFirstPartyLoginIncludesAllAppsInAudience(t *testing.T) {
 		},
 	}
 	cfg := newTestConfig(t)
-	authUsecase := NewUsecase(cfg, nil, userRepository, &fakeUserSessionRepository{}, nil, roleRepository)
+	authUsecase := NewUsecase(cfg, nil, userRepository, &fakeUserSessionRepository{}, nil, roleRepository, &fakeActivityUsecase{})
 
 	res, err := authUsecase.Login(context.Background(), models.LoginRequest{
 		Email:    "multi@example.com",

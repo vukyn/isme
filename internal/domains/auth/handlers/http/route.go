@@ -30,4 +30,6 @@ func SetupAuthRoutes(router fiber.Router) {
 	r.Get(constants.AUTH_ENDPOINT_MY_SESSIONS_COUNT, middleware.AuthMiddleware, CountMySessions)
 	r.Delete(constants.AUTH_ENDPOINT_REVOKE_MY_OTHER_SESSIONS, middleware.AuthMiddleware, RevokeMyOtherSessions)
 	r.Delete(constants.AUTH_ENDPOINT_REVOKE_MY_SESSION, middleware.AuthMiddleware, RevokeMySession)
+	// Self-service recent-activity feed (self-scoped, no RBAC permission gate).
+	r.Get(constants.AUTH_ENDPOINT_MY_ACTIVITY, middleware.AuthMiddleware, GetMyActivity)
 }

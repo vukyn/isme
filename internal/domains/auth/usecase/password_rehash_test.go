@@ -271,7 +271,17 @@ func newTestUsecase(t *testing.T, userRepository *fakeUserRepository) IUseCase {
 
 func newTestUsecaseWithRoles(t *testing.T, userRepository *fakeUserRepository, roleRepository *fakeRoleRepository) IUseCase {
 	t.Helper()
-	return NewUsecase(newTestConfig(t), nil, userRepository, &fakeUserSessionRepository{}, nil, roleRepository)
+	uc, _ := newTestUsecaseWithActivity(t, userRepository, roleRepository)
+	return uc
+}
+
+// newTestUsecaseWithActivity wires the auth usecase with a recording activity
+// double, returning it so tests can assert emitted events.
+func newTestUsecaseWithActivity(t *testing.T, userRepository *fakeUserRepository, roleRepository *fakeRoleRepository) (IUseCase, *fakeActivityUsecase) {
+	t.Helper()
+	activity := &fakeActivityUsecase{}
+	uc := NewUsecase(newTestConfig(t), nil, userRepository, &fakeUserSessionRepository{}, nil, roleRepository, activity)
+	return uc, activity
 }
 
 func TestLoginRehashesBcryptPassword(t *testing.T) {
@@ -381,6 +391,110 @@ func TestLoginWrongPassword(t *testing.T) {
 
 	if len(userRepository.setPasswordCalls) != 0 {
 		t.Errorf("expected no SetPassword call on failed login, got %d", len(userRepository.setPasswordCalls))
+	}
+}
+
+// TestLoginEmitsSignIn proves a genuine login records exactly one sign_in event
+// for the user, carrying the device (user agent) + client IP from context.
+func TestLoginEmitsSignIn(t *testing.T) {
+	userRepository := &fakeUserRepository{
+		user: userEntity.User{
+			ID:         "user-1",
+			Email:      "user@example.com",
+			Password:   cryp.HashArgon2id("s3cret-password"),
+			Status:     userConstants.UserStatusActive,
+			IsVerified: true,
+		},
+	}
+	authUsecase, activity := newTestUsecaseWithActivity(t, userRepository, &fakeRoleRepository{})
+
+	_, err := authUsecase.Login(context.Background(), models.LoginRequest{
+		Email:    "user@example.com",
+		Password: "s3cret-password",
+	})
+	if err != nil {
+		t.Fatalf("expected login to succeed, got error: %v", err)
+	}
+
+	if len(activity.signInCalls) != 1 {
+		t.Fatalf("expected exactly 1 sign_in record, got %d", len(activity.signInCalls))
+	}
+	if activity.signInCalls[0].userID != "user-1" {
+		t.Errorf("expected sign_in for user-1, got %q", activity.signInCalls[0].userID)
+	}
+}
+
+// TestLoginRecorderErrorDoesNotFailLogin proves a failing recorder never fails
+// the login (best-effort audit).
+func TestLoginRecorderErrorDoesNotFailLogin(t *testing.T) {
+	userRepository := &fakeUserRepository{
+		user: userEntity.User{
+			ID:         "user-1",
+			Email:      "user@example.com",
+			Password:   cryp.HashArgon2id("s3cret-password"),
+			Status:     userConstants.UserStatusActive,
+			IsVerified: true,
+		},
+	}
+	activity := &fakeActivityUsecase{recordErr: true}
+	authUsecase := NewUsecase(newTestConfig(t), nil, userRepository, &fakeUserSessionRepository{}, nil, &fakeRoleRepository{}, activity)
+
+	res, err := authUsecase.Login(context.Background(), models.LoginRequest{
+		Email:    "user@example.com",
+		Password: "s3cret-password",
+	})
+	if err != nil {
+		t.Fatalf("expected login to succeed despite recorder failure, got error: %v", err)
+	}
+	if res.AccessToken == "" {
+		t.Error("expected access token to be set")
+	}
+	if len(activity.signInCalls) != 1 {
+		t.Errorf("expected the recorder to still be invoked once, got %d", len(activity.signInCalls))
+	}
+}
+
+// TestLogoutEmitsSignOut proves a logout records exactly one sign_out for the
+// caller, and still succeeds when the recorder errors (best-effort).
+func TestLogoutEmitsSignOut(t *testing.T) {
+	activity := &fakeActivityUsecase{recordErr: true}
+	uc := NewUsecase(newTestConfig(t), nil, &fakeUserRepository{}, &fakeUserSessionRepository{}, nil, &fakeRoleRepository{}, activity)
+
+	err := uc.Logout(ctxWithUser("user-1", "token-1"))
+	if err != nil {
+		t.Fatalf("expected logout to succeed, got %v", err)
+	}
+
+	if len(activity.signOutCalls) != 1 || activity.signOutCalls[0] != "user-1" {
+		t.Errorf("expected one sign_out for user-1, got %v", activity.signOutCalls)
+	}
+}
+
+// TestChangePasswordEmitsPasswordChanged proves a password change records exactly
+// one password_changed for the caller, and still succeeds when the recorder
+// errors (best-effort).
+func TestChangePasswordEmitsPasswordChanged(t *testing.T) {
+	userRepository := &fakeUserRepository{
+		user: userEntity.User{
+			ID:       "user-1",
+			Email:    "user@example.com",
+			Password: cryp.HashArgon2id("old-password"),
+			Status:   userConstants.UserStatusActive,
+		},
+	}
+	activity := &fakeActivityUsecase{recordErr: true}
+	uc := NewUsecase(newTestConfig(t), nil, userRepository, &fakeUserSessionRepository{}, nil, &fakeRoleRepository{}, activity)
+
+	err := uc.ChangePassword(ctxWithUser("user-1", "token-1"), models.ChangePasswordRequest{
+		OldPassword: "old-password",
+		NewPassword: "new-password-123",
+	})
+	if err != nil {
+		t.Fatalf("expected change password to succeed, got %v", err)
+	}
+
+	if len(activity.passwordChangedCalls) != 1 || activity.passwordChangedCalls[0] != "user-1" {
+		t.Errorf("expected one password_changed for user-1, got %v", activity.passwordChangedCalls)
 	}
 }
 

@@ -1,19 +1,74 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Box, Center, Flex, Grid, HStack, Heading, Link, Spinner, Stack, Text } from "@chakra-ui/react";
+import { LuCheck, LuKey, LuLogOut, LuUserPlus } from "react-icons/lu";
 import { Link as RouterLink } from "react-router-dom";
 import { GlassCard } from "@/components/ui/glass-card";
 import { StatCard } from "@/components/ui/stat-card";
-import { ActivityRow } from "@/components/ui/activity-row";
+import { ActivityRow, type ActivityTone } from "@/components/ui/activity-row";
 import { AppShell } from "@/layouts/AppShell";
-import { MOCK_STATS, MOCK_ACTIVITY, type StatEntry } from "@/consts/mock";
+import { MOCK_STATS, type StatEntry } from "@/consts/mock";
+import type { ActivityItem } from "@/types";
 import { useUser } from "@/hooks/useUser";
+import { useActivity } from "@/hooks/useActivity";
 import { getMySessionsCount } from "@/apis";
 import { formatRelative } from "@/utils/time";
 
+interface ActivityRowData {
+	tone: ActivityTone;
+	icon: ReactNode;
+	body: ReactNode;
+	time: string;
+}
+
+/** Maps a structured activity record to its display row. The server sends only
+ *  {type, meta}; the copy/icon/tone are composed here from the type. */
+const activityToRow = (item: ActivityItem): ActivityRowData => {
+	const time = item.created_at ? formatRelative(item.created_at) : "";
+	switch (item.type) {
+		case "sign_in": {
+			const device = typeof item.meta.device === "string" ? item.meta.device : "this device";
+			const clientIp = typeof item.meta.client_ip === "string" ? item.meta.client_ip : "";
+			return {
+				tone: "ok",
+				icon: <LuCheck />,
+				body: (
+					<>
+						Sign-in from <b>{device}</b>
+						{clientIp ? ` · ${clientIp}` : ""}
+					</>
+				),
+				time,
+			};
+		}
+		case "invitation_sent": {
+			const email = typeof item.meta.email === "string" ? item.meta.email : "someone";
+			const roles = Array.isArray(item.meta.roles) ? (item.meta.roles as unknown[]).filter((r): r is string => typeof r === "string") : [];
+			return {
+				tone: "magenta",
+				icon: <LuUserPlus />,
+				body: (
+					<>
+						Invited <b>{email}</b>
+						{roles.length > 0 ? ` as ${roles.join(", ")}` : ""}
+					</>
+				),
+				time,
+			};
+		}
+		case "password_changed":
+			return { tone: "violet", icon: <LuKey />, body: <>Password changed</>, time };
+		case "sign_out":
+			return { tone: "violet", icon: <LuLogOut />, body: <>Signed out</>, time };
+		default:
+			return { tone: "violet", icon: <LuCheck />, body: <>{item.type}</>, time };
+	}
+};
+
 export const Welcome = () => {
 	const { user, loading, error } = useUser();
+	const { activity, loading: activityLoading, error: activityError } = useActivity();
 	const name = user?.name || "User";
 	const email = user?.email || "";
 
@@ -144,18 +199,36 @@ export const Welcome = () => {
 					</Link>
 				</Flex>
 				<GlassCard p="2">
-					<Stack
-						gap="0"
-						css={{
-							"& > * + *": {
-								borderTop: "1px solid var(--chakra-colors-border)",
-							},
-						}}
-					>
-						{MOCK_ACTIVITY.map((a, i) => (
-							<ActivityRow key={i} {...a} />
-						))}
-					</Stack>
+					{activityLoading ? (
+						<Center py="10">
+							<Spinner color="accent" />
+						</Center>
+					) : activityError ? (
+						<Center py="10">
+							<Text fontSize="sm" color="danger">
+								{activityError.message}
+							</Text>
+						</Center>
+					) : activity.length === 0 ? (
+						<Center py="10">
+							<Text fontSize="sm" color="fg.muted">
+								No recent activity
+							</Text>
+						</Center>
+					) : (
+						<Stack
+							gap="0"
+							css={{
+								"& > * + *": {
+									borderTop: "1px solid var(--chakra-colors-border)",
+								},
+							}}
+						>
+							{activity.map((item) => (
+								<ActivityRow key={item.id} {...activityToRow(item)} />
+							))}
+						</Stack>
+					)}
 				</GlassCard>
 			</Box>
 		</AppShell>

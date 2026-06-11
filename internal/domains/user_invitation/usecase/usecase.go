@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/vukyn/isme/internal/config"
+	activityUsecase "github.com/vukyn/isme/internal/domains/activity/usecase"
 	appServiceRepo "github.com/vukyn/isme/internal/domains/app_service/repository"
 	roleRepo "github.com/vukyn/isme/internal/domains/role/repository"
 	userModels "github.com/vukyn/isme/internal/domains/user/models"
@@ -23,11 +24,12 @@ import (
 )
 
 type usecase struct {
-	cfg            *config.Config
-	invitationRepo invitationRepo.IRepository
-	userRepo       userRepo.IRepository
-	roleRepo       roleRepo.IRepository
-	appServiceRepo appServiceRepo.IRepository
+	cfg             *config.Config
+	invitationRepo  invitationRepo.IRepository
+	userRepo        userRepo.IRepository
+	roleRepo        roleRepo.IRepository
+	appServiceRepo  appServiceRepo.IRepository
+	activityUsecase activityUsecase.IUseCase
 }
 
 func NewUsecase(
@@ -36,13 +38,15 @@ func NewUsecase(
 	userRepo userRepo.IRepository,
 	roleRepo roleRepo.IRepository,
 	appServiceRepo appServiceRepo.IRepository,
+	activityUsecase activityUsecase.IUseCase,
 ) IUseCase {
 	return &usecase{
-		cfg:            cfg,
-		invitationRepo: invitationRepo,
-		userRepo:       userRepo,
-		roleRepo:       roleRepo,
-		appServiceRepo: appServiceRepo,
+		cfg:             cfg,
+		invitationRepo:  invitationRepo,
+		userRepo:        userRepo,
+		roleRepo:        roleRepo,
+		appServiceRepo:  appServiceRepo,
+		activityUsecase: activityUsecase,
 	}
 }
 
@@ -55,6 +59,7 @@ func (u *usecase) Create(ctx context.Context, req models.CreateRequest) (models.
 	// validate every assignment: the role must exist and its owning app must
 	// match the requested app_service_id (reject cross-app mismatches).
 	assignments := make([]entity.UserInvitationRole, 0, len(req.Assignments))
+	roleNames := make([]string, 0, len(req.Assignments))
 	for _, assignment := range req.Assignments {
 		role, err := u.roleRepo.GetByID(ctx, assignment.RoleID)
 		if err != nil {
@@ -70,6 +75,7 @@ func (u *usecase) Create(ctx context.Context, req models.CreateRequest) (models.
 			RoleID:       assignment.RoleID,
 			AppServiceID: assignment.AppServiceID,
 		})
+		roleNames = append(roleNames, role.Name)
 	}
 
 	// check if a user already holds this email
@@ -100,6 +106,12 @@ func (u *usecase) Create(ctx context.Context, req models.CreateRequest) (models.
 	}, assignments)
 	if err != nil {
 		return models.CreateResponse{}, err
+	}
+
+	// audit: invitation sent. inviter is the acting admin from context. Best-effort
+	// — never fails the invite.
+	if u.activityUsecase != nil {
+		u.activityUsecase.RecordInvitationSent(ctx, pkgCtx.GetUserID(ctx), req.Email, roleNames)
 	}
 
 	return models.CreateResponse{

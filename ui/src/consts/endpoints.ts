@@ -17,6 +17,8 @@ export const API_ENDPOINTS = {
 	AUTH_MY_SESSIONS_COUNT: "/api/v1/auth/sessions/count",
 	AUTH_MY_SESSION_REVOKE: (sessionId: string) => `/api/v1/auth/sessions/${encodeURIComponent(sessionId)}`,
 	AUTH_MY_OTHER_SESSIONS_REVOKE: "/api/v1/auth/sessions/others",
+	// Self-service recent-activity feed for the signed-in user.
+	AUTH_MY_ACTIVITY: "/api/v1/auth/me/activity",
 
 	// User
 	USER_ME: "/api/user/me",

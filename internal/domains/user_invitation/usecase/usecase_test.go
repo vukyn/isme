@@ -360,6 +360,13 @@ func newTestConfig() *config.Config {
 }
 
 func newTestFixture() (*fakeInvitationRepository, *fakeUserRepository, *fakeRoleRepository, IUseCase) {
+	invitationRepository, userRepository, roleRepository, invitationUsecase, _ := newTestFixtureWithActivity()
+	return invitationRepository, userRepository, roleRepository, invitationUsecase
+}
+
+// newTestFixtureWithActivity wires the invitation usecase with a recording
+// activity double, returning it so tests can assert emitted events.
+func newTestFixtureWithActivity() (*fakeInvitationRepository, *fakeUserRepository, *fakeRoleRepository, IUseCase, *fakeActivityUsecase) {
 	invitationRepository := newFakeInvitationRepository()
 	userRepository := &fakeUserRepository{}
 	roleRepository := &fakeRoleRepository{
@@ -381,8 +388,9 @@ func newTestFixture() (*fakeInvitationRepository, *fakeUserRepository, *fakeRole
 			"app_rainy":   {ID: "app_rainy", AppCode: "rainy", AppName: "Rainy"},
 		},
 	}
-	invitationUsecase := NewUsecase(newTestConfig(), invitationRepository, userRepository, roleRepository, appServiceRepository)
-	return invitationRepository, userRepository, roleRepository, invitationUsecase
+	activity := &fakeActivityUsecase{}
+	invitationUsecase := NewUsecase(newTestConfig(), invitationRepository, userRepository, roleRepository, appServiceRepository, activity)
+	return invitationRepository, userRepository, roleRepository, invitationUsecase, activity
 }
 
 func tokenFromLink(t *testing.T, link string) string {
@@ -437,6 +445,52 @@ func TestCreateInvitationHappyPath(t *testing.T) {
 	assignments := invitationRepository.assignments[res.ID]
 	if len(assignments) != 1 || assignments[0].RoleID != "rol_member" || assignments[0].AppServiceID != "app_isme" {
 		t.Errorf("expected one member assignment, got %+v", assignments)
+	}
+}
+
+// TestCreateInvitationEmitsActivity proves a successful invite records exactly one
+// invitation_sent event carrying the email and the assigned role names.
+func TestCreateInvitationEmitsActivity(t *testing.T) {
+	_, _, _, invitationUsecase, activity := newTestFixtureWithActivity()
+
+	_, err := invitationUsecase.Create(context.Background(), models.CreateRequest{
+		Email:       "linh.tran@hasaki.vn",
+		Assignments: []models.RoleAssignment{memberAssignment},
+	})
+	if err != nil {
+		t.Fatalf("expected create to succeed, got: %v", err)
+	}
+
+	if len(activity.invitationSentCalls) != 1 {
+		t.Fatalf("expected exactly 1 invitation_sent record, got %d", len(activity.invitationSentCalls))
+	}
+	call := activity.invitationSentCalls[0]
+	if call.email != "linh.tran@hasaki.vn" {
+		t.Errorf("expected email linh.tran@hasaki.vn, got %q", call.email)
+	}
+	if len(call.roleNames) != 1 || call.roleNames[0] != "Member" {
+		t.Errorf("expected role names [Member], got %v", call.roleNames)
+	}
+}
+
+// TestCreateInvitationRecorderErrorDoesNotFail proves a failing recorder never
+// fails the invite (best-effort audit).
+func TestCreateInvitationRecorderErrorDoesNotFail(t *testing.T) {
+	_, _, _, invitationUsecase, activity := newTestFixtureWithActivity()
+	activity.recordErr = true
+
+	res, err := invitationUsecase.Create(context.Background(), models.CreateRequest{
+		Email:       "linh.tran@hasaki.vn",
+		Assignments: []models.RoleAssignment{memberAssignment},
+	})
+	if err != nil {
+		t.Fatalf("expected create to succeed despite recorder failure, got: %v", err)
+	}
+	if res.ID == "" {
+		t.Error("expected invitation ID to be set")
+	}
+	if len(activity.invitationSentCalls) != 1 {
+		t.Errorf("expected the recorder to still be invoked once, got %d", len(activity.invitationSentCalls))
 	}
 }
 

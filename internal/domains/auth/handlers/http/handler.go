@@ -243,6 +243,23 @@ func RevokeMyOtherSessions(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, map[string]string{"message": "Other sessions revoked successfully"})
 }
 
+func GetMyActivity(c *fiber.Ctx) error {
+	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
+	defer ctn.Delete()
+
+	uc, err := idi.GetAuthUsecase(ctn)
+	if err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	activity, err := uc.GetMyActivity(pkgCtx.NewContextFromFiberCtx(c), c.QueryInt("limit", 0))
+	if err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	return pkgHttp.OK(c, activity)
+}
+
 func SSOConsent(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 	defer ctn.Delete()

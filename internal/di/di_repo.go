@@ -2,6 +2,7 @@ package di
 
 import (
 	"github.com/vukyn/isme/internal/constants"
+	activityRepo "github.com/vukyn/isme/internal/domains/activity/repository"
 	appServiceRepo "github.com/vukyn/isme/internal/domains/app_service/repository"
 	roleRepo "github.com/vukyn/isme/internal/domains/role/repository"
 	settingsRepo "github.com/vukyn/isme/internal/domains/settings/repository"
@@ -22,6 +23,7 @@ func defineRepository() []*di.Def {
 		defineRoleRepository(),
 		defineUserInvitationRepository(),
 		defineSettingsRepository(),
+		defineActivityRepository(),
 	}
 }
 
@@ -173,4 +175,29 @@ func GetSettingsRepository(ctn di.Container) (settingsRepo.IRepository, error) {
 		return nil, err
 	}
 	return repo.(settingsRepo.IRepository), nil
+}
+
+func defineActivityRepository() *di.Def {
+	def := &di.Def{
+		Name:  constants.CONTAINER_NAME_ACTIVITY_REPOSITORY,
+		Scope: di.Request,
+		Build: func(ctn di.Container) (any, error) {
+			db := ctn.Get(constants.CONTAINER_NAME_DB).(*bun.DB)
+			log.New().Debug("Activity repository initialized")
+			return activityRepo.NewRepository(db), nil
+		},
+		Close: func(obj any) error {
+			log.New().Debug("Activity repository destroyed")
+			return nil
+		},
+	}
+	return def
+}
+
+func GetActivityRepository(ctn di.Container) (activityRepo.IRepository, error) {
+	repo, err := ctn.SafeGet(constants.CONTAINER_NAME_ACTIVITY_REPOSITORY)
+	if err != nil {
+		return nil, err
+	}
+	return repo.(activityRepo.IRepository), nil
 }

@@ -21,6 +21,7 @@ const (
 	AUTH_ENDPOINT_MY_SESSIONS_COUNT        = "/sessions/count"
 	AUTH_ENDPOINT_REVOKE_MY_OTHER_SESSIONS = "/sessions/others"
 	AUTH_ENDPOINT_REVOKE_MY_SESSION        = "/sessions/:id"
+	AUTH_ENDPOINT_MY_ACTIVITY              = "/me/activity"
 
 	// App service
 	APP_SERVICE_GROUP_NAME        = "app-service"

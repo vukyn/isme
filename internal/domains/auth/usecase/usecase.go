@@ -6,6 +6,9 @@ import (
 	"time"
 
 	"github.com/vukyn/isme/internal/config"
+	activityConstants "github.com/vukyn/isme/internal/domains/activity/constants"
+	activityModels "github.com/vukyn/isme/internal/domains/activity/models"
+	activityUsecase "github.com/vukyn/isme/internal/domains/activity/usecase"
 	appServiceRepo "github.com/vukyn/isme/internal/domains/app_service/repository"
 	"github.com/vukyn/isme/internal/domains/auth/models"
 	roleRepo "github.com/vukyn/isme/internal/domains/role/repository"
@@ -30,6 +33,7 @@ type usecase struct {
 	userSessionRepo userSessionRepo.IRepository
 	appServiceRepo  appServiceRepo.IRepository
 	roleRepo        roleRepo.IRepository
+	activityUsecase activityUsecase.IUseCase
 }
 
 func NewUsecase(
@@ -39,6 +43,7 @@ func NewUsecase(
 	userSessionRepo userSessionRepo.IRepository,
 	appServiceRepo appServiceRepo.IRepository,
 	roleRepo roleRepo.IRepository,
+	activityUsecase activityUsecase.IUseCase,
 ) IUseCase {
 	return &usecase{
 		cfg:             cfg,
@@ -47,6 +52,7 @@ func NewUsecase(
 		userSessionRepo: userSessionRepo,
 		appServiceRepo:  appServiceRepo,
 		roleRepo:        roleRepo,
+		activityUsecase: activityUsecase,
 	}
 }
 
@@ -209,6 +215,11 @@ func (u *usecase) Login(ctx context.Context, req models.LoginRequest) (models.Lo
 	if err != nil {
 		return models.LoginResponse{}, err
 	}
+
+	// audit: genuine human login. Login is the ONLY first-party + password-form
+	// SSO entry point (the silent SSOConsent re-consent path does NOT emit, to
+	// avoid per-app sign-in spam). Best-effort — never fails the login.
+	u.recordSignIn(ctx, user.ID)
 
 	// update user last login
 	err = u.userRepo.UpdateLastLogin(ctx, user.ID)
@@ -384,6 +395,11 @@ func (u *usecase) ChangePassword(ctx context.Context, req models.ChangePasswordR
 		return err
 	}
 
+	// audit: password changed. Best-effort — never fails the request.
+	if u.activityUsecase != nil {
+		u.activityUsecase.RecordPasswordChanged(ctx, userID)
+	}
+
 	return nil
 }
 
@@ -403,6 +419,11 @@ func (u *usecase) Logout(ctx context.Context) error {
 	err := u.userSessionRepo.InactiveSessionByTokenID(ctx, tokenID)
 	if err != nil {
 		return err
+	}
+
+	// audit: sign out. Best-effort — never fails the logout.
+	if u.activityUsecase != nil {
+		u.activityUsecase.RecordSignOut(ctx, userID)
 	}
 
 	return nil
@@ -633,6 +654,35 @@ func (u *usecase) SSOConsent(ctx context.Context, req models.SSOConsentRequest) 
 		RedirectURL:       appService.RedirectURL,
 		AuthorizationCode: authorizationCode,
 	}, nil
+}
+
+// recordSignIn emits the genuine-login activity event. The device is taken from
+// the request User-Agent and the client IP from context; both are carried in the
+// event meta. Nil-guarded so struct-literal test fixtures (no recorder) are safe.
+func (u *usecase) recordSignIn(ctx context.Context, userID string) {
+	if u.activityUsecase == nil {
+		return
+	}
+	u.activityUsecase.RecordSignIn(ctx, userID, pkgCtx.GetUserAgent(ctx), pkgCtx.GetClientIP(ctx))
+}
+
+// GetMyActivity returns the caller's recent activity feed (newest first). The
+// limit is clamped to the configured default/max. userID comes from the auth
+// claims in context.
+func (u *usecase) GetMyActivity(ctx context.Context, limit int) ([]activityModels.ActivityItem, error) {
+	userID := pkgCtx.GetUserID(ctx)
+	if userID == "" {
+		return nil, pkgErr.InvalidRequest("user not found")
+	}
+
+	if limit <= 0 {
+		limit = activityConstants.DefaultActivityLimit
+	}
+	if limit > activityConstants.MaxActivityLimit {
+		limit = activityConstants.MaxActivityLimit
+	}
+
+	return u.activityUsecase.List(ctx, userID, limit)
 }
 
 func keyAuthorizationCodeAccessToken(authorizationCode string) string {

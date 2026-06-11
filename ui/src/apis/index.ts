@@ -4,3 +4,4 @@ export * from "./role";
 export * from "./appService";
 export * from "./settings";
 export * from "./session";
+export * from "./activity";
