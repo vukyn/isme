@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { LuMonitor, LuClock, LuShieldCheck, LuCheck, LuKey, LuUserPlus } from "react-icons/lu";
+import { LuMonitor, LuClock, LuCalendar, LuCheck, LuKey, LuUserPlus } from "react-icons/lu";
 import type { StatTone, StatDeltaTone } from "@/components/ui/stat-card";
 import type { ActivityTone } from "@/components/ui/activity-row";
 
@@ -41,11 +41,12 @@ export const MOCK_STATS: StatEntry[] = [
 	},
 	{
 		tone: "magenta",
-		icon: <LuShieldCheck />,
-		title: "Security score",
-		desc: "Account hardening level.",
-		stat: "A+",
-		delta: "● 2FA enabled",
+		icon: <LuCalendar />,
+		title: "Member since",
+		desc: "When you joined.",
+		stat: "—",
+		delta: "● account age",
+		deltaTone: "neutral",
 	},
 ];
 

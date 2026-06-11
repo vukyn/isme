@@ -19,7 +19,8 @@ export const Welcome = () => {
 
 	// Live stats from a single /sessions/count response: card #0 "Active sessions"
 	// (count + 24h delta) and card #1 "Token rotations" (sliding-24h rotation count
-	// + relative last-refreshed delta). Card #2 (security score) stays mock.
+	// + relative last-refreshed delta). Card #2 "Member since" is derived from the
+	// signed-in user's account-creation date (below).
 	const [liveStats, setLiveStats] = useState<Record<number, { stat: string; delta: string }> | null>(null);
 	useEffect(() => {
 		getMySessionsCount()
@@ -40,9 +41,23 @@ export const Welcome = () => {
 			.catch(() => setLiveStats(null));
 	}, []);
 
-	const stats: StatEntry[] = MOCK_STATS.map((entry, index) =>
-		liveStats?.[index] ? { ...entry, stat: liveStats[index].stat, delta: liveStats[index].delta } : entry
-	);
+	// "now" captured once at mount (lazy init) so the account-age math stays pure
+	// across re-renders — no impure Date read during render.
+	const [mountedAt] = useState(() => Date.now());
+	// Card #2 "Member since" — month/year joined + account age in days.
+	const memberSince = user?.created_at
+		? (() => {
+				const created = new Date(user.created_at);
+				const monthYear = created.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+				const days = Math.max(0, Math.floor((mountedAt - created.getTime()) / 86_400_000));
+				return { stat: monthYear, delta: `● ${days} day${days === 1 ? "" : "s"}` };
+			})()
+		: null;
+
+	const stats: StatEntry[] = MOCK_STATS.map((entry, index) => {
+		if (index === 2 && memberSince) return { ...entry, stat: memberSince.stat, delta: memberSince.delta };
+		return liveStats?.[index] ? { ...entry, stat: liveStats[index].stat, delta: liveStats[index].delta } : entry;
+	});
 
 	if (error) {
 		return (

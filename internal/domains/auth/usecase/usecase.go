@@ -61,10 +61,15 @@ func (u *usecase) GetMe(ctx context.Context) (models.GetMeResponse, error) {
 		return models.GetMeResponse{}, err
 	}
 
+	createdAt := ""
+	if !user.CreatedAt.IsZero() {
+		createdAt = user.CreatedAt.Format(time.RFC3339)
+	}
 	return models.GetMeResponse{
-		ID:    user.ID,
-		Name:  user.Name,
-		Email: user.Email,
+		ID:        user.ID,
+		Name:      user.Name,
+		Email:     user.Email,
+		CreatedAt: createdAt,
 	}, nil
 }
 
