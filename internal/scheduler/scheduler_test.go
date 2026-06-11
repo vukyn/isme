@@ -7,6 +7,7 @@ import (
 	"time"
 
 	sqliteHistory "github.com/vukyn/isme/db/history/sqlite"
+	settingsEntity "github.com/vukyn/isme/internal/domains/settings/entity"
 
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/sqlitedialect"
@@ -65,5 +66,30 @@ func TestStartWithBothDisabledInstallsNoJobs(t *testing.T) {
 
 	if len(s.jobs) != 0 {
 		t.Fatalf("expected 0 jobs installed, got %d (%v)", len(s.jobs), s.jobs)
+	}
+}
+
+// The job-key strings are a single source of truth (settings entity consts).
+// The scheduler JobKey consts and the migration-seeded job_key rows must all
+// agree, otherwise a Reload/Get would silently target a non-existent row.
+func TestJobKeysAreConsistentAcrossPackages(t *testing.T) {
+	if string(JobSessionRevoke) != settingsEntity.JobKeySessionRevoke {
+		t.Fatalf("JobSessionRevoke=%q != entity.JobKeySessionRevoke=%q", JobSessionRevoke, settingsEntity.JobKeySessionRevoke)
+	}
+	if string(JobRotationCleanup) != settingsEntity.JobKeyRotationCleanup {
+		t.Fatalf("JobRotationCleanup=%q != entity.JobKeyRotationCleanup=%q", JobRotationCleanup, settingsEntity.JobKeyRotationCleanup)
+	}
+
+	// the migration must seed exactly the two job rows the scheduler reads.
+	db := newTestDB(t)
+	for _, jobKey := range []string{settingsEntity.JobKeySessionRevoke, settingsEntity.JobKeyRotationCleanup} {
+		var count int
+		row := db.QueryRow("SELECT COUNT(*) FROM schedule_config WHERE job_key = ?", jobKey)
+		if err := row.Scan(&count); err != nil {
+			t.Fatalf("query schedule_config for %q: %v", jobKey, err)
+		}
+		if count != 1 {
+			t.Fatalf("expected exactly 1 schedule_config row for %q, got %d", jobKey, count)
+		}
 	}
 }

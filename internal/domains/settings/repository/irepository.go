@@ -8,17 +8,13 @@ import (
 )
 
 type IRepository interface {
-	// Get returns the single (id=1) session auto-revoke config row.
-	Get(ctx context.Context) (entity.SessionRevokeConfig, error)
-	// Update persists the enabled flag and cron expression.
-	Update(ctx context.Context, enabled bool, cron string, updatedBy string) error
-	// RecordRun stores the outcome of a scheduler run (timestamp + revoked count).
-	RecordRun(ctx context.Context, ranAt time.Time, revoked int64) error
-
-	// GetRotationCleanup returns the single (id=1) rotation-cleanup config row.
-	GetRotationCleanup(ctx context.Context) (entity.RotationCleanupConfig, error)
-	// UpdateRotationCleanup persists the enabled flag, cron expression and retention window.
-	UpdateRotationCleanup(ctx context.Context, enabled bool, cron string, retentionHours int64, updatedBy string) error
-	// RecordRotationCleanupRun stores the outcome of a cleanup run (timestamp + cleaned count).
-	RecordRotationCleanupRun(ctx context.Context, ranAt time.Time, cleaned int64) error
+	// GetSchedule returns the config row for the given job key. A missing row
+	// yields an empty struct (not an error).
+	GetSchedule(ctx context.Context, jobKey string) (entity.ScheduleConfig, error)
+	// UpdateSchedule persists the enabled flag, cron expression and job-specific
+	// params JSON for the given job key.
+	UpdateSchedule(ctx context.Context, jobKey string, enabled bool, cron string, params string, updatedBy string) error
+	// RecordScheduleRun stores the outcome of a scheduler run (timestamp +
+	// job-specific result JSON) for the given job key.
+	RecordScheduleRun(ctx context.Context, jobKey string, ranAt time.Time, result string) error
 }

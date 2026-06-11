@@ -10,65 +10,58 @@ import (
 	"github.com/vukyn/isme/internal/scheduler"
 )
 
-// fakeRepo is an in-memory IRepository capturing the last Update calls.
+// fakeRepo is an in-memory IRepository keyed by job_key, capturing the last
+// UpdateSchedule / RecordScheduleRun calls per job.
 type fakeRepo struct {
-	config        entity.SessionRevokeConfig
+	configs map[string]entity.ScheduleConfig
+
+	updateCalled  bool
+	updateJobKey  string
 	updateEnabled bool
 	updateCron    string
+	updateParams  string
 	updateBy      string
-	updateCalled  bool
-	recordRevoked int64
-	recordCalled  bool
 
-	cleanupConfig        entity.RotationCleanupConfig
-	cleanupUpdateEnabled bool
-	cleanupUpdateCron    string
-	cleanupUpdateHours   int64
-	cleanupUpdateBy      string
-	cleanupUpdateCalled  bool
-	cleanupRecordCleaned int64
-	cleanupRecordCalled  bool
+	recordCalled bool
+	recordJobKey string
+	recordResult string
 }
 
-func (f *fakeRepo) Get(ctx context.Context) (entity.SessionRevokeConfig, error) {
-	return f.config, nil
+func newFakeRepo() *fakeRepo {
+	return &fakeRepo{configs: make(map[string]entity.ScheduleConfig)}
 }
 
-func (f *fakeRepo) Update(ctx context.Context, enabled bool, cron string, updatedBy string) error {
+func (f *fakeRepo) GetSchedule(ctx context.Context, jobKey string) (entity.ScheduleConfig, error) {
+	return f.configs[jobKey], nil
+}
+
+func (f *fakeRepo) UpdateSchedule(ctx context.Context, jobKey string, enabled bool, cron string, params string, updatedBy string) error {
 	f.updateCalled = true
+	f.updateJobKey = jobKey
 	f.updateEnabled = enabled
 	f.updateCron = cron
+	f.updateParams = params
 	f.updateBy = updatedBy
-	f.config.Enabled = enabled
-	f.config.Cron = cron
+
+	config := f.configs[jobKey]
+	config.JobKey = jobKey
+	config.Enabled = enabled
+	config.Cron = cron
+	config.Params = params
+	f.configs[jobKey] = config
 	return nil
 }
 
-func (f *fakeRepo) RecordRun(ctx context.Context, ranAt time.Time, revoked int64) error {
+func (f *fakeRepo) RecordScheduleRun(ctx context.Context, jobKey string, ranAt time.Time, result string) error {
 	f.recordCalled = true
-	f.recordRevoked = revoked
-	return nil
-}
+	f.recordJobKey = jobKey
+	f.recordResult = result
 
-func (f *fakeRepo) GetRotationCleanup(ctx context.Context) (entity.RotationCleanupConfig, error) {
-	return f.cleanupConfig, nil
-}
-
-func (f *fakeRepo) UpdateRotationCleanup(ctx context.Context, enabled bool, cron string, retentionHours int64, updatedBy string) error {
-	f.cleanupUpdateCalled = true
-	f.cleanupUpdateEnabled = enabled
-	f.cleanupUpdateCron = cron
-	f.cleanupUpdateHours = retentionHours
-	f.cleanupUpdateBy = updatedBy
-	f.cleanupConfig.Enabled = enabled
-	f.cleanupConfig.Cron = cron
-	f.cleanupConfig.RetentionHours = retentionHours
-	return nil
-}
-
-func (f *fakeRepo) RecordRotationCleanupRun(ctx context.Context, ranAt time.Time, cleaned int64) error {
-	f.cleanupRecordCalled = true
-	f.cleanupRecordCleaned = cleaned
+	config := f.configs[jobKey]
+	config.JobKey = jobKey
+	config.LastRunAt = &ranAt
+	config.LastResult = &result
+	f.configs[jobKey] = config
 	return nil
 }
 
@@ -89,7 +82,7 @@ func (f *fakeReloader) Reload(ctx context.Context, jobKey scheduler.JobKey, enab
 }
 
 func TestUpdatePersistsAndReloads(t *testing.T) {
-	repo := &fakeRepo{}
+	repo := newFakeRepo()
 	reloader := &fakeReloader{}
 	uc := NewUsecase(repo, reloader)
 
@@ -99,10 +92,16 @@ func TestUpdatePersistsAndReloads(t *testing.T) {
 	}
 
 	if !repo.updateCalled {
-		t.Fatal("expected repo.Update to be called")
+		t.Fatal("expected repo.UpdateSchedule to be called")
+	}
+	if repo.updateJobKey != entity.JobKeySessionRevoke {
+		t.Fatalf("repo.UpdateSchedule got jobKey=%q, want %q", repo.updateJobKey, entity.JobKeySessionRevoke)
 	}
 	if repo.updateEnabled != true || repo.updateCron != "0 3 * * *" {
-		t.Fatalf("repo.Update got enabled=%v cron=%q", repo.updateEnabled, repo.updateCron)
+		t.Fatalf("repo.UpdateSchedule got enabled=%v cron=%q", repo.updateEnabled, repo.updateCron)
+	}
+	if repo.updateParams != "{}" {
+		t.Fatalf("session-revoke params should be empty {}, got %q", repo.updateParams)
 	}
 	if !reloader.called {
 		t.Fatal("expected reloader.Reload to be called")
@@ -116,7 +115,7 @@ func TestUpdatePersistsAndReloads(t *testing.T) {
 }
 
 func TestUpdateRejectsBadCron(t *testing.T) {
-	repo := &fakeRepo{}
+	repo := newFakeRepo()
 	reloader := &fakeReloader{}
 	uc := NewUsecase(repo, reloader)
 
@@ -125,7 +124,7 @@ func TestUpdateRejectsBadCron(t *testing.T) {
 		t.Fatal("expected validation error for bad cron")
 	}
 	if repo.updateCalled {
-		t.Fatal("repo.Update should not be called when validation fails")
+		t.Fatal("repo.UpdateSchedule should not be called when validation fails")
 	}
 	if reloader.called {
 		t.Fatal("reloader.Reload should not be called when validation fails")
@@ -134,13 +133,16 @@ func TestUpdateRejectsBadCron(t *testing.T) {
 
 func TestGetMapsConfig(t *testing.T) {
 	ranAt := time.Unix(1700000000, 0).UTC()
-	revoked := int64(7)
-	repo := &fakeRepo{config: entity.SessionRevokeConfig{
-		Enabled:          true,
-		Cron:             "0 4 * * *",
-		LastRunAt:        &ranAt,
-		LastRevokedCount: &revoked,
-	}}
+	lastResult := `{"revoked":7}`
+	repo := newFakeRepo()
+	repo.configs[entity.JobKeySessionRevoke] = entity.ScheduleConfig{
+		JobKey:     entity.JobKeySessionRevoke,
+		Enabled:    true,
+		Cron:       "0 4 * * *",
+		Params:     "{}",
+		LastRunAt:  &ranAt,
+		LastResult: &lastResult,
+	}
 	uc := NewUsecase(repo, &fakeReloader{})
 
 	resp, err := uc.Get(context.Background())
@@ -159,7 +161,7 @@ func TestGetMapsConfig(t *testing.T) {
 }
 
 func TestUpdateRotationCleanupPersistsAndReloads(t *testing.T) {
-	repo := &fakeRepo{}
+	repo := newFakeRepo()
 	reloader := &fakeReloader{}
 	uc := NewUsecase(repo, reloader)
 
@@ -168,12 +170,17 @@ func TestUpdateRotationCleanupPersistsAndReloads(t *testing.T) {
 		t.Fatalf("UpdateRotationCleanup: %v", err)
 	}
 
-	if !repo.cleanupUpdateCalled {
-		t.Fatal("expected repo.UpdateRotationCleanup to be called")
+	if !repo.updateCalled {
+		t.Fatal("expected repo.UpdateSchedule to be called")
 	}
-	if repo.cleanupUpdateEnabled != true || repo.cleanupUpdateCron != "0 4 * * *" || repo.cleanupUpdateHours != 48 {
-		t.Fatalf("repo.UpdateRotationCleanup got enabled=%v cron=%q hours=%d",
-			repo.cleanupUpdateEnabled, repo.cleanupUpdateCron, repo.cleanupUpdateHours)
+	if repo.updateJobKey != entity.JobKeyRotationCleanup {
+		t.Fatalf("repo.UpdateSchedule got jobKey=%q, want %q", repo.updateJobKey, entity.JobKeyRotationCleanup)
+	}
+	if repo.updateEnabled != true || repo.updateCron != "0 4 * * *" {
+		t.Fatalf("repo.UpdateSchedule got enabled=%v cron=%q", repo.updateEnabled, repo.updateCron)
+	}
+	if repo.updateParams != `{"retention_hours":48}` {
+		t.Fatalf("rotation-cleanup params mismatch: %q", repo.updateParams)
 	}
 	if !reloader.called {
 		t.Fatal("expected reloader.Reload to be called")
@@ -187,7 +194,7 @@ func TestUpdateRotationCleanupPersistsAndReloads(t *testing.T) {
 }
 
 func TestUpdateRotationCleanupRejectsLowRetention(t *testing.T) {
-	repo := &fakeRepo{}
+	repo := newFakeRepo()
 	reloader := &fakeReloader{}
 	uc := NewUsecase(repo, reloader)
 
@@ -195,8 +202,8 @@ func TestUpdateRotationCleanupRejectsLowRetention(t *testing.T) {
 	if err := uc.UpdateRotationCleanup(context.Background(), req); err == nil {
 		t.Fatal("expected validation error for retention below 24h")
 	}
-	if repo.cleanupUpdateCalled {
-		t.Fatal("repo.UpdateRotationCleanup should not be called when validation fails")
+	if repo.updateCalled {
+		t.Fatal("repo.UpdateSchedule should not be called when validation fails")
 	}
 	if reloader.called {
 		t.Fatal("reloader.Reload should not be called when validation fails")
@@ -205,14 +212,16 @@ func TestUpdateRotationCleanupRejectsLowRetention(t *testing.T) {
 
 func TestGetRotationCleanupMapsConfig(t *testing.T) {
 	ranAt := time.Unix(1700000000, 0).UTC()
-	cleaned := int64(42)
-	repo := &fakeRepo{cleanupConfig: entity.RotationCleanupConfig{
-		Enabled:          true,
-		Cron:             "0 4 * * *",
-		RetentionHours:   72,
-		LastRunAt:        &ranAt,
-		LastCleanedCount: &cleaned,
-	}}
+	lastResult := `{"cleaned":42}`
+	repo := newFakeRepo()
+	repo.configs[entity.JobKeyRotationCleanup] = entity.ScheduleConfig{
+		JobKey:     entity.JobKeyRotationCleanup,
+		Enabled:    true,
+		Cron:       "0 4 * * *",
+		Params:     `{"retention_hours":72}`,
+		LastRunAt:  &ranAt,
+		LastResult: &lastResult,
+	}
 	uc := NewUsecase(repo, &fakeReloader{})
 
 	resp, err := uc.GetRotationCleanup(context.Background())
@@ -227,5 +236,27 @@ func TestGetRotationCleanupMapsConfig(t *testing.T) {
 	}
 	if resp.LastCleanedCount == nil || *resp.LastCleanedCount != 42 {
 		t.Fatalf("LastCleanedCount mismatch: %+v", resp.LastCleanedCount)
+	}
+}
+
+// TestRotationCleanupRoundTripsParamsThroughJSON verifies a retention value
+// written via UpdateRotationCleanup survives the params JSON column and reads
+// back identically via GetRotationCleanup (the new generic storage path).
+func TestRotationCleanupRoundTripsParamsThroughJSON(t *testing.T) {
+	repo := newFakeRepo()
+	uc := NewUsecase(repo, &fakeReloader{})
+
+	if err := uc.UpdateRotationCleanup(context.Background(), models.RotationCleanupUpdateRequest{
+		Enabled: true, Cron: "0 4 * * *", RetentionHours: 96,
+	}); err != nil {
+		t.Fatalf("UpdateRotationCleanup: %v", err)
+	}
+
+	resp, err := uc.GetRotationCleanup(context.Background())
+	if err != nil {
+		t.Fatalf("GetRotationCleanup: %v", err)
+	}
+	if resp.RetentionHours != 96 {
+		t.Fatalf("retention did not round-trip through params JSON: got %d, want 96", resp.RetentionHours)
 	}
 }
