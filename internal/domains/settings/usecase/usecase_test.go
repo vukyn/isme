@@ -260,3 +260,104 @@ func TestRotationCleanupRoundTripsParamsThroughJSON(t *testing.T) {
 		t.Fatalf("retention did not round-trip through params JSON: got %d, want 96", resp.RetentionHours)
 	}
 }
+
+func TestUpdateActivityCleanupPersistsAndReloads(t *testing.T) {
+	repo := newFakeRepo()
+	reloader := &fakeReloader{}
+	uc := NewUsecase(repo, reloader)
+
+	req := models.ActivityCleanupUpdateRequest{Enabled: true, Cron: "0 5 * * *", RetentionDays: 90}
+	if err := uc.UpdateActivityCleanup(context.Background(), req); err != nil {
+		t.Fatalf("UpdateActivityCleanup: %v", err)
+	}
+
+	if !repo.updateCalled {
+		t.Fatal("expected repo.UpdateSchedule to be called")
+	}
+	if repo.updateJobKey != entity.JobKeyActivityCleanup {
+		t.Fatalf("repo.UpdateSchedule got jobKey=%q, want %q", repo.updateJobKey, entity.JobKeyActivityCleanup)
+	}
+	if repo.updateEnabled != true || repo.updateCron != "0 5 * * *" {
+		t.Fatalf("repo.UpdateSchedule got enabled=%v cron=%q", repo.updateEnabled, repo.updateCron)
+	}
+	if repo.updateParams != `{"retention_days":90}` {
+		t.Fatalf("activity-cleanup params mismatch: %q", repo.updateParams)
+	}
+	if !reloader.called {
+		t.Fatal("expected reloader.Reload to be called")
+	}
+	if reloader.jobKey != scheduler.JobActivityCleanup {
+		t.Fatalf("reloader.Reload got jobKey=%q, want %q", reloader.jobKey, scheduler.JobActivityCleanup)
+	}
+	if reloader.enabled != true || reloader.cron != "0 5 * * *" {
+		t.Fatalf("reloader.Reload got enabled=%v cron=%q", reloader.enabled, reloader.cron)
+	}
+}
+
+func TestUpdateActivityCleanupRejectsLowRetention(t *testing.T) {
+	repo := newFakeRepo()
+	reloader := &fakeReloader{}
+	uc := NewUsecase(repo, reloader)
+
+	req := models.ActivityCleanupUpdateRequest{Enabled: true, Cron: "0 5 * * *", RetentionDays: 3}
+	if err := uc.UpdateActivityCleanup(context.Background(), req); err == nil {
+		t.Fatal("expected validation error for retention below 7 days")
+	}
+	if repo.updateCalled {
+		t.Fatal("repo.UpdateSchedule should not be called when validation fails")
+	}
+	if reloader.called {
+		t.Fatal("reloader.Reload should not be called when validation fails")
+	}
+}
+
+func TestGetActivityCleanupMapsConfig(t *testing.T) {
+	ranAt := time.Unix(1700000000, 0).UTC()
+	lastResult := `{"pruned":5120}`
+	repo := newFakeRepo()
+	repo.configs[entity.JobKeyActivityCleanup] = entity.ScheduleConfig{
+		JobKey:     entity.JobKeyActivityCleanup,
+		Enabled:    true,
+		Cron:       "0 5 * * *",
+		Params:     `{"retention_days":180}`,
+		LastRunAt:  &ranAt,
+		LastResult: &lastResult,
+	}
+	uc := NewUsecase(repo, &fakeReloader{})
+
+	resp, err := uc.GetActivityCleanup(context.Background())
+	if err != nil {
+		t.Fatalf("GetActivityCleanup: %v", err)
+	}
+	if resp.Enabled != true || resp.Cron != "0 5 * * *" || resp.RetentionDays != 180 {
+		t.Fatalf("unexpected response: %+v", resp)
+	}
+	if resp.LastRunAt == nil || *resp.LastRunAt != ranAt.Unix() {
+		t.Fatalf("LastRunAt mismatch: %+v", resp.LastRunAt)
+	}
+	if resp.LastPrunedCount == nil || *resp.LastPrunedCount != 5120 {
+		t.Fatalf("LastPrunedCount mismatch: %+v", resp.LastPrunedCount)
+	}
+}
+
+// TestActivityCleanupRoundTripsParamsThroughJSON verifies a retention value
+// written via UpdateActivityCleanup survives the params JSON column and reads
+// back identically via GetActivityCleanup.
+func TestActivityCleanupRoundTripsParamsThroughJSON(t *testing.T) {
+	repo := newFakeRepo()
+	uc := NewUsecase(repo, &fakeReloader{})
+
+	if err := uc.UpdateActivityCleanup(context.Background(), models.ActivityCleanupUpdateRequest{
+		Enabled: true, Cron: "0 5 * * *", RetentionDays: 365,
+	}); err != nil {
+		t.Fatalf("UpdateActivityCleanup: %v", err)
+	}
+
+	resp, err := uc.GetActivityCleanup(context.Background())
+	if err != nil {
+		t.Fatalf("GetActivityCleanup: %v", err)
+	}
+	if resp.RetentionDays != 365 {
+		t.Fatalf("retention did not round-trip through params JSON: got %d, want 365", resp.RetentionDays)
+	}
+}

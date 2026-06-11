@@ -16,4 +16,9 @@ type IUseCase interface {
 	// UpdateRotationCleanup validates and persists the cleanup schedule + retention,
 	// then live-reloads the scheduler.
 	UpdateRotationCleanup(ctx context.Context, req models.RotationCleanupUpdateRequest) error
+	// GetActivityCleanup returns the current activity-cleanup configuration.
+	GetActivityCleanup(ctx context.Context) (models.ActivityCleanupGetResponse, error)
+	// UpdateActivityCleanup validates and persists the cleanup schedule + retention
+	// (in days), then live-reloads the scheduler.
+	UpdateActivityCleanup(ctx context.Context, req models.ActivityCleanupUpdateRequest) error
 }

@@ -14,6 +14,7 @@ import (
 const (
 	JobKeySessionRevoke   = "session_revoke"
 	JobKeyRotationCleanup = "rotation_cleanup"
+	JobKeyActivityCleanup = "activity_cleanup"
 )
 
 // ScheduleConfig is the generic, job-keyed config that drives every scheduled

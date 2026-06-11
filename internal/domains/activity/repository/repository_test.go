@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"testing"
+	"time"
 
 	sqliteHistory "github.com/vukyn/isme/db/history/sqlite"
 	activityConstants "github.com/vukyn/isme/internal/domains/activity/constants"
@@ -163,5 +164,67 @@ func TestListByUserIDEmptyNonNil(t *testing.T) {
 	}
 	if len(events) != 0 {
 		t.Errorf("expected 0 events, got %d", len(events))
+	}
+}
+
+// seedEventAt inserts an event and forces its created_at to the given time
+// (BeforeAppendModel stamps time.Now on insert, so we overwrite the column).
+func seedEventAt(t *testing.T, db *bun.DB, id string, createdAt time.Time) {
+	t.Helper()
+	if err := (&repository{db: db}).Create(context.Background(), entity.ActivityEvent{
+		ID:     id,
+		UserID: "user-1",
+		Type:   activityConstants.ActivityTypeSignIn,
+	}); err != nil {
+		t.Fatalf("seed create %s: %v", id, err)
+	}
+	if _, err := db.NewUpdate().
+		Model((*entity.ActivityEvent)(nil)).
+		Set("created_at = ?", createdAt).
+		Where("id = ?", id).
+		Exec(context.Background()); err != nil {
+		t.Fatalf("seed set created_at %s: %v", id, err)
+	}
+}
+
+// TestPruneBeforeDeletesOnlyOlderRows proves the cutoff is exclusive on the
+// recent side: rows created_at < before are deleted, newer rows survive.
+func TestPruneBeforeDeletesOnlyOlderRows(t *testing.T) {
+	db := newTestDB(t)
+	repository := NewRepository(db)
+	now := time.Now().UTC()
+
+	seedEventAt(t, db, "old-1", now.Add(-100*24*time.Hour))
+	seedEventAt(t, db, "old-2", now.Add(-91*24*time.Hour))
+	seedEventAt(t, db, "recent", now.Add(-1*24*time.Hour))
+
+	pruned, err := repository.PruneBefore(context.Background(), now.Add(-90*24*time.Hour))
+	if err != nil {
+		t.Fatalf("PruneBefore: %v", err)
+	}
+	if pruned != 2 {
+		t.Fatalf("expected 2 rows pruned, got %d", pruned)
+	}
+
+	events, err := repository.ListByUserID(context.Background(), "user-1", 10)
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if len(events) != 1 || events[0].ID != "recent" {
+		t.Fatalf("expected only the recent event to remain, got %+v", events)
+	}
+}
+
+// TestPruneBeforeEmptyTable proves pruning an empty table is a no-op returning 0.
+func TestPruneBeforeEmptyTable(t *testing.T) {
+	db := newTestDB(t)
+	repository := NewRepository(db)
+
+	pruned, err := repository.PruneBefore(context.Background(), time.Now().UTC())
+	if err != nil {
+		t.Fatalf("PruneBefore: %v", err)
+	}
+	if pruned != 0 {
+		t.Fatalf("expected 0 rows pruned on empty table, got %d", pruned)
 	}
 }

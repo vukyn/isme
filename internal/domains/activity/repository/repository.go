@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"github.com/vukyn/isme/internal/domains/activity/entity"
 
@@ -59,4 +60,19 @@ func (r *repository) ListByUserID(ctx context.Context, userID string, limit int)
 		return nil, pkgErr.DatabaseError(err.Error())
 	}
 	return events, nil
+}
+
+func (r *repository) PruneBefore(ctx context.Context, before time.Time) (int64, error) {
+	res, err := r.db.NewDelete().
+		Model((*entity.ActivityEvent)(nil)).
+		Where("created_at < ?", before).
+		Exec(ctx)
+	if err != nil {
+		return 0, pkgErr.DatabaseError(err.Error())
+	}
+	count, err := res.RowsAffected()
+	if err != nil {
+		return 0, pkgErr.DatabaseError(err.Error())
+	}
+	return count, nil
 }

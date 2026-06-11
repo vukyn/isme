@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/vukyn/isme/internal/domains/activity/constants"
 	"github.com/vukyn/isme/internal/domains/activity/entity"
@@ -24,6 +25,10 @@ func (f *fakeRepository) Create(ctx context.Context, event entity.ActivityEvent)
 
 func (f *fakeRepository) ListByUserID(ctx context.Context, userID string, limit int) ([]entity.ActivityEvent, error) {
 	return nil, nil
+}
+
+func (f *fakeRepository) PruneBefore(ctx context.Context, before time.Time) (int64, error) {
+	return 0, nil
 }
 
 func decodeMeta(t *testing.T, raw string) map[string]any {
@@ -175,4 +180,8 @@ func (l *listRepo) Create(ctx context.Context, event entity.ActivityEvent) error
 
 func (l *listRepo) ListByUserID(ctx context.Context, userID string, limit int) ([]entity.ActivityEvent, error) {
 	return l.events, nil
+}
+
+func (l *listRepo) PruneBefore(ctx context.Context, before time.Time) (int64, error) {
+	return 0, nil
 }

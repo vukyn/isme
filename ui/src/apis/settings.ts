@@ -1,6 +1,8 @@
 import type {
+	ActivityCleanupConfig,
 	RotationCleanupConfig,
 	SessionRevokeConfig,
+	UpdateActivityCleanupConfigRequest,
 	UpdateRotationCleanupConfigRequest,
 	UpdateSessionRevokeConfigRequest,
 } from "@/types";
@@ -63,5 +65,34 @@ export const updateRotationCleanupConfig = async (request: UpdateRotationCleanup
 		enabled: request.enabled,
 		cron: request.cron,
 		retention_hours: request.retentionHours,
+	});
+};
+
+/** Raw backend shape (snake_case) for the activity-cleanup config. */
+interface ActivityCleanupConfigDTO {
+	enabled: boolean;
+	cron: string;
+	retention_days: number;
+	last_run_at: number | null;
+	last_pruned_count: number | null;
+}
+
+export const getActivityCleanupConfig = async (): Promise<ActivityCleanupConfig> => {
+	const response = await apiClient.get<Envelope<ActivityCleanupConfigDTO>>(API_ENDPOINTS.SETTINGS_ACTIVITY_CLEANUP);
+	const dto = response.data.data;
+	return {
+		enabled: dto.enabled,
+		cron: dto.cron,
+		retentionDays: dto.retention_days,
+		lastRunAt: dto.last_run_at ?? null,
+		lastPrunedCount: dto.last_pruned_count ?? null,
+	};
+};
+
+export const updateActivityCleanupConfig = async (request: UpdateActivityCleanupConfigRequest): Promise<void> => {
+	await apiClient.put(API_ENDPOINTS.SETTINGS_ACTIVITY_CLEANUP, {
+		enabled: request.enabled,
+		cron: request.cron,
+		retention_days: request.retentionDays,
 	});
 };

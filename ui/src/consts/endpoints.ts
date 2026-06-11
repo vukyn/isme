@@ -52,4 +52,5 @@ export const API_ENDPOINTS = {
 	// Settings
 	SETTINGS_SESSION_REVOKE: "/api/v1/settings/session-revoke",
 	SETTINGS_ROTATION_CLEANUP: "/api/v1/settings/rotation-cleanup",
+	SETTINGS_ACTIVITY_CLEANUP: "/api/v1/settings/activity-cleanup",
 } as const;

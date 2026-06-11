@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>isme — Settings (Session auto-revoke · Token rotation cleanup) · Aurora UI</title>
+<title>isme — Settings (Session auto-revoke · Token rotation cleanup · Activity log cleanup) · Aurora UI</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -745,6 +745,181 @@
       </div>
     </section>
 
+    <!-- ============ CARD · Activity log cleanup ============
+         THIRD card. Structurally MIRRORS the Token rotation cleanup card above
+         element-for-element (same chrome, switch, schedule grid, cron-readout,
+         advanced disclosure, last-run strip, dirty footer, retention select).
+         Differs only in: target table (activity_events, not token_rotation_events),
+         header glyph (scroll/list/activity icon, not the trash glyph), default cron
+         (0 5 * * * — 05:00, avoids card 2's 04:00), and — IMPORTANT — the retention
+         scale is in DAYS (30 / 90 / 180 / 365), NOT hours: activity history is kept
+         far longer than rotation noise. Readout chip shows e.g. "keep 90d".
+
+         FEATURE: scheduled prune of old activity_events rows (the audit table behind
+         the Welcome "Recent activity" feed — one row per sign-in / sign-out /
+         password change / invitation sent). Grows unbounded; this job prunes rows
+         older than the retention window via the SAME generic schedule_config scheduler
+         (a new `activity_cleanup` job key). Saves THREE values:
+           enabled (flag) + cron (5-field schedule) + retention (DAY-scale preset).
+         Default shown: ENABLED · Daily @ 05:00 (0 5 * * *) · keep 90d · advanced collapsed.
+
+         STATES MOCKED: ENABLED (shown); DISABLE via the switch → .schedule dims
+         (data-enabled="false") and the state label flips Enabled→Disabled; last-run
+         strip stays visible. POPULATED last-run ("1d ago · pruned 5,120 events") is
+         shown; NEVER-RUN variant is #c3-lastrun-empty (display:none, swap to preview).
+         Backend (forward-looking): GET/PUT /settings/activity-cleanup
+         { enabled, cron, retention_days }. NOTE: retention_days (int days), NOT the
+         retention_hours used by the token-rotation card. -->
+    <section class="panel collapsed" id="activity-card">
+
+      <!-- 1 · Card header -->
+      <button class="sect-head" type="button" onclick="c3.toggleCard()" aria-expanded="false" id="c3-card-head">
+        <div class="sh-icon">
+          <!-- scroll-text / activity-log glyph (Lucide scroll-text) — distinct from card 2's trash glyph -->
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 12h-5"/><path d="M15 8h-5"/><path d="M19 17V5a2 2 0 0 0-2-2H4"/><path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3"/></svg>
+        </div>
+        <div class="sh-meta">
+          <div class="sh-title">Activity log cleanup</div>
+          <div class="sh-sub">Prune activity-log history older than the retention window. Keeps the recent-activity feed lean.</div>
+        </div>
+        <span class="sh-chevron" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </span>
+      </button>
+
+      <div class="sect-body">
+
+        <!-- 2 · Enable/disable switch — shown ENABLED -->
+        <div class="enable-row">
+          <div class="er-meta">
+            <div class="er-title">Cleanup cronjob</div>
+            <div class="er-sub">Periodically delete activity-log history older than the retention window. Prevents unbounded growth of the audit table; the recent-activity feed stays lean.</div>
+          </div>
+          <span class="er-state" id="c3-enable-state">Enabled</span>
+          <label class="switch">
+            <input type="checkbox" id="c3-enable" checked onchange="c3.onEnableToggle()" aria-label="Enable activity log cleanup" />
+            <span class="track"><span class="thumb"></span></span>
+          </label>
+        </div>
+
+        <!-- 3 · Schedule control — dims when disabled -->
+        <div class="schedule" id="c3-schedule" data-enabled="true">
+
+          <div class="sched-grid has-retention">
+            <!-- Run preset -->
+            <div class="sched-col">
+              <span class="field-label">Run</span>
+              <select class="sel" id="c3-preset" onchange="c3.onPreset()" aria-label="Run schedule preset">
+                <option value="hourly">Hourly</option>
+                <option value="every6h">Every 6 hours</option>
+                <option value="daily" selected>Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="custom" id="c3-opt-custom" class="hidden">Custom (from cron)</option>
+              </select>
+            </div>
+
+            <!-- Time picker — shown for Daily / Weekly only -->
+            <div class="sched-col" id="c3-col-time">
+              <span class="field-label">At</span>
+              <label class="input-wrap">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                <input type="time" id="c3-time" value="05:00" onchange="c3.recompute()" aria-label="Run time" />
+              </label>
+            </div>
+
+            <!-- Weekday picker — shown for Weekly only. Shares the trailing grid slot
+                 with Retention (which renders on its own row below). -->
+            <div class="sched-col is-hidden" id="c3-col-weekday">
+              <span class="field-label">On</span>
+              <select class="sel" id="c3-weekday" onchange="c3.recompute()" aria-label="Run weekday">
+                <option value="1" selected>Monday</option>
+                <option value="2">Tuesday</option>
+                <option value="3">Wednesday</option>
+                <option value="4">Thursday</option>
+                <option value="5">Friday</option>
+                <option value="6">Saturday</option>
+                <option value="0">Sunday</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- RETENTION — DAY-scale presets (activity history kept far longer than
+               rotation noise). Default 90 days. Same styling as card 2's retention,
+               but values are DAYS (30 / 90 / 180 / 365). Maps to backend retention_days.
+               on change: marks form dirty + updates the readout chip. -->
+          <div class="sched-col" style="max-width:220px; margin-top:14px;">
+            <span class="field-label">Keep history for <span class="opt">· retention</span></span>
+            <select class="sel" id="c3-retention" onchange="c3.recompute()" aria-label="Retention window">
+              <option value="30d">30 days</option>
+              <option value="90d" selected>90 days</option>
+              <option value="180d">180 days</option>
+              <option value="365d">1 year</option>
+            </select>
+          </div>
+
+          <!-- resolved-cron + retention readout (retention chip in DAYS, e.g. "keep 90d") -->
+          <div class="cron-readout">
+            <span id="c3-sched-summary">Daily at 05:00</span>
+            <svg class="arrow" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            <code id="c3-cron-out">0 5 * * *</code>
+            <span class="arrow" style="margin:0 2px;">·</span>
+            <span>keep <code id="c3-ret-out" style="color:var(--c-amber);background:rgba(245,158,11,0.10);border-color:rgba(245,158,11,0.30);">90d</code></span>
+          </div>
+
+          <!-- Advanced (cron) disclosure — collapsed by default -->
+          <div class="disclosure" id="c3-adv" data-open="false" style="margin-top:18px;">
+            <button type="button" class="disc-toggle" onclick="c3.toggleAdv()" aria-expanded="false" aria-controls="c3-adv-body">
+              <span class="disc-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2Z"/><circle cx="12" cy="12" r="3"/></svg></span>
+              <span>
+                <span class="d-title">Advanced (cron)</span>
+                <span class="d-sub" style="display:block;">Set the schedule with a raw cron expression.</span>
+              </span>
+              <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+            </button>
+            <div class="disc-body" id="c3-adv-body">
+              <span class="field-label">Cron expression <span class="opt">· 5-field</span></span>
+              <label class="input-wrap mono">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 6-6 6 6 6"/><path d="m16 6 6 6-6 6"/></svg>
+                <input type="text" id="c3-cron-in" value="0 5 * * *" oninput="c3.onCronEdit()" spellcheck="false" aria-label="Cron expression" />
+              </label>
+              <div class="helper">5-field cron · <code>minute hour day month weekday</code>. Editing this sets the schedule directly — the preset above reads <code>Custom</code> if it no longer matches a preset. Retention is independent of the cron.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4 · Last-run readout — POPULATED state (shown). Shows pruned-event count. -->
+        <div class="lastrun" id="c3-lastrun">
+          <span class="lr-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+          <span>Last run <b>1d ago</b> · <span class="lr-count">pruned 5,120 events</span></span>
+        </div>
+
+        <!-- 4b · NEVER-RUN empty-state variant (design-note; swap visibility with #c3-lastrun) -->
+        <div class="lastrun empty" id="c3-lastrun-empty" style="display:none;">
+          <span class="lr-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+          <span>Never run — the first prune happens on the next scheduled time.</span>
+        </div>
+
+        <!-- informational note -->
+        <div class="note">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+          <span>Only rows in <b style="color:var(--fg-soft);">activity_events</b> older than the retention window are deleted. The Welcome <b style="color:var(--fg-soft);">Recent activity</b> feed reads the most recent rows and stays intact.</span>
+        </div>
+      </div>
+
+      <!-- 5 · Footer actions — dirty-state hint + Cancel/Save -->
+      <div class="form-foot">
+        <span class="changed" id="c3-dirty" style="visibility:hidden;"><span class="dot"></span>Unsaved changes</span>
+        <span class="spacer"></span>
+        <!-- on click: revert enable + cron + retention to saved values -->
+        <button class="btn btn-ghost" onclick="c3.discard()">Cancel</button>
+        <!-- on click: PUT /settings/activity-cleanup { enabled, cron, retention_days } → toast -->
+        <button class="btn btn-primary" id="c3-save-btn" disabled>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg>
+          Save changes
+        </button>
+      </div>
+    </section>
+
     <!-- Future setting cards stack here (notification prefs, token TTL, session caps…) -->
 
   </div>
@@ -1008,6 +1183,132 @@
     }
 
     /* init: Enabled · Daily @ 04:00 · keep 48h · advanced collapsed · pristine */
+    applyPresetVisibility('daily');
+
+    return { toggleCard, onPreset, recompute, onCronEdit, onEnableToggle, toggleAdv, discard };
+  })();
+</script>
+
+<script>
+  /* ===== Activity log cleanup card — namespaced under c3 to avoid ID/fn
+     collisions with the revoke (global) and token-rotation (c2) cards. Same logic
+     as c2 PLUS a DAY-scale retention value. Default: Daily @ 05:00 · keep 90d. ===== */
+  var c3 = (function(){
+    var SAVED = { enabled: true, cron: '0 5 * * *', retention: '90d' };
+    var DOW_NAMES = {0:'Sunday',1:'Monday',2:'Tuesday',3:'Wednesday',4:'Thursday',5:'Friday',6:'Saturday'};
+    function $(id){ return document.getElementById(id); }
+
+    function toggleCard(){
+      var panel = $('activity-card');
+      var collapsed = panel.classList.toggle('collapsed');
+      $('c3-card-head').setAttribute('aria-expanded', String(!collapsed));
+    }
+
+    function presetToCron(preset, hhmm, dow){
+      var parts = (hhmm || '05:00').split(':');
+      var hh = String(parseInt(parts[0], 10) || 0);
+      var mm = String(parseInt(parts[1] !== undefined ? parts[1] : '0', 10) || 0);
+      switch(preset){
+        case 'hourly':  return '0 * * * *';
+        case 'every6h': return '0 */6 * * *';
+        case 'daily':   return mm + ' ' + hh + ' * * *';
+        case 'weekly':  return mm + ' ' + hh + ' * * ' + dow;
+        default:        return $('c3-cron-in').value.trim();
+      }
+    }
+    function humanSummary(preset, hhmm, dow){
+      switch(preset){
+        case 'hourly':  return 'Every hour, on the hour';
+        case 'every6h': return 'Every 6 hours';
+        case 'daily':   return 'Daily at ' + hhmm;
+        case 'weekly':  return 'Weekly · ' + DOW_NAMES[dow] + ' at ' + hhmm;
+        default:        return 'Custom schedule';
+      }
+    }
+    function applyPresetVisibility(preset){
+      var needsTime = (preset === 'daily' || preset === 'weekly');
+      var needsDow  = (preset === 'weekly');
+      $('c3-col-time').classList.toggle('is-hidden', !needsTime);
+      $('c3-col-weekday').classList.toggle('is-hidden', !needsDow);
+    }
+    function currentDow(){ return $('c3-weekday').value; }
+    function currentTime(){ return $('c3-time').value || '05:00'; }
+    function currentRetention(){ return $('c3-retention').value; }
+
+    function recompute(){
+      $('c3-ret-out').textContent = currentRetention();
+      var preset = $('c3-preset').value;
+      if (preset === 'custom') { markDirty(); return; }
+      var cron = presetToCron(preset, currentTime(), currentDow());
+      $('c3-cron-out').textContent = cron;
+      $('c3-cron-in').value = cron;
+      $('c3-sched-summary').textContent = humanSummary(preset, currentTime(), currentDow());
+      markDirty();
+    }
+    function onPreset(){
+      applyPresetVisibility($('c3-preset').value);
+      recompute();
+    }
+    function onCronEdit(){
+      var cron = $('c3-cron-in').value.trim();
+      $('c3-cron-out').textContent = cron || '—';
+      var matched = 'custom';
+      if (cron === '0 * * * *') matched = 'hourly';
+      else if (cron === '0 */6 * * *') matched = 'every6h';
+      else if (/^\d+ \d+ \* \* \*$/.test(cron)) matched = 'daily';
+      else if (/^\d+ \d+ \* \* \d$/.test(cron)) matched = 'weekly';
+
+      var presetSel = $('c3-preset');
+      if (matched === 'custom') {
+        $('c3-opt-custom').classList.remove('hidden');
+        presetSel.value = 'custom';
+        $('c3-sched-summary').textContent = 'Custom schedule';
+        $('c3-col-time').classList.add('is-hidden');
+        $('c3-col-weekday').classList.add('is-hidden');
+      } else {
+        presetSel.value = matched;
+        applyPresetVisibility(matched);
+        $('c3-sched-summary').textContent = humanSummary(matched, currentTime(), currentDow());
+      }
+      markDirty();
+    }
+    function onEnableToggle(){
+      var on = $('c3-enable').checked;
+      $('c3-schedule').setAttribute('data-enabled', on ? 'true' : 'false');
+      var lbl = $('c3-enable-state');
+      lbl.textContent = on ? 'Enabled' : 'Disabled';
+      lbl.style.color = on ? 'var(--c-mint)' : 'var(--fg-mute)';
+      markDirty();
+    }
+    function toggleAdv(){
+      var adv = $('c3-adv');
+      var open = adv.getAttribute('data-open') === 'true';
+      adv.setAttribute('data-open', open ? 'false' : 'true');
+      adv.querySelector('.disc-toggle').setAttribute('aria-expanded', open ? 'false' : 'true');
+    }
+    function markDirty(){
+      var dirty = ($('c3-enable').checked !== SAVED.enabled)
+        || ($('c3-cron-in').value.trim() !== SAVED.cron)
+        || (currentRetention() !== SAVED.retention);
+      $('c3-dirty').style.visibility = dirty ? 'visible' : 'hidden';
+      $('c3-save-btn').disabled = !dirty;
+    }
+    function discard(){
+      $('c3-enable').checked = SAVED.enabled;
+      $('c3-cron-in').value = SAVED.cron;
+      $('c3-retention').value = SAVED.retention;
+      $('c3-preset').value = 'daily';
+      $('c3-time').value = '05:00';
+      $('c3-opt-custom').classList.add('hidden');
+      onEnableToggle();
+      applyPresetVisibility('daily');
+      $('c3-cron-out').textContent = SAVED.cron;
+      $('c3-ret-out').textContent = SAVED.retention;
+      $('c3-sched-summary').textContent = 'Daily at 05:00';
+      markDirty();
+    }
+
+    /* init: Enabled · Daily @ 05:00 · keep 90d · advanced collapsed · pristine */
     applyPresetVisibility('daily');
 
     return { toggleCard, onPreset, recompute, onCronEdit, onEnableToggle, toggleAdv, discard };
