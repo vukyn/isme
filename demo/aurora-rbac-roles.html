@@ -64,10 +64,9 @@
   .brand-row { display: flex; align-items: center; gap: 12px; }
   .brand-mark {
     width: 34px; height: 34px; border-radius: 10px;
-    background: conic-gradient(from 180deg at 50% 50%, var(--c-cyan), var(--c-blue), var(--c-violet), var(--c-magenta), var(--c-cyan));
+    background: linear-gradient(135deg, var(--c-cyan) 0%, var(--c-violet) 60%, var(--c-magenta) 100%);
     display: grid; place-items: center; box-shadow: 0 8px 24px rgba(99,102,241,0.45);
   }
-  .brand-mark > span { width: 26px; height: 26px; border-radius: 7px; background: var(--bg-0); display: grid; place-items: center; }
   .brand-name { font-weight: 700; font-size: 17px; letter-spacing: -0.01em; }
   .nav { display: flex; gap: 4px; }
   .nav a {
@@ -521,7 +520,7 @@
 <header class="app-bar">
   <div class="bar-left">
     <div class="brand-row">
-      <div class="brand-mark"><span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 7l8 5 8-5-8-5Z"/><path d="m4 17 8 5 8-5"/><path d="m4 12 8 5 8-5"/></svg></span></div>
+      <div class="brand-mark"><svg width="100%" height="100%" viewBox="0 0 32 32" fill="none" role="img" aria-label="isme"><circle cx="16" cy="10" r="3.6" fill="#FFFFFF"/><rect x="12.4" y="16.4" width="7.2" height="9.6" rx="3.6" fill="#FFFFFF"/></svg></div>
       <div class="brand-name">isme</div>
     </div>
     <nav class="nav" aria-label="Primary">
