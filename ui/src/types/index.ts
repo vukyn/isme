@@ -71,6 +71,8 @@ export type {
 	UpdateSessionRevokeConfigRequest,
 	RotationCleanupConfig,
 	UpdateRotationCleanupConfigRequest,
+	ActivityCleanupConfig,
+	UpdateActivityCleanupConfigRequest,
 } from "./settings";
 export type { MySessionItem, MySessionCount } from "./session";
 export type { ActivityItem } from "./activity";

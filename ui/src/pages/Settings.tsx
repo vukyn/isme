@@ -1,6 +1,7 @@
 "use client";
 
 import { Box, Center, Heading, Spinner, Stack, Text } from "@chakra-ui/react";
+import { ActivityCleanupCard } from "@/components/ActivityCleanupCard";
 import { RotationCleanupCard } from "@/components/RotationCleanupCard";
 import { SessionAutoRevokeCard } from "@/components/SessionAutoRevokeCard";
 import { AppShell } from "@/layouts/AppShell";
@@ -31,6 +32,7 @@ export const Settings = () => {
 					<Stack gap="5">
 						<SessionAutoRevokeCard />
 						<RotationCleanupCard />
+						<ActivityCleanupCard />
 					</Stack>
 				</Stack>
 			)}

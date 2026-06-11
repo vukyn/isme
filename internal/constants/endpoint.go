@@ -60,4 +60,5 @@ const (
 	SETTINGS_GROUP_NAME                = "/settings"
 	SETTINGS_ENDPOINT_SESSION_REVOKE   = "/session-revoke"
 	SETTINGS_ENDPOINT_ROTATION_CLEANUP = "/rotation-cleanup"
+	SETTINGS_ENDPOINT_ACTIVITY_CLEANUP = "/activity-cleanup"
 )

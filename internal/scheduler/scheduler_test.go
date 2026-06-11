@@ -34,6 +34,27 @@ func TestRotationCutoff(t *testing.T) {
 	}
 }
 
+func TestActivityCutoff(t *testing.T) {
+	now := time.Date(2026, 6, 11, 5, 0, 0, 0, time.UTC)
+	cases := []struct {
+		name          string
+		retentionDays int64
+		want          time.Time
+	}{
+		{"30d", 30, now.Add(-30 * 24 * time.Hour)},
+		{"7d floor", 7, now.Add(-7 * 24 * time.Hour)},
+		{"90d default", 90, now.Add(-90 * 24 * time.Hour)},
+		{"365d", 365, now.Add(-365 * 24 * time.Hour)},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := activityCutoff(now, tc.retentionDays); !got.Equal(tc.want) {
+				t.Fatalf("activityCutoff(%v) = %v, want %v", tc.retentionDays, got, tc.want)
+			}
+		})
+	}
+}
+
 // newTestDB opens an in-memory SQLite database and applies every migration.
 func newTestDB(t *testing.T) *bun.DB {
 	t.Helper()
@@ -79,10 +100,13 @@ func TestJobKeysAreConsistentAcrossPackages(t *testing.T) {
 	if string(JobRotationCleanup) != settingsEntity.JobKeyRotationCleanup {
 		t.Fatalf("JobRotationCleanup=%q != entity.JobKeyRotationCleanup=%q", JobRotationCleanup, settingsEntity.JobKeyRotationCleanup)
 	}
+	if string(JobActivityCleanup) != settingsEntity.JobKeyActivityCleanup {
+		t.Fatalf("JobActivityCleanup=%q != entity.JobKeyActivityCleanup=%q", JobActivityCleanup, settingsEntity.JobKeyActivityCleanup)
+	}
 
-	// the migration must seed exactly the two job rows the scheduler reads.
+	// the migration must seed exactly the three job rows the scheduler reads.
 	db := newTestDB(t)
-	for _, jobKey := range []string{settingsEntity.JobKeySessionRevoke, settingsEntity.JobKeyRotationCleanup} {
+	for _, jobKey := range []string{settingsEntity.JobKeySessionRevoke, settingsEntity.JobKeyRotationCleanup, settingsEntity.JobKeyActivityCleanup} {
 		var count int
 		row := db.QueryRow("SELECT COUNT(*) FROM schedule_config WHERE job_key = ?", jobKey)
 		if err := row.Scan(&count); err != nil {

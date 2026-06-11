@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	activityRepo "github.com/vukyn/isme/internal/domains/activity/repository"
 	settingsEntity "github.com/vukyn/isme/internal/domains/settings/entity"
 	settingsRepo "github.com/vukyn/isme/internal/domains/settings/repository"
 	userSessionRepo "github.com/vukyn/isme/internal/domains/user_session/repository"
@@ -26,11 +27,20 @@ const (
 	JobSessionRevoke JobKey = settingsEntity.JobKeySessionRevoke
 	// JobRotationCleanup prunes old token_rotation_events rows.
 	JobRotationCleanup JobKey = settingsEntity.JobKeyRotationCleanup
+	// JobActivityCleanup prunes old activity_events rows.
+	JobActivityCleanup JobKey = settingsEntity.JobKeyActivityCleanup
 )
 
 // rotationCleanupParams mirrors the params JSON of the rotation-cleanup job.
 type rotationCleanupParams struct {
 	RetentionHours int64 `json:"retention_hours"`
+}
+
+// activityCleanupParams mirrors the params JSON of the activity-cleanup job.
+// Retention is in DAYS (not hours like rotation), so the cutoff multiplies by
+// 24h per day.
+type activityCleanupParams struct {
+	RetentionDays int64 `json:"retention_days"`
 }
 
 // IReloader is the seam the settings usecase depends on to re-apply a changed
@@ -50,6 +60,7 @@ type Scheduler struct {
 	sched           gocron.Scheduler
 	userSessionRepo userSessionRepo.IRepository
 	settingsRepo    settingsRepo.IRepository
+	activityRepo    activityRepo.IRepository
 	enabled         bool
 
 	mu      sync.Mutex
@@ -69,6 +80,7 @@ func New(db *bun.DB, enabled bool) (*Scheduler, error) {
 		sched:           sched,
 		userSessionRepo: userSessionRepo.NewRepository(db),
 		settingsRepo:    settingsRepo.NewRepository(db),
+		activityRepo:    activityRepo.NewRepository(db),
 		enabled:         enabled,
 		jobs:            make(map[JobKey]uuid.UUID),
 	}, nil
@@ -92,6 +104,7 @@ func (s *Scheduler) Start(ctx context.Context) {
 
 	s.loadSessionRevoke(ctx)
 	s.loadRotationCleanup(ctx)
+	s.loadActivityCleanup(ctx)
 }
 
 // loadSessionRevoke loads + installs the session-revoke job. Callers must hold s.mu.
@@ -126,6 +139,23 @@ func (s *Scheduler) loadRotationCleanup(ctx context.Context) {
 		return
 	}
 	log.New().Infof("Rotation cleanup scheduler started with cron %q", config.Cron)
+}
+
+// loadActivityCleanup loads + installs the activity-cleanup job. Callers must hold s.mu.
+func (s *Scheduler) loadActivityCleanup(ctx context.Context) {
+	config, err := s.settingsRepo.GetSchedule(ctx, string(JobActivityCleanup))
+	if err != nil {
+		log.New().Errorf("Scheduler: failed to load activity-cleanup config: %v", err)
+		return
+	}
+	if !config.Enabled || config.Cron == "" {
+		return
+	}
+	if err := s.applyJob(JobActivityCleanup, config.Cron); err != nil {
+		log.New().Errorf("Scheduler: failed to install activity-cleanup job: %v", err)
+		return
+	}
+	log.New().Infof("Activity cleanup scheduler started with cron %q", config.Cron)
 }
 
 // Reload re-applies the schedule for the named job live. It removes the current
@@ -178,6 +208,8 @@ func (s *Scheduler) applyJob(jobKey JobKey, cronExpr string) error {
 		task = gocron.NewTask(func() { s.runRevoke(context.Background()) })
 	case JobRotationCleanup:
 		task = gocron.NewTask(func() { s.runCleanup(context.Background()) })
+	case JobActivityCleanup:
+		task = gocron.NewTask(func() { s.runActivityCleanup(context.Background()) })
 	default:
 		return nil
 	}
@@ -269,4 +301,48 @@ func (s *Scheduler) runCleanup(ctx context.Context) {
 // this time are eligible for pruning.
 func rotationCutoff(now time.Time, retentionHours int64) time.Time {
 	return now.Add(-time.Duration(retentionHours) * time.Hour)
+}
+
+// runActivityCleanup is the scheduled task: prune activity_events older than the
+// configured retention window (in DAYS) and record the run. The config (and
+// therefore the retention window) is read FRESH on each run, so a retention-only
+// change takes effect on the next run without a scheduler reload. Errors are
+// logged, never panicked, so a failed run does not crash the process or kill the
+// schedule.
+func (s *Scheduler) runActivityCleanup(ctx context.Context) {
+	now := time.Now().UTC()
+	config, err := s.settingsRepo.GetSchedule(ctx, string(JobActivityCleanup))
+	if err != nil {
+		log.New().Errorf("Scheduler: load activity-cleanup config failed: %v", err)
+		return
+	}
+	params := activityCleanupParams{}
+	if config.Params != "" {
+		if err := json.Unmarshal([]byte(config.Params), &params); err != nil {
+			log.New().Errorf("Scheduler: parse activity-cleanup params failed: %v", err)
+			return
+		}
+	}
+	before := activityCutoff(now, params.RetentionDays)
+	pruned, err := s.activityRepo.PruneBefore(ctx, before)
+	if err != nil {
+		log.New().Errorf("Scheduler: prune activity events failed: %v", err)
+		return
+	}
+	result, err := json.Marshal(map[string]int64{"pruned": pruned})
+	if err != nil {
+		log.New().Errorf("Scheduler: marshal activity-cleanup result failed: %v", err)
+		return
+	}
+	if err := s.settingsRepo.RecordScheduleRun(ctx, string(JobActivityCleanup), now, string(result)); err != nil {
+		log.New().Errorf("Scheduler: record activity-cleanup run failed: %v", err)
+		// the prune still happened — fall through to log it
+	}
+	log.New().Infof("Activity cleanup run complete: %d activity event(s) pruned", pruned)
+}
+
+// activityCutoff is the pure cutoff calculation: events created before this time
+// are eligible for pruning. Retention is in DAYS, so each day is 24 hours.
+func activityCutoff(now time.Time, retentionDays int64) time.Time {
+	return now.Add(-time.Duration(retentionDays) * 24 * time.Hour)
 }

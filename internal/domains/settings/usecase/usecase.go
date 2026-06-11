@@ -31,6 +31,16 @@ type rotationCleanupResult struct {
 	Cleaned int64 `json:"cleaned"`
 }
 
+// activityCleanupParams mirrors the params JSON of the activity-cleanup job.
+type activityCleanupParams struct {
+	RetentionDays int64 `json:"retention_days"`
+}
+
+// activityCleanupResult mirrors the last_result JSON of the activity-cleanup job.
+type activityCleanupResult struct {
+	Pruned int64 `json:"pruned"`
+}
+
 type usecase struct {
 	settingsRepo settingsRepo.IRepository
 	reloader     scheduler.IReloader
@@ -136,4 +146,57 @@ func (u *usecase) UpdateRotationCleanup(ctx context.Context, req models.Rotation
 	// A retention-only change still reloads here, but retention is read fresh on
 	// each run regardless, so it would also take effect on the next run.
 	return u.reloader.Reload(ctx, scheduler.JobRotationCleanup, req.Enabled, req.Cron)
+}
+
+func (u *usecase) GetActivityCleanup(ctx context.Context) (models.ActivityCleanupGetResponse, error) {
+	config, err := u.settingsRepo.GetSchedule(ctx, entity.JobKeyActivityCleanup)
+	if err != nil {
+		return models.ActivityCleanupGetResponse{}, err
+	}
+
+	response := models.ActivityCleanupGetResponse{
+		Enabled: config.Enabled,
+		Cron:    config.Cron,
+	}
+	if config.Params != "" {
+		params := activityCleanupParams{}
+		if err := json.Unmarshal([]byte(config.Params), &params); err != nil {
+			return models.ActivityCleanupGetResponse{}, pkgErr.InternalServerError(err.Error())
+		}
+		response.RetentionDays = params.RetentionDays
+	}
+	if config.LastRunAt != nil {
+		lastRun := config.LastRunAt.Unix()
+		response.LastRunAt = &lastRun
+	}
+	if config.LastResult != nil {
+		result := activityCleanupResult{}
+		if err := json.Unmarshal([]byte(*config.LastResult), &result); err != nil {
+			return models.ActivityCleanupGetResponse{}, pkgErr.InternalServerError(err.Error())
+		}
+		pruned := result.Pruned
+		response.LastPrunedCount = &pruned
+	}
+	return response, nil
+}
+
+func (u *usecase) UpdateActivityCleanup(ctx context.Context, req models.ActivityCleanupUpdateRequest) error {
+	if err := req.Validate(); err != nil {
+		return pkgErr.InvalidRequest(err.Error())
+	}
+
+	params, err := json.Marshal(activityCleanupParams{RetentionDays: req.RetentionDays})
+	if err != nil {
+		return pkgErr.InternalServerError(err.Error())
+	}
+
+	updatedBy := pkgCtx.GetUserID(ctx)
+	if err := u.settingsRepo.UpdateSchedule(ctx, entity.JobKeyActivityCleanup, req.Enabled, req.Cron, string(params), updatedBy); err != nil {
+		return err
+	}
+
+	// live-reload the scheduler so the change takes effect without a restart.
+	// A retention-only change still reloads here, but retention is read fresh on
+	// each run regardless, so it would also take effect on the next run.
+	return u.reloader.Reload(ctx, scheduler.JobActivityCleanup, req.Enabled, req.Cron)
 }
