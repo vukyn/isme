@@ -47,3 +47,41 @@ func UpdateSessionRevokeConfig(c *fiber.Ctx) error {
 
 	return pkgHttp.OK(c, nil)
 }
+
+func GetRotationCleanupConfig(c *fiber.Ctx) error {
+	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
+	defer ctn.Delete()
+
+	uc, err := idi.GetSettingsUsecase(ctn)
+	if err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	getResponse, err := uc.GetRotationCleanup(pkgCtx.NewContextFromFiberCtx(c))
+	if err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	return pkgHttp.OK(c, getResponse)
+}
+
+func UpdateRotationCleanupConfig(c *fiber.Ctx) error {
+	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
+	defer ctn.Delete()
+
+	uc, err := idi.GetSettingsUsecase(ctn)
+	if err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	updateRequest := models.RotationCleanupUpdateRequest{}
+	if err := c.BodyParser(&updateRequest); err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	if err := uc.UpdateRotationCleanup(pkgCtx.NewContextFromFiberCtx(c), updateRequest); err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	return pkgHttp.OK(c, nil)
+}

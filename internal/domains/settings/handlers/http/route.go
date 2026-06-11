@@ -17,4 +17,6 @@ func SetupSettingsRoutes(router fiber.Router) {
 	rSettings := router.Group(constants.SETTINGS_GROUP_NAME, middleware.AuthMiddleware)
 	rSettings.Get(constants.SETTINGS_ENDPOINT_SESSION_REVOKE, rbac.RequirePermission(roleConstants.PERM_SETTINGS_READ), GetSessionRevokeConfig)
 	rSettings.Put(constants.SETTINGS_ENDPOINT_SESSION_REVOKE, rbac.RequirePermission(roleConstants.PERM_SETTINGS_UPDATE), UpdateSessionRevokeConfig)
+	rSettings.Get(constants.SETTINGS_ENDPOINT_ROTATION_CLEANUP, rbac.RequirePermission(roleConstants.PERM_SETTINGS_READ), GetRotationCleanupConfig)
+	rSettings.Put(constants.SETTINGS_ENDPOINT_ROTATION_CLEANUP, rbac.RequirePermission(roleConstants.PERM_SETTINGS_UPDATE), UpdateRotationCleanupConfig)
 }

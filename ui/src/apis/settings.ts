@@ -1,4 +1,9 @@
-import type { SessionRevokeConfig, UpdateSessionRevokeConfigRequest } from "@/types";
+import type {
+	RotationCleanupConfig,
+	SessionRevokeConfig,
+	UpdateRotationCleanupConfigRequest,
+	UpdateSessionRevokeConfigRequest,
+} from "@/types";
 import { API_ENDPOINTS } from "@/consts";
 import { apiClient } from "@/utils/axios";
 
@@ -30,4 +35,33 @@ export const getSessionRevokeConfig = async (): Promise<SessionRevokeConfig> => 
 
 export const updateSessionRevokeConfig = async (request: UpdateSessionRevokeConfigRequest): Promise<void> => {
 	await apiClient.put(API_ENDPOINTS.SETTINGS_SESSION_REVOKE, request);
+};
+
+/** Raw backend shape (snake_case) for the rotation-cleanup config. */
+interface RotationCleanupConfigDTO {
+	enabled: boolean;
+	cron: string;
+	retention_hours: number;
+	last_run_at: number | null;
+	last_cleaned_count: number | null;
+}
+
+export const getRotationCleanupConfig = async (): Promise<RotationCleanupConfig> => {
+	const response = await apiClient.get<Envelope<RotationCleanupConfigDTO>>(API_ENDPOINTS.SETTINGS_ROTATION_CLEANUP);
+	const dto = response.data.data;
+	return {
+		enabled: dto.enabled,
+		cron: dto.cron,
+		retentionHours: dto.retention_hours,
+		lastRunAt: dto.last_run_at ?? null,
+		lastCleanedCount: dto.last_cleaned_count ?? null,
+	};
+};
+
+export const updateRotationCleanupConfig = async (request: UpdateRotationCleanupConfigRequest): Promise<void> => {
+	await apiClient.put(API_ENDPOINTS.SETTINGS_ROTATION_CLEANUP, {
+		enabled: request.enabled,
+		cron: request.cron,
+		retention_hours: request.retentionHours,
+	});
 };

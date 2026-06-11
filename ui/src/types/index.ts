@@ -65,5 +65,10 @@ export type {
 	ListRoleMembersRequest,
 	ListRoleMembersResponse,
 } from "./role";
-export type { SessionRevokeConfig, UpdateSessionRevokeConfigRequest } from "./settings";
+export type {
+	SessionRevokeConfig,
+	UpdateSessionRevokeConfigRequest,
+	RotationCleanupConfig,
+	UpdateRotationCleanupConfigRequest,
+} from "./settings";
 export type { MySessionItem, MySessionCount } from "./session";

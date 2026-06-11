@@ -55,6 +55,7 @@ const (
 	PERMISSION_ENDPOINT_DETAIL  = "/permissions/:permissionID"
 
 	// Settings
-	SETTINGS_GROUP_NAME              = "/settings"
-	SETTINGS_ENDPOINT_SESSION_REVOKE = "/session-revoke"
+	SETTINGS_GROUP_NAME                = "/settings"
+	SETTINGS_ENDPOINT_SESSION_REVOKE   = "/session-revoke"
+	SETTINGS_ENDPOINT_ROTATION_CLEANUP = "/rotation-cleanup"
 )
