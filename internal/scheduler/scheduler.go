@@ -2,9 +2,11 @@ package scheduler
 
 import (
 	"context"
+	"encoding/json"
 	"sync"
 	"time"
 
+	settingsEntity "github.com/vukyn/isme/internal/domains/settings/entity"
 	settingsRepo "github.com/vukyn/isme/internal/domains/settings/repository"
 	userSessionRepo "github.com/vukyn/isme/internal/domains/user_session/repository"
 
@@ -14,15 +16,22 @@ import (
 	"github.com/vukyn/kuery/log"
 )
 
-// JobKey identifies a named scheduled job in the keyed registry.
+// JobKey identifies a named scheduled job in the keyed registry. The string
+// values are sourced from the settings entity package — the single source of
+// truth shared with the repository, usecase and migration.
 type JobKey string
 
 const (
 	// JobSessionRevoke prunes expired-but-active sessions.
-	JobSessionRevoke JobKey = "session_revoke"
+	JobSessionRevoke JobKey = settingsEntity.JobKeySessionRevoke
 	// JobRotationCleanup prunes old token_rotation_events rows.
-	JobRotationCleanup JobKey = "rotation_cleanup"
+	JobRotationCleanup JobKey = settingsEntity.JobKeyRotationCleanup
 )
+
+// rotationCleanupParams mirrors the params JSON of the rotation-cleanup job.
+type rotationCleanupParams struct {
+	RetentionHours int64 `json:"retention_hours"`
+}
 
 // IReloader is the seam the settings usecase depends on to re-apply a changed
 // schedule. It lives in the scheduler package so the usecase imports the
@@ -87,7 +96,7 @@ func (s *Scheduler) Start(ctx context.Context) {
 
 // loadSessionRevoke loads + installs the session-revoke job. Callers must hold s.mu.
 func (s *Scheduler) loadSessionRevoke(ctx context.Context) {
-	config, err := s.settingsRepo.Get(ctx)
+	config, err := s.settingsRepo.GetSchedule(ctx, string(JobSessionRevoke))
 	if err != nil {
 		log.New().Errorf("Scheduler: failed to load session-revoke config: %v", err)
 		return
@@ -104,7 +113,7 @@ func (s *Scheduler) loadSessionRevoke(ctx context.Context) {
 
 // loadRotationCleanup loads + installs the rotation-cleanup job. Callers must hold s.mu.
 func (s *Scheduler) loadRotationCleanup(ctx context.Context) {
-	config, err := s.settingsRepo.GetRotationCleanup(ctx)
+	config, err := s.settingsRepo.GetSchedule(ctx, string(JobRotationCleanup))
 	if err != nil {
 		log.New().Errorf("Scheduler: failed to load rotation-cleanup config: %v", err)
 		return
@@ -207,7 +216,12 @@ func (s *Scheduler) runRevoke(ctx context.Context) {
 		log.New().Errorf("Scheduler: revoke expired sessions failed: %v", err)
 		return
 	}
-	if err := s.settingsRepo.RecordRun(ctx, now, revoked); err != nil {
+	result, err := json.Marshal(map[string]int64{"revoked": revoked})
+	if err != nil {
+		log.New().Errorf("Scheduler: marshal revoke result failed: %v", err)
+		return
+	}
+	if err := s.settingsRepo.RecordScheduleRun(ctx, string(JobSessionRevoke), now, string(result)); err != nil {
 		log.New().Errorf("Scheduler: record run failed: %v", err)
 		// the revoke still happened — fall through to log it
 	}
@@ -221,18 +235,30 @@ func (s *Scheduler) runRevoke(ctx context.Context) {
 // panicked, so a failed run does not crash the process or kill the schedule.
 func (s *Scheduler) runCleanup(ctx context.Context) {
 	now := time.Now().UTC()
-	config, err := s.settingsRepo.GetRotationCleanup(ctx)
+	config, err := s.settingsRepo.GetSchedule(ctx, string(JobRotationCleanup))
 	if err != nil {
 		log.New().Errorf("Scheduler: load rotation-cleanup config failed: %v", err)
 		return
 	}
-	before := rotationCutoff(now, config.RetentionHours)
+	params := rotationCleanupParams{}
+	if config.Params != "" {
+		if err := json.Unmarshal([]byte(config.Params), &params); err != nil {
+			log.New().Errorf("Scheduler: parse rotation-cleanup params failed: %v", err)
+			return
+		}
+	}
+	before := rotationCutoff(now, params.RetentionHours)
 	cleaned, err := s.userSessionRepo.PruneRotationsBefore(ctx, before)
 	if err != nil {
 		log.New().Errorf("Scheduler: prune rotation events failed: %v", err)
 		return
 	}
-	if err := s.settingsRepo.RecordRotationCleanupRun(ctx, now, cleaned); err != nil {
+	result, err := json.Marshal(map[string]int64{"cleaned": cleaned})
+	if err != nil {
+		log.New().Errorf("Scheduler: marshal cleanup result failed: %v", err)
+		return
+	}
+	if err := s.settingsRepo.RecordScheduleRun(ctx, string(JobRotationCleanup), now, string(result)); err != nil {
 		log.New().Errorf("Scheduler: record cleanup run failed: %v", err)
 		// the prune still happened — fall through to log it
 	}

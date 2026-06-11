@@ -2,7 +2,9 @@ package usecase
 
 import (
 	"context"
+	"encoding/json"
 
+	"github.com/vukyn/isme/internal/domains/settings/entity"
 	"github.com/vukyn/isme/internal/domains/settings/models"
 	settingsRepo "github.com/vukyn/isme/internal/domains/settings/repository"
 	"github.com/vukyn/isme/internal/scheduler"
@@ -10,6 +12,24 @@ import (
 	pkgCtx "github.com/vukyn/kuery/ctx"
 	pkgErr "github.com/vukyn/kuery/http/errors"
 )
+
+// emptyParams is the params JSON for jobs with no job-specific config (revoke).
+const emptyParams = "{}"
+
+// sessionRevokeResult mirrors the last_result JSON of the session-revoke job.
+type sessionRevokeResult struct {
+	Revoked int64 `json:"revoked"`
+}
+
+// rotationCleanupParams mirrors the params JSON of the rotation-cleanup job.
+type rotationCleanupParams struct {
+	RetentionHours int64 `json:"retention_hours"`
+}
+
+// rotationCleanupResult mirrors the last_result JSON of the rotation-cleanup job.
+type rotationCleanupResult struct {
+	Cleaned int64 `json:"cleaned"`
+}
 
 type usecase struct {
 	settingsRepo settingsRepo.IRepository
@@ -27,7 +47,7 @@ func NewUsecase(
 }
 
 func (u *usecase) Get(ctx context.Context) (models.GetResponse, error) {
-	config, err := u.settingsRepo.Get(ctx)
+	config, err := u.settingsRepo.GetSchedule(ctx, entity.JobKeySessionRevoke)
 	if err != nil {
 		return models.GetResponse{}, err
 	}
@@ -40,7 +60,14 @@ func (u *usecase) Get(ctx context.Context) (models.GetResponse, error) {
 		lastRun := config.LastRunAt.Unix()
 		response.LastRunAt = &lastRun
 	}
-	response.LastRevokedCount = config.LastRevokedCount
+	if config.LastResult != nil {
+		result := sessionRevokeResult{}
+		if err := json.Unmarshal([]byte(*config.LastResult), &result); err != nil {
+			return models.GetResponse{}, pkgErr.InternalServerError(err.Error())
+		}
+		revoked := result.Revoked
+		response.LastRevokedCount = &revoked
+	}
 	return response, nil
 }
 
@@ -50,7 +77,7 @@ func (u *usecase) Update(ctx context.Context, req models.UpdateRequest) error {
 	}
 
 	updatedBy := pkgCtx.GetUserID(ctx)
-	if err := u.settingsRepo.Update(ctx, req.Enabled, req.Cron, updatedBy); err != nil {
+	if err := u.settingsRepo.UpdateSchedule(ctx, entity.JobKeySessionRevoke, req.Enabled, req.Cron, emptyParams, updatedBy); err != nil {
 		return err
 	}
 
@@ -59,21 +86,34 @@ func (u *usecase) Update(ctx context.Context, req models.UpdateRequest) error {
 }
 
 func (u *usecase) GetRotationCleanup(ctx context.Context) (models.RotationCleanupGetResponse, error) {
-	config, err := u.settingsRepo.GetRotationCleanup(ctx)
+	config, err := u.settingsRepo.GetSchedule(ctx, entity.JobKeyRotationCleanup)
 	if err != nil {
 		return models.RotationCleanupGetResponse{}, err
 	}
 
 	response := models.RotationCleanupGetResponse{
-		Enabled:        config.Enabled,
-		Cron:           config.Cron,
-		RetentionHours: config.RetentionHours,
+		Enabled: config.Enabled,
+		Cron:    config.Cron,
+	}
+	if config.Params != "" {
+		params := rotationCleanupParams{}
+		if err := json.Unmarshal([]byte(config.Params), &params); err != nil {
+			return models.RotationCleanupGetResponse{}, pkgErr.InternalServerError(err.Error())
+		}
+		response.RetentionHours = params.RetentionHours
 	}
 	if config.LastRunAt != nil {
 		lastRun := config.LastRunAt.Unix()
 		response.LastRunAt = &lastRun
 	}
-	response.LastCleanedCount = config.LastCleanedCount
+	if config.LastResult != nil {
+		result := rotationCleanupResult{}
+		if err := json.Unmarshal([]byte(*config.LastResult), &result); err != nil {
+			return models.RotationCleanupGetResponse{}, pkgErr.InternalServerError(err.Error())
+		}
+		cleaned := result.Cleaned
+		response.LastCleanedCount = &cleaned
+	}
 	return response, nil
 }
 
@@ -82,8 +122,13 @@ func (u *usecase) UpdateRotationCleanup(ctx context.Context, req models.Rotation
 		return pkgErr.InvalidRequest(err.Error())
 	}
 
+	params, err := json.Marshal(rotationCleanupParams{RetentionHours: req.RetentionHours})
+	if err != nil {
+		return pkgErr.InternalServerError(err.Error())
+	}
+
 	updatedBy := pkgCtx.GetUserID(ctx)
-	if err := u.settingsRepo.UpdateRotationCleanup(ctx, req.Enabled, req.Cron, req.RetentionHours, updatedBy); err != nil {
+	if err := u.settingsRepo.UpdateSchedule(ctx, entity.JobKeyRotationCleanup, req.Enabled, req.Cron, string(params), updatedBy); err != nil {
 		return err
 	}
 
