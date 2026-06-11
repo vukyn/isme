@@ -824,9 +824,9 @@ export const Roles = () => {
 	const handleAddMember = async (user: UserListItem) => {
 		if (!selectedRoleId) return;
 		try {
-			// TODO(backend): no app_service list endpoint exists yet (only
-			// register/verify/refresh), so the scope picker is hidden and new
-			// assignments default to global (app_service_id NULL).
+			// The backend scopes every membership to the role's owning app
+			// (user_roles.app_service_id = role.app_id) — required so the perm
+			// query matches; there is no global (NULL) assignment from this UI.
 			await addRoleMembers(selectedRoleId, { user_ids: [user.id] });
 			setMemberSearch("");
 			setMemberResults([]);
@@ -1867,18 +1867,6 @@ export const Roles = () => {
 																{member.email}
 															</Text>
 														</Box>
-														{member.app_service_id && (
-															<Box
-																{...PILL_BASE}
-																fontSize="11px"
-																color="aurora.cyan"
-																borderColor="rgba(34,211,238,0.40)"
-																bg="rgba(34,211,238,0.10)"
-																title={`Scoped to app_service ${member.app_service_id}`}
-															>
-																scoped
-															</Box>
-														)}
 														<Text fontSize="12px" color="fg.muted" whiteSpace="nowrap" css={{ fontVariantNumeric: "tabular-nums" }}>
 															added {formatDateOnly(member.created_at)}
 														</Text>
