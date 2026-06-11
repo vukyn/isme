@@ -114,5 +114,13 @@ func (s *Server) webRoutes(app *fiber.App) {
 		})
 	}
 
+	// Root-level static assets that index.html references directly (outside
+	// /assets). Without this, the SPA catch-all below renders index.html for
+	// /favicon.svg, so the browser gets HTML instead of the icon and falls back
+	// to its generic globe. SendFile sets content-type from the .svg extension.
+	app.Get("/favicon.svg", func(c *fiber.Ctx) error {
+		return c.SendFile("internal/ui/favicon.svg")
+	})
+
 	app.Get("/*", renderHomePage)
 }
