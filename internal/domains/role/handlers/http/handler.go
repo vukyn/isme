@@ -240,6 +240,27 @@ func CreatePermissions(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, permissions)
 }
 
+func UpdatePermissionAppearance(c *fiber.Ctx) error {
+	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
+	defer ctn.Delete()
+
+	uc, err := idi.GetRoleUsecase(ctn)
+	if err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	updateAppearanceRequest := models.UpdatePermissionAppearanceRequest{}
+	if err := c.BodyParser(&updateAppearanceRequest); err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	if err := uc.UpdatePermissionAppearance(pkgCtx.NewContextFromFiberCtx(c), updateAppearanceRequest); err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	return pkgHttp.OK(c, nil)
+}
+
 func DeletePermission(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 	defer ctn.Delete()

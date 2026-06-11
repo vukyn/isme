@@ -179,6 +179,10 @@ func (f *fakeRoleRepository) DeletePermission(ctx context.Context, permissionID 
 	return nil
 }
 
+func (f *fakeRoleRepository) UpdatePermissionAppearance(ctx context.Context, appID string, resource string, icon string, color string) error {
+	return nil
+}
+
 func (f *fakeRoleRepository) GetPermissionsByRoleID(ctx context.Context, roleID string) ([]roleEntity.Permission, error) {
 	return nil, nil
 }

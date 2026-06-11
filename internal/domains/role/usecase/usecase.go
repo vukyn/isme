@@ -356,6 +356,53 @@ func (u *usecase) DeletePermission(ctx context.Context, permissionID int64) erro
 	return u.roleRepo.DeletePermission(ctx, permissionID)
 }
 
+// UpdatePermissionAppearance changes a resource's per-resource icon and color
+// across every resource:action row of an (app_id, resource). Editing the isme
+// system app is rejected — its catalog is seeded and read-only. The resource
+// must already exist in the app's catalog.
+func (u *usecase) UpdatePermissionAppearance(ctx context.Context, req models.UpdatePermissionAppearanceRequest) error {
+	// validation
+	if err := req.Validate(); err != nil {
+		return pkgErr.InvalidRequest(err.Error())
+	}
+
+	// the isme system app owns its permission catalog and is read-only
+	if req.AppID == roleConstants.APP_ID_ISME {
+		return pkgErr.Forbidden("isme system app permissions are read-only")
+	}
+
+	// the owning app must exist
+	app, err := u.appServiceRepo.GetByID(ctx, req.AppID)
+	if err != nil {
+		return err
+	}
+	if app.ID == "" {
+		return pkgErr.InvalidRequest("app service not found")
+	}
+	// guard against the system app by code too (defense in depth)
+	if app.AppCode == roleConstants.APP_CODE_ISME {
+		return pkgErr.Forbidden("isme system app permissions are read-only")
+	}
+
+	// the resource must exist in the app's catalog
+	items, err := u.ListPermissions(ctx, models.ListPermissionsRequest{AppID: req.AppID})
+	if err != nil {
+		return err
+	}
+	found := false
+	for _, item := range items {
+		if item.Resource == req.Resource {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return pkgErr.NotFound("resource not found in app catalog")
+	}
+
+	return u.roleRepo.UpdatePermissionAppearance(ctx, req.AppID, req.Resource, req.Icon, req.Color)
+}
+
 // ProvisionDefaultRoles seeds an empty "admin" role for a newly created app.
 // The role starts with zero permissions — resource:action permissions are
 // created and assigned manually afterward (see CreatePermissions). Idempotent:

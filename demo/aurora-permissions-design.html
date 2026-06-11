@@ -344,6 +344,128 @@
   .res-name { font-size: 14px; font-weight: 500; color: var(--fg); line-height: 1.25; }
   .res-code { font-size: 11px; color: var(--fg-mute); }
   .na { color: var(--fg-mute); opacity: 0.6; font-size: 13px; }
+  /* neutral default appearance — resource with no icon/color set (allowed).
+     Mirrors .role-icon.plain: glass bg, muted glyph, no tint. */
+  .res-icon.neutral { background: var(--glass); color: var(--fg-mute); border-color: var(--border-strong); }
+
+  /* ====== Edit-appearance affordance on each resource cell ======
+     A small pencil button that reveals on row hover (always visible on
+     keyboard focus). Sits next to the resource icon+name. Gated by role:update —
+     hidden/disabled for the isme SYSTEM app's own resources. */
+  .res-cell .res-meta { min-width: 0; }
+  .appx-btn {
+    width: 28px; height: 28px; border-radius: 8px; flex: 0 0 auto;
+    display: grid; place-items: center; cursor: pointer; padding: 0;
+    background: var(--glass); border: 1px solid var(--border-strong);
+    color: var(--fg-mute);
+    opacity: 0.5; transition: opacity .15s var(--easing), color .15s var(--easing), border-color .15s var(--easing), background .15s var(--easing);
+  }
+  /* always faintly visible (discoverable); strengthens on row hover / focus */
+  .perm-row:hover .appx-btn { opacity: 1; }
+  .appx-btn:focus-visible { opacity: 1; outline: 0; border-color: var(--c-violet); box-shadow: 0 0 0 3px rgba(139,92,246,0.30); }
+  .appx-btn:hover { color: var(--c-violet); border-color: var(--c-violet); background: rgba(139,92,246,0.12); }
+  .appx-btn svg { width: 14px; height: 14px; }
+  /* system-app resource → edit disabled (icon/color immutable, like create/delete) */
+  .appx-btn.locked { cursor: not-allowed; opacity: 0.3; }
+  .appx-btn.locked:hover { color: var(--fg-mute); border-color: var(--border-strong); background: var(--glass); }
+  .perm-row:hover .appx-btn.locked { opacity: 0.3; }
+  .sys-lock {
+    display: inline-flex; align-items: center; gap: 5px; flex: 0 0 auto;
+    font-size: 11px; color: var(--fg-mute);
+  }
+
+  /* ====== ICON PICKER — pixel match to ui/src/components/IconPicker.tsx ======
+     Real component is a <Flex wrap gap=8px p=12px> glass container (NOT a fixed
+     auto-fill grid) — cells flow left→right and wrap, so the row count follows
+     the container width exactly like the shipped React picker. */
+  .iconpick-grid {
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start;
+    padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: rgba(7,7,26,0.35);
+  }
+  .icon-opt {
+    flex: 0 0 auto;
+    width: 38px; height: 38px; display: grid; place-items: center; cursor: pointer;
+    border-radius: 9px; border: 1px solid var(--border-strong);
+    background: var(--glass); color: var(--fg-soft); padding: 0;
+    transition: all .15s var(--easing);
+  }
+  .icon-opt svg { width: 17px; height: 17px; }
+  .icon-opt:hover { color: var(--fg); border-color: rgba(255,255,255,0.30); background: var(--glass-strong); }
+  .icon-opt:focus-visible { outline: 0; border-color: var(--c-violet); box-shadow: 0 0 0 3px rgba(139,92,246,0.30); }
+  .icon-opt.is-sel {
+    color: var(--c-violet);
+    background: linear-gradient(135deg, rgba(139,92,246,0.22), rgba(99,102,241,0.14));
+    border-color: var(--c-violet); box-shadow: 0 0 0 3px rgba(139,92,246,0.25), 0 0 16px rgba(139,92,246,0.20) inset;
+    transform: scale(1.1);
+  }
+
+  /* ====== COLOR PICKER — fixed aurora swatch palette (palette KEY, not free hex) ====== */
+  .swatch-row {
+    display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+    padding: 14px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: rgba(7,7,26,0.35);
+  }
+  .swatch-opt {
+    --sw: var(--c-violet);
+    position: relative; width: 36px; height: 36px; border-radius: 999px; cursor: pointer; padding: 0;
+    border: 2px solid transparent;
+    background: var(--sw);
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.12) inset;
+    transition: transform .15s var(--easing), box-shadow .15s var(--easing);
+  }
+  .swatch-opt:hover { transform: scale(1.08); }
+  .swatch-opt:focus-visible { outline: 0; box-shadow: 0 0 0 3px rgba(255,255,255,0.55); }
+  .swatch-opt.is-sel { box-shadow: 0 0 0 2px var(--bg-1), 0 0 0 4px var(--sw), 0 0 16px var(--sw); transform: scale(1.12); }
+  .swatch-opt.is-sel::after {
+    content: ""; position: absolute; inset: 0; margin: auto; width: 16px; height: 16px;
+    background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='3,8.5 7,12 13,4'/></svg>") center/contain no-repeat;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6));
+  }
+  .swatch-key { margin-top: 4px; font-size: 12px; color: var(--fg-mute); }
+  .swatch-key b { color: var(--fg-soft); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  /* ====== Live preview chip inside the dialog ======
+     The chosen icon+color drives a tinted glass tile (same recipe as the
+     res-icon tints: hue@~15% bg + hue@.42 border + hue glyph). */
+  .appx-preview {
+    display: grid; gap: 12px;
+    padding: 16px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border); background: rgba(7,7,26,0.35);
+  }
+  .appx-preview .pv-cap { font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg-mute); }
+  /* preview row = exactly the matrix .res-cell it represents */
+  .pv-res-cell { display: flex; align-items: center; gap: 12px; }
+  .pv-tile {
+    --hue: var(--c-violet); --hue-rgb: 139,92,246;
+    width: 32px; height: 32px; border-radius: 10px; flex: 0 0 auto;
+    display: grid; place-items: center; color: var(--hue);
+    background: rgba(var(--hue-rgb), 0.15);
+    border: 1px solid rgba(var(--hue-rgb), 0.42);
+    box-shadow: 0 0 16px rgba(var(--hue-rgb), 0.18);
+  }
+  .pv-tile svg { width: 16px; height: 16px; }
+  /* neutral preview tile (no color chosen) */
+  .pv-tile.neutral { --hue: var(--fg-mute); background: var(--glass); border-color: var(--border-strong); box-shadow: none; }
+  .pv-tile.neutral svg { color: var(--fg-mute); }
+  /* preview also shows the catalog chip form (rounded pill) so admin sees both surfaces */
+  .pv-chip {
+    display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px 5px 5px;
+    border-radius: 999px; background: var(--glass); border: 1px solid var(--border-strong);
+    font-size: 13px; font-weight: 500; color: var(--fg-soft);
+  }
+  .pv-chip-tile {
+    --hue: var(--c-violet); --hue-rgb: 139,92,246;
+    width: 22px; height: 22px; border-radius: 7px; flex: 0 0 auto;
+    display: grid; place-items: center; color: var(--hue);
+    background: rgba(var(--hue-rgb), 0.16); border: 1px solid rgba(var(--hue-rgb), 0.42);
+  }
+  .pv-chip-tile.neutral { --hue: var(--fg-mute); background: var(--glass); border-color: var(--border-strong); }
+  .pv-chip-tile svg { width: 12px; height: 12px; }
+  .pv-applies { font-size: 11px; color: var(--fg-mute); display: flex; align-items: center; gap: 6px; }
+  .act-pill {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.02em;
+    padding: 2px 7px; border-radius: 6px;
+    background: var(--glass); border: 1px solid var(--border-strong); color: var(--fg-soft);
+  }
 
   /* aurora checkbox — same as aurora-auth-mockup .check */
   .check { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; color: var(--fg-soft); font-size: 13px; }
@@ -494,32 +616,24 @@
   .pg-btn:hover { background: var(--glass-strong); color: var(--fg); }
   .pg-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
-  /* ====== App scope tab (read-only distribution) ====== */
-  .scope-row {
-    display: flex; align-items: center; gap: 14px;
-    padding: 14px 18px;
-    border-bottom: 1px solid var(--border);
+  /* ====== Permission catalog tab ====== */
+  /* header bar: perm count + Add-permission affordance (mirrors Roles.tsx catalog head) */
+  .catalog-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 12px 18px; border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
   }
-  .scope-row:last-of-type { border-bottom: 0; }
-  .scope-row.dim { opacity: 0.55; }
-  .scope-meta { flex: 1; min-width: 0; line-height: 1.3; }
-  .scope-name { font-size: 14px; font-weight: 600; color: var(--fg); display: flex; align-items: center; gap: 9px; }
-  .scope-sub { font-size: 12px; color: var(--fg-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .scope-sub code { color: var(--fg-soft); font-family: inherit; }
-  .scope-dist { width: 220px; flex: 0 0 auto; display: grid; gap: 6px; }
-  .scope-count { font-size: 12px; color: var(--fg-soft); font-variant-numeric: tabular-nums; display: flex; justify-content: space-between; }
-  .scope-count b { color: var(--fg); font-weight: 600; }
-  .meter {
-    height: 6px; border-radius: 3px;
-    background: var(--glass-strong);
-    overflow: hidden;
-  }
-  .meter > span {
-    display: block; height: 100%;
-    background: linear-gradient(90deg, var(--c-cyan), var(--c-violet));
-    box-shadow: 0 0 10px rgba(139,92,246,0.5);
-    border-radius: 3px;
-  }
+  .catalog-count { font-size: 12px; color: var(--fg-mute); }
+  .catalog-count b { color: var(--fg-soft); font-weight: 600; }
+  .catalog-count code { color: var(--c-cyan); font-family: inherit; }
+  /* catalog table: one row per action; resource cell only on first action row */
+  .catalog-table .act-cell { font-size: 13px; color: var(--fg-soft); }
+  .catalog-table .res-first { vertical-align: top; }
+  .catalog-table .manage-cell { text-align: right; }
+  .perm-code { font-size: 13px; color: var(--c-cyan); font-family: inherit; }
+  /* trash button in the catalog reuses the .qa danger affordance (members tab) at 8×8 */
+  .catalog-table .qa { width: 30px; height: 30px; display: inline-flex; }
+
   .scope-note {
     display: flex; align-items: center; gap: 9px;
     padding: 13px 18px;
@@ -567,6 +681,9 @@
     box-shadow: var(--shadow-pop);
     overflow: hidden;
   }
+  /* appearance dialog is a touch wider to fit the 38px icon grid comfortably */
+  .modal.modal-appx { width: 560px; }
+  .modal-body.scroll { max-height: calc(100vh - 220px); overflow-y: auto; }
   .modal-head {
     display: flex; align-items: center; justify-content: space-between;
     padding: 16px 20px;
@@ -637,8 +754,43 @@
   notice replaces the unsaved bar, Rename/Delete hidden). Custom role
   "content-ops" is selected here → editable matrix.
 
-  Layout: roles list (left rail) + detail panel with 3 tabs:
-    Permissions (matrix) · Members · App scope. Tabs toggled with light JS.
+  Layout: roles list (left rail) + detail panel with 3 tabs — order + labels +
+  icons mirror Roles.tsx RoleTab = "permissions" | "catalog" | "members":
+    1. Permissions        (LuKeyRound) — the role × permission MATRIX
+       (grant/revoke checkboxes only; NO appearance editing here).
+    2. Permission catalog (LuLibrary)  — the resource-level catalog: each
+       resource (icon + color + name) with one row per action, the
+       resource:action string, the per-resource edit-appearance pencil, and a
+       per-permission delete. THIS is where appearance is shown + edited.
+    3. Members            (LuUsers)    — the role's members, with a count pill.
+  Tabs toggled with light JS (showTab: permissions · catalog · members).
+
+  ── EDIT RESOURCE APPEARANCE (lives in the Permission catalog tab) ──────────
+  Each catalog RESOURCE carries an appearance = icon (allowlist key) + color
+  (COLOR_KEYS palette key), stored PER RESOURCE and shown on every one of its
+  actions. Backend today is create + delete only; this mock adds the UPDATE flow:
+    • A pencil "Edit appearance" affordance on each resource's FIRST action row in
+      the Permission catalog tab (reveals on row hover / always on keyboard focus),
+      right after the resource icon + name.
+    • An aurora glass dialog "Edit appearance · {resource}" reusing the EXACT
+      IconPicker grid + ColorSwatchPicker from aurora-app-service-edit-design.html
+      AS-IS (no fork): allowlist-only, NO leading "None"/clear cell. The dialog
+      opens on the resource's CURRENT icon+color and switches it to another
+      allowlist key — there is no clear-to-neutral via the UI. A resource stays
+      neutral only if no icon/color was set at create time. Plus a live preview
+      of the catalog row tile + chip.
+    • Save → NEW backend endpoint PUT /permissions/appearance
+      { app_code, resource, icon, color } — both icon+color are non-empty
+      allowlist keys; updates the appearance across ALL catalog rows for that
+      resource. Gated by role:update (catalog itself is role:read):
+      no role:update → pencil rendered .locked / non-interactive.
+    • The isme SYSTEM app's own resources (user, user_session, app_service, role)
+      are NOT editable — they show a "system" lock instead of the pencil, matching
+      create/delete being rejected for the isme app.
+  States covered (in the Permission catalog tab): appearance set (playlist = music
+  + mint), neutral/empty (bucket · medioa), permission-gated locked pencil
+  (station · rainy), isme system-app resources locked, and the dialog OPEN
+  (seeded with playlist).
 -->
 
 <!-- ====== Topbar shell (aurora AppShell/Topbar — tab nav, no sidebar) ====== -->
@@ -763,19 +915,24 @@
         </button>
       </div>
 
-      <!-- Tabs — light JS toggle -->
+      <!-- Tabs — light JS toggle. Order + labels + icons mirror Roles.tsx
+           RoleTab = "permissions" | "catalog" | "members" exactly:
+             1. Permissions       (LuKeyRound)  — role × permission matrix
+             2. Permission catalog (LuLibrary)   — resource-level catalog + appearance editing
+             3. Members            (LuUsers)     — role members, with a count pill -->
       <div class="tabs" role="tablist">
         <button onclick="showTab('permissions')" id="tab-permissions" class="tab tab-active" role="tab" aria-selected="true">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg>
           Permissions
         </button>
+        <!-- LuLibrary glyph (book/library) — exact icon + label from Roles.tsx -->
+        <button onclick="showTab('catalog')" id="tab-catalog" class="tab" role="tab" aria-selected="false">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></svg>
+          Permission catalog
+        </button>
         <button onclick="showTab('members')" id="tab-members" class="tab" role="tab" aria-selected="false">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           Members <span class="count-pill">28</span>
-        </button>
-        <button onclick="showTab('apps')" id="tab-apps" class="tab" role="tab" aria-selected="false">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 8h20"/><path d="M6 4v4"/><path d="M10 4v4"/></svg>
-          App scope
         </button>
       </div>
 
@@ -804,7 +961,7 @@
               <td>
                 <div class="res-cell">
                   <div class="res-icon violet"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
-                  <div><div class="res-name">Users</div><div class="res-code">user</div></div>
+                  <div class="res-meta"><div class="res-name">Users</div><div class="res-code">user · isme</div></div>
                 </div>
               </td>
               <td class="c"><label class="check"><input type="checkbox" checked aria-label="user:read" /></label></td>
@@ -826,7 +983,7 @@
               <td>
                 <div class="res-cell">
                   <div class="res-icon cyan"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg></div>
-                  <div><div class="res-name">Sessions</div><div class="res-code">user_session</div></div>
+                  <div class="res-meta"><div class="res-name">Sessions</div><div class="res-code">user_session · isme</div></div>
                 </div>
               </td>
               <td class="c"><label class="check"><input type="checkbox" checked aria-label="user_session:read" /></label></td>
@@ -842,7 +999,7 @@
               <td>
                 <div class="res-cell">
                   <div class="res-icon mint"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 8h20"/><path d="M6 4v4"/><path d="M10 4v4"/></svg></div>
-                  <div><div class="res-name">App Services</div><div class="res-code">app_service</div></div>
+                  <div class="res-meta"><div class="res-name">App Services</div><div class="res-code">app_service · isme</div></div>
                 </div>
               </td>
               <td class="c"><label class="check"><input type="checkbox" checked aria-label="app_service:read" /></label></td>
@@ -855,7 +1012,7 @@
               <td>
                 <div class="res-cell">
                   <div class="res-icon amber"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg></div>
-                  <div><div class="res-name">Roles</div><div class="res-code">role</div></div>
+                  <div class="res-meta"><div class="res-name">Roles</div><div class="res-code">role · isme</div></div>
                 </div>
               </td>
               <td class="c"><label class="check"><input type="checkbox" checked aria-label="role:read" /></label></td>
@@ -863,6 +1020,60 @@
               <td class="c"><label class="check"><input type="checkbox" aria-label="role:update" /></label></td>
               <td class="c"><label class="check"><input type="checkbox" aria-label="role:delete" /></label></td>
               <td><label class="special-chip"><input type="checkbox" aria-label="role:assign" />assign</label></td>
+            </tr>
+
+            <!-- group · PLATFORM APPS — resources registered by downstream apps
+                 (rainy, medioa). The MATRIX is grant/revoke only: a resource's
+                 appearance (icon + color) is NOT edited here — that lives in the
+                 Permission catalog tab. These rows just show each resource's tile
+                 (its current appearance) + the per-action grant checkboxes. -->
+            <tr class="group-row"><td colspan="6">Platform apps · registered permissions</td></tr>
+
+            <!-- playlist · rainy — appearance set (music + mint). Tile reflects it;
+                 no pencil (edit appearance is on the Permission catalog tab). -->
+            <tr class="perm-row">
+              <td>
+                <div class="res-cell">
+                  <div class="res-icon mint"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15V6"/><path d="M18.5 18a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z"/><path d="M12 12H3"/><path d="M16 6H3"/><path d="M12 18H3"/></svg></div>
+                  <div class="res-meta"><div class="res-name">Playlists</div><div class="res-code">playlist · rainy</div></div>
+                </div>
+              </td>
+              <td class="c"><label class="check"><input type="checkbox" checked aria-label="playlist:read" /></label></td>
+              <td class="c"><label class="check"><input type="checkbox" checked aria-label="playlist:create" /></label></td>
+              <td class="c"><label class="check"><input type="checkbox" checked aria-label="playlist:update" /></label></td>
+              <td class="c"><label class="check"><input type="checkbox" aria-label="playlist:delete" /></label></td>
+              <td><span class="na">—</span></td>
+            </tr>
+
+            <!-- bucket · medioa — neutral / empty appearance (no icon/color set at
+                 create time → neutral glass tile). Still just grant/revoke here. -->
+            <tr class="perm-row">
+              <td>
+                <div class="res-cell">
+                  <div class="res-icon neutral"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg></div>
+                  <div class="res-meta"><div class="res-name">Buckets</div><div class="res-code">bucket · medioa</div></div>
+                </div>
+              </td>
+              <td class="c"><label class="check"><input type="checkbox" checked aria-label="bucket:read" /></label></td>
+              <td class="c"><label class="check"><input type="checkbox" aria-label="bucket:create" /></label></td>
+              <td class="c"><label class="check"><input type="checkbox" aria-label="bucket:update" /></label></td>
+              <td class="c"><label class="check"><input type="checkbox" aria-label="bucket:delete" /></label></td>
+              <td><span class="na">—</span></td>
+            </tr>
+
+            <!-- station · rainy — appearance set (camera + cyan). Grant/revoke only. -->
+            <tr class="perm-row">
+              <td>
+                <div class="res-cell">
+                  <div class="res-icon cyan"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2"/><circle cx="12" cy="10" r="3"/><path d="M7 20.66V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.66"/></svg></div>
+                  <div class="res-meta"><div class="res-name">Stations</div><div class="res-code">station · rainy</div></div>
+                </div>
+              </td>
+              <td class="c"><label class="check"><input type="checkbox" checked aria-label="station:read" /></label></td>
+              <td class="c"><label class="check"><input type="checkbox" aria-label="station:create" /></label></td>
+              <td class="c"><label class="check"><input type="checkbox" aria-label="station:update" /></label></td>
+              <td class="c"><label class="check"><input type="checkbox" aria-label="station:delete" /></label></td>
+              <td><span class="na">—</span></td>
             </tr>
           </tbody>
         </table>
@@ -951,64 +1162,188 @@
         </div>
       </div>
 
-      <!-- ===== TAB 3 · APP SCOPE ===== (hidden; toggled by tab)
-           READ-ONLY scope distribution — scope is set PER ASSIGNMENT
-           (user_role.app_service_id), not per role, so there are no toggles
-           here. Each row shows how many of the 28 member assignments are
-           scoped to that app. NULL app_service_id = global. -->
-      <div id="panel-apps" class="hidden" role="tabpanel" style="display:none;">
+      <!-- ===== TAB 2 · PERMISSION CATALOG ===== (hidden; toggled by tab)
+           Mirrors Roles.tsx `tab === "catalog"`: the resource-level catalog of the
+           SELECTED APP. Lists each resource (icon + color + name) with one row per
+           action, the resource:action permission string, a per-resource
+           edit-appearance pencil, and a per-permission delete (DELETE /permissions/:id).
+           This is the tab that hosts openAppx(...) + the per-resource appearance flow.
+           Header bar carries the permission count + "Add permission"
+           (POST /permissions); for the isme SYSTEM app the catalog is read-only
+           (locked Add button, no pencils/trash — shown as a small "system" lock). -->
+      <div id="panel-catalog" class="hidden" role="tabpanel" style="display:none;">
 
-        <div class="scope-row">
-          <div class="role-icon plain"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M2 12h20"/><path d="M12 3a15.3 15.3 0 0 1 4 9 15.3 15.3 0 0 1-4 9 15.3 15.3 0 0 1-4-9 15.3 15.3 0 0 1 4-9z"/></svg></div>
-          <div class="scope-meta">
-            <div class="scope-name">Global (all apps)</div>
-            <div class="scope-sub"><code>app_service_id = NULL</code> · assignment applies everywhere</div>
+        <!-- Catalog header bar — perm count + Add permission affordance.
+             (editable app shown; isme variant would render a locked amber button.) -->
+        <div class="catalog-head">
+          <div class="catalog-count">
+            <b>14 permissions</b> · add <code>resource:action</code> pairs, then toggle them onto roles
           </div>
-          <div class="scope-dist">
-            <div class="scope-count"><span>assignments</span><b>9 / 28</b></div>
-            <div class="meter"><span style="width:32%;"></span></div>
-          </div>
+          <!-- on click: open Add-permission dialog (POST /permissions). role:create gated. -->
+          <button class="btn btn-primary btn-sm" onclick="document.getElementById('role-modal').classList.add('hidden')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+            Add permission
+          </button>
         </div>
 
-        <div class="scope-row">
-          <div class="role-icon violet"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 7l8 5 8-5-8-5Z"/><path d="m4 17 8 5 8-5"/><path d="m4 12 8 5 8-5"/></svg></div>
-          <div class="scope-meta">
-            <div class="scope-name">Medioa <span class="pill ok"><span class="dot"></span>active</span></div>
-            <div class="scope-sub">app_code · <code>medioa</code> · app.medioa.local/auth/callback</div>
-          </div>
-          <div class="scope-dist">
-            <div class="scope-count"><span>assignments</span><b>16 / 28</b></div>
-            <div class="meter"><span style="width:57%;"></span></div>
-          </div>
-        </div>
+        <!-- Catalog table — one row per action; the resource cell (icon+color+name +
+             edit-appearance pencil) is rendered only on the resource's FIRST action
+             row (grouped look, like the React index===0 rule). Columns mirror
+             Roles.tsx: Resource · Action · Permission · (trailing edit/delete). -->
+        <table class="catalog-table">
+          <thead>
+            <tr>
+              <th>Resource</th>
+              <th>Action</th>
+              <th>Permission</th>
+              <th style="width:96px;text-align:right;">Manage</th>
+            </tr>
+          </thead>
+          <tbody>
 
-        <div class="scope-row">
-          <div class="role-icon cyan"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div>
-          <div class="scope-meta">
-            <div class="scope-name">Rainy <span class="pill ok"><span class="dot"></span>active</span></div>
-            <div class="scope-sub">app_code · <code>rainy</code> · rainy.local/auth/callback</div>
-          </div>
-          <div class="scope-dist">
-            <div class="scope-count"><span>assignments</span><b>3 / 28</b></div>
-            <div class="meter"><span style="width:11%;"></span></div>
-          </div>
-        </div>
+            <!-- ===== isme SYSTEM-APP resources — read-only (no pencil, no trash) =====
+                 Catalog is visible (role:read) but seeded + immutable: each resource
+                 shows a small "system" lock instead of the edit-appearance pencil,
+                 and there is no per-permission delete. -->
 
-        <div class="scope-row dim">
-          <div class="role-icon plain"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 8h20"/><path d="M6 4v4"/><path d="M10 4v4"/></svg></div>
-          <div class="scope-meta">
-            <div class="scope-name">Sandbox <span class="pill off"><span class="dot"></span>inactive</span></div>
-            <div class="scope-sub">app_code · <code>sandbox</code> · localhost:3000/callback</div>
-          </div>
-          <div class="scope-dist">
-            <div class="scope-count"><span>assignments</span><b>0 / 28</b></div>
-            <div class="meter"><span style="width:0%;"></span></div>
-          </div>
-        </div>
+            <!-- user · isme — read / create / update / delete + reset_password, verify -->
+            <tr class="perm-row">
+              <td class="res-first">
+                <div class="res-cell">
+                  <div class="res-icon violet"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+                  <div class="res-meta"><div class="res-name">Users</div><div class="res-code">user</div></div>
+                  <!-- isme SYSTEM app resource → appearance immutable (consistent with
+                       create/delete being rejected for isme). Lock instead of pencil. -->
+                  <span class="sys-lock" title="isme system app — appearance is fixed">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+                    system
+                  </span>
+                </div>
+              </td>
+              <td class="act-cell">read</td>
+              <td><code class="perm-code">user:read</code></td>
+              <td class="manage-cell"><span class="na">—</span></td>
+            </tr>
+            <tr class="perm-row">
+              <td class="res-first"></td>
+              <td class="act-cell">create</td>
+              <td><code class="perm-code">user:create</code></td>
+              <td class="manage-cell"><span class="na">—</span></td>
+            </tr>
+            <tr class="perm-row">
+              <td class="res-first"></td>
+              <td class="act-cell">update</td>
+              <td><code class="perm-code">user:update</code></td>
+              <td class="manage-cell"><span class="na">—</span></td>
+            </tr>
+            <tr class="perm-row">
+              <td class="res-first"></td>
+              <td class="act-cell">delete</td>
+              <td><code class="perm-code">user:delete</code></td>
+              <td class="manage-cell"><span class="na">—</span></td>
+            </tr>
+            <tr class="perm-row">
+              <td class="res-first"></td>
+              <td class="act-cell">reset_password</td>
+              <td><code class="perm-code">user:reset_password</code></td>
+              <td class="manage-cell"><span class="na">—</span></td>
+            </tr>
+            <tr class="perm-row">
+              <td class="res-first"></td>
+              <td class="act-cell">verify</td>
+              <td><code class="perm-code">user:verify</code></td>
+              <td class="manage-cell"><span class="na">—</span></td>
+            </tr>
 
+            <!-- ===== Platform-app resources — appearance IS editable here =====
+                 NOT isme system resources → each resource's first row carries the
+                 edit-appearance pencil (opens the dialog) + each permission has a
+                 delete trash button. -->
+
+            <!-- playlist · rainy — appearance set (music + mint). Pencil seeded with it. -->
+            <tr class="perm-row">
+              <td class="res-first">
+                <div class="res-cell">
+                  <div class="res-icon mint"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15V6"/><path d="M18.5 18a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z"/><path d="M12 12H3"/><path d="M16 6H3"/><path d="M12 18H3"/></svg></div>
+                  <div class="res-meta"><div class="res-name">Playlists</div><div class="res-code">playlist · rainy</div></div>
+                  <!-- on click: open Edit-appearance dialog seeded with this resource
+                       (icon=music, color=mint). role:update gated — see locked state below. -->
+                  <button class="appx-btn" title="Edit appearance" aria-label="Edit appearance of playlist"
+                          onclick="openAppx('playlist','rainy','music','mint')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3Z"/></svg>
+                  </button>
+                </div>
+              </td>
+              <td class="act-cell">read</td>
+              <td><code class="perm-code">playlist:read</code></td>
+              <td class="manage-cell">
+                <!-- on click: confirm + DELETE /permissions/:id -->
+                <button class="qa danger" title="Remove permission" aria-label="Remove permission playlist:read"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+              </td>
+            </tr>
+            <tr class="perm-row">
+              <td class="res-first"></td>
+              <td class="act-cell">create</td>
+              <td><code class="perm-code">playlist:create</code></td>
+              <td class="manage-cell"><button class="qa danger" title="Remove permission" aria-label="Remove permission playlist:create"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button></td>
+            </tr>
+            <tr class="perm-row">
+              <td class="res-first"></td>
+              <td class="act-cell">update</td>
+              <td><code class="perm-code">playlist:update</code></td>
+              <td class="manage-cell"><button class="qa danger" title="Remove permission" aria-label="Remove permission playlist:update"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button></td>
+            </tr>
+
+            <!-- bucket · medioa — NEUTRAL / EMPTY appearance (no icon/color at create).
+                 Pencil opens the dialog with NOTHING preselected → first-time set. -->
+            <tr class="perm-row">
+              <td class="res-first">
+                <div class="res-cell">
+                  <div class="res-icon neutral"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg></div>
+                  <div class="res-meta"><div class="res-name">Buckets</div><div class="res-code">bucket · medioa</div></div>
+                  <button class="appx-btn" title="Edit appearance" aria-label="Edit appearance of bucket"
+                          onclick="openAppx('bucket','medioa','','')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3Z"/></svg>
+                  </button>
+                </div>
+              </td>
+              <td class="act-cell">read</td>
+              <td><code class="perm-code">bucket:read</code></td>
+              <td class="manage-cell"><button class="qa danger" title="Remove permission" aria-label="Remove permission bucket:read"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button></td>
+            </tr>
+            <tr class="perm-row">
+              <td class="res-first"></td>
+              <td class="act-cell">delete</td>
+              <td><code class="perm-code">bucket:delete</code></td>
+              <td class="manage-cell"><button class="qa danger" title="Remove permission" aria-label="Remove permission bucket:delete"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button></td>
+            </tr>
+
+            <!-- station · rainy — appearance set, but role:update MISSING → pencil
+                 rendered .locked (non-interactive) with a tooltip. Catalog is visible
+                 (role:read); editing appearance is gated behind role:update. -->
+            <tr class="perm-row">
+              <td class="res-first">
+                <div class="res-cell">
+                  <div class="res-icon cyan"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2"/><circle cx="12" cy="10" r="3"/><path d="M7 20.66V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.66"/></svg></div>
+                  <div class="res-meta"><div class="res-name">Stations</div><div class="res-code">station · rainy</div></div>
+                  <!-- role:update not granted → cannot edit appearance. Pencil locked, no handler. -->
+                  <button class="appx-btn locked" title="Requires role:update to edit appearance" aria-label="Edit appearance disabled — requires role:update" aria-disabled="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3Z"/></svg>
+                  </button>
+                </div>
+              </td>
+              <td class="act-cell">read</td>
+              <td><code class="perm-code">station:read</code></td>
+              <td class="manage-cell"><button class="qa danger" title="Remove permission" aria-label="Remove permission station:read"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Catalog foot — neutral hint (editable app). For the isme SYSTEM app this
+             becomes an amber lock notice ("System-managed — seeded, cannot add/remove"). -->
         <div class="scope-note">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto;"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-          <span>Read-only — scope is stored per assignment on <code>user_roles.app_service_id</code> (NULL = global) and set when assigning the role to a member, not here.</span>
+          <span>Permission strings are <code>resource:action</code> — not app-prefixed. Use "Add permission" above to create more, then toggle them onto roles. Each resource's icon + color is edited via the pencil and applies to all its actions.</span>
         </div>
       </div>
 
@@ -1099,9 +1434,121 @@
   </div>
 </div>
 
+<!-- ================= EDIT APPEARANCE DIALOG =================
+     Opened from a resource row's pencil. Edits the RESOURCE's appearance
+     (icon + color), which is stored PER RESOURCE and applied to ALL of that
+     resource's catalog actions (read/create/update/delete + specials).
+
+     Picker BODIES are a pixel match to the SHIPPED React components:
+       • Icon grid  → ui/src/components/IconPicker.tsx
+         (Flex wrap, gap 8 / p 12, glassSm radius, 38×38 cells, full ICON_KEYS
+          allowlist in order, aurora-violet selected ring)
+       • Color row  → ui/src/components/ColorSwatchPicker.tsx
+         (Flex wrap, gap 12 / p 14, 36px discs, ringed selected + white check)
+     Field layout (label · hint  +  inline picker  +  muted helper) mirrors
+     ui/src/pages/EditAppService.tsx. Both pickers are used AS-IS (no fork):
+     allowlist-only, with NO leading "None"/clear cell. The dialog opens on the
+     resource's CURRENT icon+color (preselected) and switches it to another
+     allowlist key — there is no clear-to-neutral via the UI. A resource stays
+     neutral only when no icon/color was set at create time.
+
+     Save → NEW backend endpoint:  PUT /permissions/appearance
+       body: { app_code, resource, icon, color }   (icon/color are non-empty
+       allowlist keys — never "")
+     The endpoint updates icon+color across every catalog row for that
+     resource. Rejected (403/422) for the isme SYSTEM app's resources.
+
+     Opened here in its ACTIVE state seeded with playlist's real appearance
+     (icon music + color mint preselected). -->
+<div id="appx-modal" class="overlay hidden" onclick="if(event.target===this)this.classList.add('hidden')">
+  <div class="modal modal-appx" role="dialog" aria-modal="true" aria-labelledby="appx-title">
+    <div class="modal-head">
+      <div class="modal-title" id="appx-title">
+        <div class="modal-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.563-2.512 5.563-5.563C22 6.012 17.5 2 12 2Z"/></svg>
+        </div>
+        Edit appearance · <span id="appx-res" style="color:var(--fg-soft);">playlist</span>
+      </div>
+      <button class="modal-x" onclick="document.getElementById('appx-modal').classList.add('hidden')" aria-label="Close">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+    </div>
+
+    <div class="modal-body scroll">
+      <!-- context line: which resource + app, and the scope of the change -->
+      <div class="note">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+        <span>Appearance is stored per resource — this icon + color apply to <b style="color:var(--fg-soft);">all actions</b> of <code id="appx-res2">playlist</code> in app <code id="appx-app">rainy</code>.</span>
+      </div>
+
+      <!-- ICON PICKER — mirrors EditAppService.tsx Icon field: <IconPicker> inline
+           directly under a "Icon · {hint}" label + muted 12px helper line.
+           Same glass Flex-wrap grid as ui/src/components/IconPicker.tsx, used
+           AS-IS (no fork): allowlist-only, no leading "None"/clear cell. The
+           dialog only switches a resource's icon to another allowlist key —
+           there is no clear-to-neutral via the UI. (A resource is neutral only
+           if no icon was set at create time.) -->
+      <div>
+        <span class="field-label">Icon <span class="opt">· pick from the shared icon set</span></span>
+        <div class="iconpick-grid" id="appx-icongrid" role="radiogroup" aria-label="Resource icon"><!-- injected by JS --></div>
+        <div class="helper">Stored as a string key (<b id="appx-icon-hint" style="color:var(--fg-soft);">music</b>). Same allowlist used by the permission catalog.</div>
+      </div>
+
+      <!-- COLOR PICKER — mirrors EditAppService.tsx Color field: <ColorSwatchPicker>
+           inline under a "Color · aurora palette" label + helper. Same glass
+           Flex-wrap row as ui/src/components/ColorSwatchPicker.tsx, used AS-IS
+           (no fork): the 9 aurora palette keys only, no leading "None"/no-color
+           disc. The dialog only switches a resource's color to another allowlist
+           key — no clear-to-neutral via the UI. -->
+      <div>
+        <span class="field-label">Color <span class="opt">· aurora palette</span></span>
+        <div class="swatch-row" id="appx-swatchrow" role="radiogroup" aria-label="Resource color"><!-- injected by JS --></div>
+        <div class="swatch-key">Stored as palette key <b id="appx-color-hint">mint</b> · <span id="appx-hex-hint" style="font-variant-numeric:tabular-nums;">#34D399</span></div>
+      </div>
+
+      <!-- LIVE PREVIEW — re-renders the catalog row tile + chip with the chosen pair -->
+      <div class="appx-preview">
+        <div class="pv-cap">Live preview</div>
+        <!-- catalog row form (the .res-cell as it appears in the matrix) -->
+        <div class="pv-res-cell">
+          <div class="pv-tile" id="appx-pv-tile"></div>
+          <div style="line-height:1.25;">
+            <div class="res-name" id="appx-pv-name">Playlists</div>
+            <div class="res-code" id="appx-pv-code">playlist · rainy</div>
+          </div>
+        </div>
+        <!-- compact chip form (used elsewhere in the console / pickers) -->
+        <div class="pv-chip">
+          <span class="pv-chip-tile" id="appx-pv-chiptile"></span>
+          <span id="appx-pv-chipname">Playlists</span>
+        </div>
+        <!-- reminder that the appearance spans every action of the resource -->
+        <div class="pv-applies">
+          applies to
+          <span class="act-pill">read</span>
+          <span class="act-pill">create</span>
+          <span class="act-pill">update</span>
+          <span class="act-pill">delete</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="document.getElementById('appx-modal').classList.add('hidden')">Cancel</button>
+      <!-- WIRED action: PUT /permissions/appearance { app_code, resource, icon, color }.
+           Disabled until the selection differs from the saved value. -->
+      <button class="btn btn-primary" id="appx-save" disabled>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+        Save appearance
+      </button>
+    </div>
+  </div>
+</div>
+
 <script>
   function showTab(name){
-    ['permissions','members','apps'].forEach(function(t){
+    // tab keys mirror Roles.tsx RoleTab order: permissions · catalog · members
+    ['permissions','catalog','members'].forEach(function(t){
       var panel = document.getElementById('panel-'+t);
       var tab = document.getElementById('tab-'+t);
       panel.style.display = (t===name) ? '' : 'none';
@@ -1109,6 +1556,167 @@
       tab.setAttribute('aria-selected', t===name ? 'true' : 'false');
     });
   }
+
+  /* ===================== EDIT-APPEARANCE DIALOG =====================
+     Icon registry + palette are the SAME allowlists used by the
+     IconPicker / ColorSwatchPicker in aurora-app-service-edit-design.html
+     and the role-create editor. The React port reuses those existing
+     components — this JS only mimics them for the static mock. */
+
+  var ICONS = {
+    file:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><path d="M14 2v6h6"/></svg>',
+    folder:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>',
+    database:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>',
+    music:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>',
+    album:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>',
+    playlist:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15V6"/><path d="M18.5 18a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z"/><path d="M12 12H3"/><path d="M16 6H3"/><path d="M12 18H3"/></svg>',
+    station: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2"/><circle cx="12" cy="10" r="3"/><path d="M7 20.66V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.66"/></svg>',
+    image:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.5-3.5a2 2 0 0 0-2.8 0L6 21"/></svg>',
+    video:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 8-6 4 6 4V8Z"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg>',
+    shield:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V6l-8-4-8 4v6c0 6 8 10 8 10Z"/></svg>',
+    key:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg>',
+    user:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+    users:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+    globe:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10Z"/></svg>',
+    lock:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
+    bell:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>',
+    star:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>',
+    server:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="8" rx="2"/><rect x="2" y="13" width="20" height="8" rx="2"/><path d="M6 7h.01"/><path d="M6 17h.01"/></svg>',
+    cloud:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>',
+    box:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>',
+    tag:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.432 0l6.58-6.58a2.426 2.426 0 0 0 0-3.432z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></svg>',
+    code:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg>',
+    // LuSettings — was missing; now in the allowlist to match ICON_KEYS exactly
+    settings: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2Z"/><circle cx="12" cy="12" r="3"/></svg>',
+    // LuLayers — was missing
+    layers:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></svg>',
+    // LuCloudRain — was missing
+    'cloud-rain': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M16 14v6"/><path d="M8 14v6"/><path d="M12 16v6"/></svg>',
+    // isme brand monogram — same currentColor glyph as permissionIcons.tsx ISME key
+    isme:    '<svg viewBox="0 0 32 32" fill="currentColor"><circle cx="16" cy="10" r="3.6"/><rect x="12.4" y="16.4" width="7.2" height="9.6" rx="3.6"/></svg>'
+  };
+  // Fixed allowlist in the EXACT order of ICON_KEYS (consts/permissionIcons.tsx
+  // PERMISSION_ICON_KEYS) so the grid mirrors the shipped IconPicker 1:1 —
+  // file…station + the isme monogram. The React port maps ICON_KEYS.map() over
+  // this same set.
+  var PICK_ICONS = ['file','folder','database','box','image','music','video','shield','key','user','users','globe','tag','lock','bell','star','settings','server','cloud','code','layers','cloud-rain','album','playlist','station','isme'];
+
+  // fixed COLOR_KEYS palette (key → hex + rgb triplet for tints) — same as the
+  // app-service appearance editor.
+  var PALETTE = [
+    { key:'violet',  hex:'#8B5CF6', rgb:'139,92,246'  },
+    { key:'indigo',  hex:'#6366F1', rgb:'99,102,241'  },
+    { key:'cyan',    hex:'#22D3EE', rgb:'34,211,238'  },
+    { key:'sky',     hex:'#38BDF8', rgb:'56,189,248'  },
+    { key:'teal',    hex:'#2DD4BF', rgb:'45,212,191'  },
+    { key:'mint',    hex:'#34D399', rgb:'52,211,153'  },
+    { key:'amber',   hex:'#F59E0B', rgb:'245,158,11'  },
+    { key:'rose',    hex:'#FB7185', rgb:'251,113,133' },
+    { key:'magenta', hex:'#EC4899', rgb:'236,72,153'  }
+  ];
+  function paletteOf(key){ return PALETTE.find(function(p){ return p.key === key; }); }
+
+  // dialog state: what the server has (SAVED) vs current selection (sel).
+  // The dialog always opens on the resource's CURRENT appearance and switches it
+  // to another allowlist key — there is no clear-to-neutral via these pickers.
+  // (A resource only stays neutral if no icon/color was set at create time; "" is
+  // not a value the edit dialog can produce.)
+  var SAVED = { app:'rainy', resource:'playlist', name:'Playlists', icon:'music', color:'mint' };
+  var sel   = { icon:SAVED.icon, color:SAVED.color };
+
+  /* ---- build icon grid (allowlist only — no None cell, matches IconPicker.tsx) ---- */
+  (function buildIconGrid(){
+    var grid = document.getElementById('appx-icongrid');
+    grid.innerHTML = PICK_ICONS.map(function(name){
+      return '<button type="button" class="icon-opt" role="radio" aria-checked="false"'
+        + ' data-icon="'+name+'" aria-label="'+name+'" title="'+name+'"'
+        + ' onclick="pickIcon(\''+name+'\')">'+ICONS[name]+'</button>';
+    }).join('');
+  })();
+
+  /* ---- build swatch row (9 palette keys only — no None disc, matches ColorSwatchPicker.tsx) ---- */
+  (function buildSwatches(){
+    var row = document.getElementById('appx-swatchrow');
+    row.innerHTML = PALETTE.map(function(p){
+      return '<button type="button" class="swatch-opt" role="radio" aria-checked="false"'
+        + ' data-color="'+p.key+'" aria-label="'+p.key+' ('+p.hex+')" title="'+p.key+'"'
+        + ' style="--sw:'+p.hex+';" onclick="pickColor(\''+p.key+'\')"></button>';
+    }).join('');
+  })();
+
+  function pickIcon(name){
+    sel.icon = name;
+    document.querySelectorAll('#appx-icongrid .icon-opt').forEach(function(b){
+      var on = b.getAttribute('data-icon') === name;
+      b.classList.toggle('is-sel', on);
+      b.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+    document.getElementById('appx-icon-hint').textContent = name || 'neutral';
+    syncPreview();
+  }
+
+  function pickColor(key){
+    sel.color = key;
+    document.querySelectorAll('#appx-swatchrow .swatch-opt').forEach(function(b){
+      var on = b.getAttribute('data-color') === key;
+      b.classList.toggle('is-sel', on);
+      b.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+    var p = key ? paletteOf(key) : null;
+    document.getElementById('appx-color-hint').textContent = key || 'neutral';
+    document.getElementById('appx-hex-hint').textContent = p ? p.hex : 'neutral';
+    syncPreview();
+  }
+
+  function applyTile(el, neutralClass){
+    if (!sel.color || !sel.icon){
+      // neutral whenever EITHER icon or color is unset → renders the default tile
+    }
+    var hasColor = !!sel.color;
+    el.classList.toggle(neutralClass, !hasColor);
+    if (hasColor){
+      var p = paletteOf(sel.color);
+      el.style.setProperty('--hue', p.hex);
+      el.style.setProperty('--hue-rgb', p.rgb);
+    } else {
+      el.style.removeProperty('--hue');
+      el.style.removeProperty('--hue-rgb');
+    }
+    // empty icon → neutral info glyph (same as the matrix .res-icon.neutral)
+    var glyph = sel.icon ? ICONS[sel.icon]
+      : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>';
+    el.innerHTML = glyph;
+  }
+
+  function syncPreview(){
+    applyTile(document.getElementById('appx-pv-tile'), 'neutral');
+    applyTile(document.getElementById('appx-pv-chiptile'), 'neutral');
+    // Save enabled only when the selection differs from the saved value.
+    var dirty = sel.icon !== SAVED.icon || sel.color !== SAVED.color;
+    document.getElementById('appx-save').disabled = !dirty;
+  }
+
+  /* ---- open dialog seeded from a resource row ---- */
+  function openAppx(resource, app, icon, color){
+    SAVED = { app:app, resource:resource, name:resource.charAt(0).toUpperCase()+resource.slice(1)+'s',
+              icon:icon, color:color };
+    sel = { icon:icon, color:color };
+    document.getElementById('appx-res').textContent = resource;
+    document.getElementById('appx-res2').textContent = resource;
+    document.getElementById('appx-app').textContent = app;
+    document.getElementById('appx-pv-name').textContent = SAVED.name;
+    document.getElementById('appx-pv-chipname').textContent = SAVED.name;
+    document.getElementById('appx-pv-code').textContent = resource + ' · ' + app;
+    pickIcon(icon);
+    pickColor(color);
+    document.getElementById('appx-modal').classList.remove('hidden');
+  }
+
+  // Pre-seed + OPEN the dialog so reviewers land on the active state
+  // (playlist · music + mint, pickers highlighted). The opened mock also
+  // shows the Save button disabled (no change yet) — toggling any swatch/icon
+  // enables it, exactly as the PUT-wired Save behaves.
+  openAppx('playlist','rainy','music','mint');
 </script>
 
 </body>

@@ -29,6 +29,9 @@ type IRepository interface {
 	// Delete a permission from the catalog; first clears any role_permissions
 	// grants referencing it, then deletes the permissions row (one transaction)
 	DeletePermission(ctx context.Context, permissionID int64) error
+	// Update the per-resource appearance (icon + color) for every row of an
+	// (app_id, resource) in one statement
+	UpdatePermissionAppearance(ctx context.Context, appID string, resource string, icon string, color string) error
 	// Get permissions assigned to a role
 	GetPermissionsByRoleID(ctx context.Context, roleID string) ([]entity.Permission, error)
 	// Get the resource:action permission codes granted by each role, keyed by

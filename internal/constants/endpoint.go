@@ -51,8 +51,9 @@ const (
 	ROLE_ENDPOINT_MEMBER_DETAIL = "/:roleID/members/:userID"
 
 	// Permissions
-	PERMISSION_ENDPOINT_CATALOG = "/permissions"
-	PERMISSION_ENDPOINT_DETAIL  = "/permissions/:permissionID"
+	PERMISSION_ENDPOINT_CATALOG    = "/permissions"
+	PERMISSION_ENDPOINT_APPEARANCE = "/permissions/appearance"
+	PERMISSION_ENDPOINT_DETAIL     = "/permissions/:permissionID"
 
 	// Settings
 	SETTINGS_GROUP_NAME                = "/settings"
