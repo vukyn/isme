@@ -21,7 +21,7 @@ func main() {
 	server.Start()
 
 	// start background scheduler (session auto-revoke)
-	app.Scheduler.Start(context.Background())
+	app.Scheduler.Start(context.Background(), app.ScheduleProvider)
 
 	// graceful shutdown
 	shutdown := func(ctx context.Context) error {

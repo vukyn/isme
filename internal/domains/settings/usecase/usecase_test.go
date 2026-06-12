@@ -7,7 +7,8 @@ import (
 
 	"github.com/vukyn/isme/internal/domains/settings/entity"
 	"github.com/vukyn/isme/internal/domains/settings/models"
-	"github.com/vukyn/isme/internal/scheduler"
+
+	pkgScheduler "github.com/vukyn/kuery/scheduler"
 )
 
 // fakeRepo is an in-memory IRepository keyed by job_key, capturing the last
@@ -65,19 +66,21 @@ func (f *fakeRepo) RecordScheduleRun(ctx context.Context, jobKey string, ranAt t
 	return nil
 }
 
-// fakeReloader records whether Reload was invoked and with what arguments.
+// fakeReloader records whether Reload was invoked and with what arguments. It
+// implements the kuery scheduler.IReloader seam: the schedule is the opaque
+// pkgScheduler.Schedule value, compared against pkgScheduler.Cron(expected).
 type fakeReloader struct {
-	called  bool
-	jobKey  scheduler.JobKey
-	enabled bool
-	cron    string
+	called   bool
+	jobKey   pkgScheduler.JobKey
+	enabled  bool
+	schedule pkgScheduler.Schedule
 }
 
-func (f *fakeReloader) Reload(ctx context.Context, jobKey scheduler.JobKey, enabled bool, cronExpr string) error {
+func (f *fakeReloader) Reload(ctx context.Context, jobKey pkgScheduler.JobKey, enabled bool, schedule pkgScheduler.Schedule) error {
 	f.called = true
 	f.jobKey = jobKey
 	f.enabled = enabled
-	f.cron = cronExpr
+	f.schedule = schedule
 	return nil
 }
 
@@ -106,11 +109,11 @@ func TestUpdatePersistsAndReloads(t *testing.T) {
 	if !reloader.called {
 		t.Fatal("expected reloader.Reload to be called")
 	}
-	if reloader.jobKey != scheduler.JobSessionRevoke {
-		t.Fatalf("reloader.Reload got jobKey=%q, want %q", reloader.jobKey, scheduler.JobSessionRevoke)
+	if reloader.jobKey != pkgScheduler.JobKey(entity.JobKeySessionRevoke) {
+		t.Fatalf("reloader.Reload got jobKey=%q, want %q", reloader.jobKey, entity.JobKeySessionRevoke)
 	}
-	if reloader.enabled != true || reloader.cron != "0 3 * * *" {
-		t.Fatalf("reloader.Reload got enabled=%v cron=%q", reloader.enabled, reloader.cron)
+	if reloader.enabled != true || reloader.schedule != pkgScheduler.Cron("0 3 * * *") {
+		t.Fatalf("reloader.Reload got enabled=%v schedule=%+v", reloader.enabled, reloader.schedule)
 	}
 }
 
@@ -185,11 +188,11 @@ func TestUpdateRotationCleanupPersistsAndReloads(t *testing.T) {
 	if !reloader.called {
 		t.Fatal("expected reloader.Reload to be called")
 	}
-	if reloader.jobKey != scheduler.JobRotationCleanup {
-		t.Fatalf("reloader.Reload got jobKey=%q, want %q", reloader.jobKey, scheduler.JobRotationCleanup)
+	if reloader.jobKey != pkgScheduler.JobKey(entity.JobKeyRotationCleanup) {
+		t.Fatalf("reloader.Reload got jobKey=%q, want %q", reloader.jobKey, entity.JobKeyRotationCleanup)
 	}
-	if reloader.enabled != true || reloader.cron != "0 4 * * *" {
-		t.Fatalf("reloader.Reload got enabled=%v cron=%q", reloader.enabled, reloader.cron)
+	if reloader.enabled != true || reloader.schedule != pkgScheduler.Cron("0 4 * * *") {
+		t.Fatalf("reloader.Reload got enabled=%v schedule=%+v", reloader.enabled, reloader.schedule)
 	}
 }
 
@@ -286,11 +289,11 @@ func TestUpdateActivityCleanupPersistsAndReloads(t *testing.T) {
 	if !reloader.called {
 		t.Fatal("expected reloader.Reload to be called")
 	}
-	if reloader.jobKey != scheduler.JobActivityCleanup {
-		t.Fatalf("reloader.Reload got jobKey=%q, want %q", reloader.jobKey, scheduler.JobActivityCleanup)
+	if reloader.jobKey != pkgScheduler.JobKey(entity.JobKeyActivityCleanup) {
+		t.Fatalf("reloader.Reload got jobKey=%q, want %q", reloader.jobKey, entity.JobKeyActivityCleanup)
 	}
-	if reloader.enabled != true || reloader.cron != "0 5 * * *" {
-		t.Fatalf("reloader.Reload got enabled=%v cron=%q", reloader.enabled, reloader.cron)
+	if reloader.enabled != true || reloader.schedule != pkgScheduler.Cron("0 5 * * *") {
+		t.Fatalf("reloader.Reload got enabled=%v schedule=%+v", reloader.enabled, reloader.schedule)
 	}
 }
 

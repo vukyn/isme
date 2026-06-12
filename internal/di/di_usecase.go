@@ -10,10 +10,10 @@ import (
 	settingsUsecase "github.com/vukyn/isme/internal/domains/settings/usecase"
 	userUsecase "github.com/vukyn/isme/internal/domains/user/usecase"
 	userInvitationUsecase "github.com/vukyn/isme/internal/domains/user_invitation/usecase"
-	"github.com/vukyn/isme/internal/scheduler"
 
 	"github.com/sarulabs/di/v2"
 	"github.com/vukyn/kuery/log"
+	pkgScheduler "github.com/vukyn/kuery/scheduler"
 )
 
 func defineUsecase() []*di.Def {
@@ -265,8 +265,8 @@ func defineSettingsUsecase() *di.Def {
 			if err != nil {
 				return nil, err
 			}
-			// the app-scoped scheduler singleton acts as the IReloader
-			reloader := ctn.Get(constants.CONTAINER_NAME_SCHEDULER).(*scheduler.Scheduler)
+			// the app-scoped scheduler engine singleton acts as the IReloader
+			reloader := ctn.Get(constants.CONTAINER_NAME_SCHEDULER).(*pkgScheduler.Engine)
 			log.New().Debug("Settings usecase initialized")
 			return settingsUsecase.NewUsecase(settingsRepo, reloader), nil
 		},

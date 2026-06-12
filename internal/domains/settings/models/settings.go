@@ -3,7 +3,7 @@ package models
 import (
 	"errors"
 
-	"github.com/robfig/cron/v3"
+	pkgScheduler "github.com/vukyn/kuery/scheduler"
 )
 
 // GetResponse is the current session auto-revoke configuration returned to the UI.
@@ -26,7 +26,7 @@ func (r UpdateRequest) Validate() error {
 		if r.Cron == "" {
 			return errors.New("cron is required when the scheduler is enabled")
 		}
-		if _, err := cron.ParseStandard(r.Cron); err != nil {
+		if err := pkgScheduler.ValidateCron(r.Cron); err != nil {
 			return errors.New("cron must be a valid 5-field cron expression")
 		}
 	}

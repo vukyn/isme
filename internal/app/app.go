@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/vukyn/kuery/log"
+	pkgScheduler "github.com/vukyn/kuery/scheduler"
 
 	"github.com/vukyn/isme/internal/config"
 	idi "github.com/vukyn/isme/internal/di"
@@ -14,9 +15,10 @@ import (
 var App di.Container
 var Config *config.Config
 var Scheduler interface {
-	Start(ctx context.Context)
+	Start(ctx context.Context, provider pkgScheduler.ScheduleProvider)
 	Stop()
 }
+var ScheduleProvider pkgScheduler.ScheduleProvider
 
 func Init() {
 	app, err := idi.NewBuilder().Build() // build all dependencies
@@ -39,4 +41,7 @@ func Init() {
 
 	// Force scheduler singleton construction (built from the App-scoped DB)
 	Scheduler = idi.GetScheduler(app)
+
+	// Force schedule-provider singleton construction (the engine's initial-load path)
+	ScheduleProvider = idi.GetScheduleProvider(app)
 }

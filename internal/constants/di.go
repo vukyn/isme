@@ -9,6 +9,8 @@ const (
 	CONTAINER_NAME_MIDDLEWARE = "middleware"
 	CONTAINER_NAME_SCHEDULER  = "scheduler"
 
+	CONTAINER_NAME_SCHEDULE_PROVIDER = "schedule_provider"
+
 	// Repositories
 	CONTAINER_NAME_USER_REPOSITORY            = "user_repository"
 	CONTAINER_NAME_USER_SESSION_REPOSITORY    = "user_session_repository"

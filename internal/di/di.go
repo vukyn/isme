@@ -15,6 +15,7 @@ func NewBuilder() *di.EnhancedBuilder {
 	builder.Add(defineConfig())
 	builder.Add(defineDB())
 	builder.Add(defineScheduler())
+	builder.Add(defineScheduleProvider())
 	builder.Add(defineCache())
 	builder.Add(defineMiddleware())
 	for _, def := range defineRepository() {

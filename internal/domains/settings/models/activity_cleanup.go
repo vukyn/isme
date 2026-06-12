@@ -3,7 +3,7 @@ package models
 import (
 	"errors"
 
-	"github.com/robfig/cron/v3"
+	pkgScheduler "github.com/vukyn/kuery/scheduler"
 )
 
 // retentionFloorDays is the minimum retention window (7 days). Activity history
@@ -39,7 +39,7 @@ func (r ActivityCleanupUpdateRequest) Validate() error {
 		if r.Cron == "" {
 			return errors.New("cron is required when the scheduler is enabled")
 		}
-		if _, err := cron.ParseStandard(r.Cron); err != nil {
+		if err := pkgScheduler.ValidateCron(r.Cron); err != nil {
 			return errors.New("cron must be a valid 5-field cron expression")
 		}
 	}
