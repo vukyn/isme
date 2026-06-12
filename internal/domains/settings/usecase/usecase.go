@@ -7,10 +7,10 @@ import (
 	"github.com/vukyn/isme/internal/domains/settings/entity"
 	"github.com/vukyn/isme/internal/domains/settings/models"
 	settingsRepo "github.com/vukyn/isme/internal/domains/settings/repository"
-	"github.com/vukyn/isme/internal/scheduler"
 
 	pkgCtx "github.com/vukyn/kuery/ctx"
 	pkgErr "github.com/vukyn/kuery/http/errors"
+	pkgScheduler "github.com/vukyn/kuery/scheduler"
 )
 
 // emptyParams is the params JSON for jobs with no job-specific config (revoke).
@@ -43,12 +43,12 @@ type activityCleanupResult struct {
 
 type usecase struct {
 	settingsRepo settingsRepo.IRepository
-	reloader     scheduler.IReloader
+	reloader     pkgScheduler.IReloader
 }
 
 func NewUsecase(
 	settingsRepo settingsRepo.IRepository,
-	reloader scheduler.IReloader,
+	reloader pkgScheduler.IReloader,
 ) IUseCase {
 	return &usecase{
 		settingsRepo: settingsRepo,
@@ -92,7 +92,7 @@ func (u *usecase) Update(ctx context.Context, req models.UpdateRequest) error {
 	}
 
 	// live-reload the scheduler so the change takes effect without a restart
-	return u.reloader.Reload(ctx, scheduler.JobSessionRevoke, req.Enabled, req.Cron)
+	return u.reloader.Reload(ctx, pkgScheduler.JobKey(entity.JobKeySessionRevoke), req.Enabled, pkgScheduler.Cron(req.Cron))
 }
 
 func (u *usecase) GetRotationCleanup(ctx context.Context) (models.RotationCleanupGetResponse, error) {
@@ -145,7 +145,7 @@ func (u *usecase) UpdateRotationCleanup(ctx context.Context, req models.Rotation
 	// live-reload the scheduler so the change takes effect without a restart.
 	// A retention-only change still reloads here, but retention is read fresh on
 	// each run regardless, so it would also take effect on the next run.
-	return u.reloader.Reload(ctx, scheduler.JobRotationCleanup, req.Enabled, req.Cron)
+	return u.reloader.Reload(ctx, pkgScheduler.JobKey(entity.JobKeyRotationCleanup), req.Enabled, pkgScheduler.Cron(req.Cron))
 }
 
 func (u *usecase) GetActivityCleanup(ctx context.Context) (models.ActivityCleanupGetResponse, error) {
@@ -198,5 +198,5 @@ func (u *usecase) UpdateActivityCleanup(ctx context.Context, req models.Activity
 	// live-reload the scheduler so the change takes effect without a restart.
 	// A retention-only change still reloads here, but retention is read fresh on
 	// each run regardless, so it would also take effect on the next run.
-	return u.reloader.Reload(ctx, scheduler.JobActivityCleanup, req.Enabled, req.Cron)
+	return u.reloader.Reload(ctx, pkgScheduler.JobKey(entity.JobKeyActivityCleanup), req.Enabled, pkgScheduler.Cron(req.Cron))
 }

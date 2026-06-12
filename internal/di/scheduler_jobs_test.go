@@ -1,4 +1,4 @@
-package scheduler
+package di
 
 import (
 	"context"
@@ -8,10 +8,12 @@ import (
 
 	sqliteHistory "github.com/vukyn/isme/db/history/sqlite"
 	settingsEntity "github.com/vukyn/isme/internal/domains/settings/entity"
+	settingsRepo "github.com/vukyn/isme/internal/domains/settings/repository"
 
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/sqlitedialect"
 	"github.com/uptrace/bun/driver/sqliteshim"
+	pkgScheduler "github.com/vukyn/kuery/scheduler"
 )
 
 func TestRotationCutoff(t *testing.T) {
@@ -73,38 +75,10 @@ func newTestDB(t *testing.T) *bun.DB {
 	return db
 }
 
-// With both configs seeded disabled (the migration default), Start must install
-// no jobs even though the env kill-switch is on.
-func TestStartWithBothDisabledInstallsNoJobs(t *testing.T) {
-	db := newTestDB(t)
-	s, err := New(db, true)
-	if err != nil {
-		t.Fatalf("New: %v", err)
-	}
-	t.Cleanup(s.Stop)
-
-	s.Start(context.Background())
-
-	if len(s.jobs) != 0 {
-		t.Fatalf("expected 0 jobs installed, got %d (%v)", len(s.jobs), s.jobs)
-	}
-}
-
-// The job-key strings are a single source of truth (settings entity consts).
-// The scheduler JobKey consts and the migration-seeded job_key rows must all
-// agree, otherwise a Reload/Get would silently target a non-existent row.
-func TestJobKeysAreConsistentAcrossPackages(t *testing.T) {
-	if string(JobSessionRevoke) != settingsEntity.JobKeySessionRevoke {
-		t.Fatalf("JobSessionRevoke=%q != entity.JobKeySessionRevoke=%q", JobSessionRevoke, settingsEntity.JobKeySessionRevoke)
-	}
-	if string(JobRotationCleanup) != settingsEntity.JobKeyRotationCleanup {
-		t.Fatalf("JobRotationCleanup=%q != entity.JobKeyRotationCleanup=%q", JobRotationCleanup, settingsEntity.JobKeyRotationCleanup)
-	}
-	if string(JobActivityCleanup) != settingsEntity.JobKeyActivityCleanup {
-		t.Fatalf("JobActivityCleanup=%q != entity.JobKeyActivityCleanup=%q", JobActivityCleanup, settingsEntity.JobKeyActivityCleanup)
-	}
-
-	// the migration must seed exactly the three job rows the scheduler reads.
+// The migration must seed exactly the three job rows the scheduler reads, so a
+// Reload/Get can never silently target a non-existent row. The job-key strings
+// are a single source of truth (settings entity consts).
+func TestJobKeysAreConsistentWithMigration(t *testing.T) {
 	db := newTestDB(t)
 	for _, jobKey := range []string{settingsEntity.JobKeySessionRevoke, settingsEntity.JobKeyRotationCleanup, settingsEntity.JobKeyActivityCleanup} {
 		var count int
@@ -114,6 +88,28 @@ func TestJobKeysAreConsistentAcrossPackages(t *testing.T) {
 		}
 		if count != 1 {
 			t.Fatalf("expected exactly 1 schedule_config row for %q, got %d", jobKey, count)
+		}
+	}
+}
+
+// With both configs seeded disabled (the migration default), the schedule
+// provider reports every job as not-enabled, so the engine installs no job at
+// Start. This is the parity check for the old "both disabled => 0 jobs" test.
+func TestScheduleProviderReportsSeededJobsDisabled(t *testing.T) {
+	db := newTestDB(t)
+	provider := newScheduleProvider(settingsRepo.NewRepository(db))
+
+	for _, jobKey := range []pkgScheduler.JobKey{
+		pkgScheduler.JobKey(settingsEntity.JobKeySessionRevoke),
+		pkgScheduler.JobKey(settingsEntity.JobKeyRotationCleanup),
+		pkgScheduler.JobKey(settingsEntity.JobKeyActivityCleanup),
+	} {
+		enabled, _, err := provider.Load(context.Background(), jobKey)
+		if err != nil {
+			t.Fatalf("provider.Load(%q): %v", jobKey, err)
+		}
+		if enabled {
+			t.Fatalf("expected job %q seeded disabled, got enabled", jobKey)
 		}
 	}
 }
