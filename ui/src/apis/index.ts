@@ -1,4 +1,5 @@
 export * from "./auth";
+export * from "./media";
 export * from "./user";
 export * from "./role";
 export * from "./appService";

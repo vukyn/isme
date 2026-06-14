@@ -13,6 +13,7 @@ func NewBuilder() *di.EnhancedBuilder {
 	}
 
 	builder.Add(defineConfig())
+	builder.Add(defineMedioaClient())
 	builder.Add(defineDB())
 	builder.Add(defineScheduler())
 	builder.Add(defineScheduleProvider())

@@ -10,6 +10,7 @@ import { Roles } from "./pages/Roles";
 import { AppServices } from "./pages/AppServices";
 import { EditAppService } from "./pages/EditAppService";
 import { Settings } from "./pages/Settings";
+import { Profile } from "./pages/Profile";
 import { Sessions } from "./pages/Sessions";
 import { Activity } from "./pages/Activity";
 import { NotFound } from "./pages/NotFound";
@@ -79,6 +80,14 @@ function App() {
 						element={
 							<ProtectedRoute>
 								<Settings />
+							</ProtectedRoute>
+						}
+					/>
+					<Route
+						path="/profile"
+						element={
+							<ProtectedRoute>
+								<Profile />
 							</ProtectedRoute>
 						}
 					/>

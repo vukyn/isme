@@ -14,6 +14,7 @@ func SetupAuthRoutes(router fiber.Router) {
 	r.Post(constants.AUTH_ENDPOINT_LOGIN, Login)
 	r.Post(constants.AUTH_ENDPOINT_REFRESH, RefreshToken)
 	r.Get(constants.AUTH_ENDPOINT_ME, middleware.AuthMiddleware, GetMe)
+	r.Patch(constants.AUTH_ENDPOINT_ME, middleware.AuthMiddleware, UpdateMe)
 	r.Post(constants.AUTH_ENDPOINT_CHANGE_PASSWORD, middleware.AuthMiddleware, ChangePassword)
 	r.Post(constants.AUTH_ENDPOINT_LOGOUT, middleware.AuthMiddleware, Logout)
 	r.Post(constants.AUTH_ENDPOINT_REQUEST_LOGIN, RequestLogin)

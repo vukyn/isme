@@ -5,3 +5,4 @@ export * from "./agent";
 export * from "./jwt";
 export * from "./clipboard";
 export * from "./cronPreset";
+export * from "./avatar";

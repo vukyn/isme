@@ -60,7 +60,7 @@ export const Login = () => {
 					pillTone="violet"
 					titleLead="Build, ship, repeat —"
 					titleGrad="without the chaos."
-					sub="One workspace for auth, sessions, teams. Aurora-grade security, quiet by default."
+					sub="One home for auth, sessions, teams. Aurora-grade security, quiet by default."
 					features={LOGIN_FEATURES}
 				/>
 			}

@@ -7,6 +7,7 @@ const (
 	ActivityTypeSignOut         = "sign_out"
 	ActivityTypePasswordChanged = "password_changed"
 	ActivityTypeInvitationSent  = "invitation_sent"
+	ActivityTypeProfileUpdated  = "profile_updated"
 )
 
 // Limits for the "Recent activity" feed.

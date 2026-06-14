@@ -10,6 +10,7 @@ const (
 	CONTAINER_NAME_SCHEDULER  = "scheduler"
 
 	CONTAINER_NAME_SCHEDULE_PROVIDER = "schedule_provider"
+	CONTAINER_NAME_MEDIOA_CLIENT     = "medioa_client"
 
 	// Repositories
 	CONTAINER_NAME_USER_REPOSITORY            = "user_repository"
@@ -28,4 +29,5 @@ const (
 	CONTAINER_NAME_USER_INVITATION_USECASE = "user_invitation_usecase"
 	CONTAINER_NAME_SETTINGS_USECASE        = "settings_usecase"
 	CONTAINER_NAME_ACTIVITY_USECASE        = "activity_usecase"
+	CONTAINER_NAME_MEDIA_USECASE           = "media_usecase"
 )

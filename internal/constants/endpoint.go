@@ -56,6 +56,10 @@ const (
 	PERMISSION_ENDPOINT_APPEARANCE = "/permissions/appearance"
 	PERMISSION_ENDPOINT_DETAIL     = "/permissions/:permissionID"
 
+	// Media (self-service avatar upload proxy to medioa)
+	MEDIA_GROUP_NAME      = "/media"
+	MEDIA_ENDPOINT_UPLOAD = "/upload"
+
 	// Settings
 	SETTINGS_GROUP_NAME                = "/settings"
 	SETTINGS_ENDPOINT_SESSION_REVOKE   = "/session-revoke"

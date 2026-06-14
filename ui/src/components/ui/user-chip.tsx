@@ -1,10 +1,13 @@
-import { Box, Center, HStack, Menu, Portal, Text } from "@chakra-ui/react";
-import { LuChevronDown, LuLogOut } from "react-icons/lu";
+import { Box, Center, HStack, Image, Menu, Portal, Text } from "@chakra-ui/react";
+import { useNavigate } from "react-router-dom";
+import { LuChevronDown, LuLogOut, LuUser } from "react-icons/lu";
 import { useAuth } from "@/hooks/useAuth";
+import { useUser } from "@/hooks/useUser";
 
 interface UserChipProps {
 	name: string;
 	email: string;
+	avatarUrl?: string;
 }
 
 const initials = (name: string) =>
@@ -15,8 +18,13 @@ const initials = (name: string) =>
 		.slice(0, 2)
 		.join("") || "?";
 
-export const UserChip = ({ name, email }: UserChipProps) => {
+export const UserChip = ({ name, email, avatarUrl }: UserChipProps) => {
 	const { logout } = useAuth();
+	const { user } = useUser();
+	const navigate = useNavigate();
+	// Call sites pass user={{name,email}} and drop avatar_url, so fall back to
+	// the live user from context — keeps the chip in sync after an avatar update.
+	const effectiveAvatar = avatarUrl || user?.avatar_url;
 
 	return (
 		<Menu.Root>
@@ -42,13 +50,24 @@ export const UserChip = ({ name, email }: UserChipProps) => {
 						color="white"
 						fontWeight="bold"
 						fontSize="xs"
+						overflow="hidden"
 						boxShadow="0 0 16px rgba(139,92,246,0.45)"
 						css={{
 							background:
 								"conic-gradient(from 200deg, #22D3EE, #6366F1, #8B5CF6, #EC4899, #22D3EE)",
 						}}
 					>
-						{initials(name)}
+						{effectiveAvatar ? (
+							<Image
+								src={effectiveAvatar}
+								alt={name}
+								w="full"
+								h="full"
+								objectFit="cover"
+							/>
+						) : (
+							initials(name)
+						)}
 					</Center>
 					<Box textAlign="left" lineHeight="1.15">
 						<Text fontSize="sm" fontWeight="semibold" color="fg">
@@ -72,6 +91,9 @@ export const UserChip = ({ name, email }: UserChipProps) => {
 						boxShadow="glassSoft"
 						css={{ backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" }}
 					>
+						<Menu.Item value="profile" onClick={() => navigate("/profile")} cursor="pointer">
+							<LuUser /> Profile
+						</Menu.Item>
 						<Menu.Item value="logout" onClick={() => logout()} cursor="pointer">
 							<LuLogOut /> Log out
 						</Menu.Item>

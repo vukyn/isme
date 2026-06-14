@@ -48,6 +48,28 @@ func GetMe(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, getMeResponse)
 }
 
+func UpdateMe(c *fiber.Ctx) error {
+	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
+	defer ctn.Delete()
+
+	uc, err := idi.GetAuthUsecase(ctn)
+	if err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	updateMeRequest := models.UpdateMeRequest{}
+	if err := c.BodyParser(&updateMeRequest); err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	getMeResponse, err := uc.UpdateMe(pkgCtx.NewContextFromFiberCtx(c), updateMeRequest)
+	if err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	return pkgHttp.OK(c, getMeResponse)
+}
+
 func RefreshToken(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 	defer ctn.Delete()

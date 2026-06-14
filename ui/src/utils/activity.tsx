@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { LuCheck, LuKey, LuLogOut, LuUserPlus } from "react-icons/lu";
+import { LuCheck, LuKey, LuLogOut, LuUser, LuUserPlus } from "react-icons/lu";
 import type { ActivityTone } from "@/components/ui/activity-row";
 import type { ActivityItem } from "@/types";
 import { formatRelative } from "@/utils/time";
@@ -49,6 +49,8 @@ export const activityToRow = (item: ActivityItem): ActivityRowData => {
 		}
 		case "password_changed":
 			return { tone: "violet", icon: <LuKey />, body: <>Password changed</>, time };
+		case "profile_updated":
+			return { tone: "violet", icon: <LuUser />, body: <>Profile updated</>, time };
 		case "sign_out":
 			return { tone: "violet", icon: <LuLogOut />, body: <>Signed out</>, time };
 		default:

@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/vukyn/isme/internal/config"
@@ -75,6 +76,61 @@ func (u *usecase) GetMe(ctx context.Context) (models.GetMeResponse, error) {
 		ID:        user.ID,
 		Name:      user.Name,
 		Email:     user.Email,
+		AvatarURL: user.AvatarURL,
+		CreatedAt: createdAt,
+	}, nil
+}
+
+// UpdateMe is the self-service profile update. It updates the caller's display
+// name and avatar URL only — email is immutable. Mirrors ChangePassword: pulls
+// the user ID from context, re-checks active status, writes, then records a
+// best-effort audit event.
+func (u *usecase) UpdateMe(ctx context.Context, req models.UpdateMeRequest) (models.GetMeResponse, error) {
+	// validation
+	if err := req.Validate(); err != nil {
+		return models.GetMeResponse{}, pkgErr.InvalidRequest(err.Error())
+	}
+
+	// get user ID from context
+	userID := pkgCtx.GetUserID(ctx)
+	if userID == "" {
+		return models.GetMeResponse{}, pkgErr.InvalidRequest("user not found")
+	}
+
+	// get user from database
+	user, err := u.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return models.GetMeResponse{}, err
+	}
+	if user.ID == "" {
+		return models.GetMeResponse{}, pkgErr.InvalidRequest("user not found")
+	}
+
+	// check if user is active
+	if user.Status != userConstants.UserStatusActive {
+		return models.GetMeResponse{}, pkgErr.InvalidRequest("user account is inactive")
+	}
+
+	// update display name + avatar URL
+	name := strings.TrimSpace(req.Name)
+	if err := u.userRepo.UpdateProfile(ctx, userID, name, req.AvatarURL); err != nil {
+		return models.GetMeResponse{}, err
+	}
+
+	// audit: profile updated. Best-effort — never fails the request.
+	if u.activityUsecase != nil {
+		u.activityUsecase.RecordProfileUpdated(ctx, userID)
+	}
+
+	createdAt := ""
+	if !user.CreatedAt.IsZero() {
+		createdAt = user.CreatedAt.Format(time.RFC3339)
+	}
+	return models.GetMeResponse{
+		ID:        user.ID,
+		Name:      name,
+		Email:     user.Email,
+		AvatarURL: req.AvatarURL,
 		CreatedAt: createdAt,
 	}, nil
 }

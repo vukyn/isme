@@ -9,7 +9,7 @@ export type TopbarTab = "overview" | "users" | "roles" | "appServices" | "sessio
 
 interface TopbarProps {
 	active: TopbarTab;
-	user: { name: string; email: string };
+	user: { name: string; email: string; avatar_url?: string };
 }
 
 // `perm` gates the nav entry — items the user can't read are hidden from the
@@ -104,7 +104,7 @@ export const Topbar = ({ active, user }: TopbarProps) => {
 						css={{ boxShadow: "0 0 8px #EC4899" }}
 					/>
 				</IconButton>
-				<UserChip name={user.name} email={user.email} />
+				<UserChip name={user.name} email={user.email} avatarUrl={user.avatar_url} />
 			</HStack>
 		</Flex>
 	);

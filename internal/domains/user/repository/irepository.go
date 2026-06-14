@@ -16,6 +16,8 @@ type IRepository interface {
 	GetByEmail(ctx context.Context, email string) (entity.User, error)
 	// Set password for user
 	SetPassword(ctx context.Context, id string, password string) error
+	// Update self-service profile fields (display name + avatar URL)
+	UpdateProfile(ctx context.Context, id string, name string, avatarURL string) error
 	// Update last login to current time for user (only for successful login)
 	UpdateLastLogin(ctx context.Context, id string) error
 	// Verify: one-way flip of isVerified to 1 (there is no unverify)

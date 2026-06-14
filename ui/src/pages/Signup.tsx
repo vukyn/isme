@@ -84,7 +84,7 @@ export const Signup = () => {
 				Create your account
 			</Heading>
 			<Text color="fg.muted" mb="7" fontSize="md">
-				Spin up a workspace and bring your team in.
+				Spin up your account and bring your team in.
 			</Text>
 			<Stack as="form" onSubmit={handleSubmit} gap="4">
 				<Field.Root invalid={!!formErrors.name}>

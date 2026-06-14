@@ -12,6 +12,7 @@ type User struct {
 	ID            string    `bun:"id,pk,notnull"`
 	Name          string    `bun:"name,notnull"`
 	Email         string    `bun:"email,unique"`
+	AvatarURL     string    `bun:"avatar_url"`
 	Password      string    `bun:"password,notnull"`
 	Status        int32     `bun:"status,notnull"`
 	IsVerified    bool      `bun:"is_verified,default:false"`

@@ -13,6 +13,8 @@ import type {
 	SSOCheckResponse,
 	SSOConsentRequest,
 	SSOConsentResponse,
+	UpdateMeRequest,
+	ChangePasswordRequest,
 } from "@/types";
 import { API_ENDPOINTS } from "@/consts";
 import { apiClient } from "@/utils/axios";
@@ -30,6 +32,19 @@ export const signup = async (data: SignupRequest): Promise<SignupResponse> => {
 export const getCurrentUser = async (): Promise<{ data: GetMeResponse }> => {
 	const response = await apiClient.get<{ data: GetMeResponse }>(API_ENDPOINTS.AUTH_ME);
 	return response.data;
+};
+
+/** Self-service profile update (display name + avatar URL). Returns the fresh
+ *  GetMe payload so callers can refresh the UserProvider cache. */
+export const updateProfile = async (data: UpdateMeRequest): Promise<GetMeResponse> => {
+	const response = await apiClient.patch<{ data: GetMeResponse }>(API_ENDPOINTS.AUTH_UPDATE_ME, data);
+	return response.data.data;
+};
+
+/** Self-service password change. The backend revokes all sessions on success,
+ *  but the current device stays signed in via its existing tokens. */
+export const changePassword = async (data: ChangePasswordRequest): Promise<void> => {
+	await apiClient.post(API_ENDPOINTS.AUTH_CHANGE_PASSWORD, data);
 };
 
 export const refreshToken = async (data: RefreshTokenRequest): Promise<RefreshTokenResponse> => {
