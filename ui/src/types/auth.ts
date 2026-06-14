@@ -145,6 +145,30 @@ export interface GetMeResponse {
 	id: string;
 	name: string;
 	email: string;
+	/** medioa object URL or pasted external link for the profile photo; empty = no avatar. */
+	avatar_url: string;
 	/** RFC3339 account-creation time; drives the Welcome "member since" stat. */
 	created_at: string;
+}
+
+/** Maps to internal/domains/auth/models.UpdateMeRequest — self-service profile update. */
+export interface UpdateMeRequest {
+	name: string;
+	avatar_url: string;
+}
+
+/** Maps to internal/domains/auth/models.ChangePasswordRequest. */
+export interface ChangePasswordRequest {
+	old_password: string;
+	new_password: string;
+}
+
+/** Maps to internal/domains/media/models.UploadResponse — proxied medioa upload result. */
+export interface MediaUploadResponse {
+	data: {
+		url: string;
+		file_id: string;
+		file_name: string;
+		file_size: number;
+	};
 }

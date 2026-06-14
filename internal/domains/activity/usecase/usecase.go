@@ -62,6 +62,10 @@ func (u *usecase) RecordPasswordChanged(ctx context.Context, userID string) {
 	u.record(ctx, userID, constants.ActivityTypePasswordChanged, map[string]any{})
 }
 
+func (u *usecase) RecordProfileUpdated(ctx context.Context, userID string) {
+	u.record(ctx, userID, constants.ActivityTypeProfileUpdated, map[string]any{})
+}
+
 func (u *usecase) RecordInvitationSent(ctx context.Context, inviterID, email string, roleNames []string) {
 	if roleNames == nil {
 		roleNames = []string{}

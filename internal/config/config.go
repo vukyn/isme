@@ -52,6 +52,15 @@ type Config struct {
 		// the persisted DB config.
 		Enabled bool `envconfig:"SCHEDULER_ENABLED" default:"true"`
 	}
+	Medioa struct {
+		// BaseURL is the medioa2 origin used for server-to-server upload calls.
+		// Use 127.0.0.1:<port> (not *.local) to avoid the ~5s mDNS resolver stall.
+		BaseURL string `envconfig:"MEDIOA_BASE_URL" default:"http://127.0.0.1:8082"`
+		// APIKey is the medioa2 public-API key (an "mk_..." value) sent as
+		// X-API-Key on uploads. Server-side only — never exposed to the browser.
+		// Minted by a member of the target medioa2 bucket; set in .env at runtime.
+		APIKey string `envconfig:"MEDIOA_API_KEY"`
+	}
 }
 
 func LoadConfig(envFiles ...string) (*Config, error) {

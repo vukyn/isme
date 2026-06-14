@@ -6,6 +6,7 @@ import (
 	activityUsecase "github.com/vukyn/isme/internal/domains/activity/usecase"
 	appServiceUsecase "github.com/vukyn/isme/internal/domains/app_service/usecase"
 	authUsecase "github.com/vukyn/isme/internal/domains/auth/usecase"
+	mediaUsecase "github.com/vukyn/isme/internal/domains/media/usecase"
 	roleUsecase "github.com/vukyn/isme/internal/domains/role/usecase"
 	settingsUsecase "github.com/vukyn/isme/internal/domains/settings/usecase"
 	userUsecase "github.com/vukyn/isme/internal/domains/user/usecase"
@@ -25,6 +26,7 @@ func defineUsecase() []*di.Def {
 		defineRoleUsecase(),
 		defineUserInvitationUsecase(),
 		defineSettingsUsecase(),
+		defineMediaUsecase(),
 	}
 }
 
@@ -284,4 +286,35 @@ func GetSettingsUsecase(ctn di.Container) (settingsUsecase.IUseCase, error) {
 		return nil, err
 	}
 	return uc.(settingsUsecase.IUseCase), nil
+}
+
+func defineMediaUsecase() *di.Def {
+	def := &di.Def{
+		Name:  constants.CONTAINER_NAME_MEDIA_USECASE,
+		Scope: di.Request,
+		Build: func(ctn di.Container) (any, error) {
+			cfg := ctn.Get(constants.CONTAINER_NAME_CONFIG).(*config.Config)
+			// medioaClient may be a typed-nil when MEDIOA_API_KEY is unset; the
+			// usecase guards on it and returns a 502.
+			medioaClient, err := GetMedioaClient(ctn)
+			if err != nil {
+				return nil, err
+			}
+			log.New().Debug("Media usecase initialized")
+			return mediaUsecase.NewUsecase(cfg, medioaClient), nil
+		},
+		Close: func(obj any) error {
+			log.New().Debug("Media usecase destroyed")
+			return nil
+		},
+	}
+	return def
+}
+
+func GetMediaUsecase(ctn di.Container) (mediaUsecase.IUseCase, error) {
+	uc, err := ctn.SafeGet(constants.CONTAINER_NAME_MEDIA_USECASE)
+	if err != nil {
+		return nil, err
+	}
+	return uc.(mediaUsecase.IUseCase), nil
 }

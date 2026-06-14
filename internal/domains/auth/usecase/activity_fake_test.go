@@ -17,6 +17,7 @@ type fakeActivityUsecase struct {
 	signInCalls          []fakeSignInCall
 	signOutCalls         []string
 	passwordChangedCalls []string
+	profileUpdatedCalls  []string
 	invitationSentCalls  []fakeInvitationCall
 
 	listItems []activityModels.ActivityItem
@@ -45,6 +46,10 @@ func (f *fakeActivityUsecase) RecordSignOut(ctx context.Context, userID string) 
 
 func (f *fakeActivityUsecase) RecordPasswordChanged(ctx context.Context, userID string) {
 	f.passwordChangedCalls = append(f.passwordChangedCalls, userID)
+}
+
+func (f *fakeActivityUsecase) RecordProfileUpdated(ctx context.Context, userID string) {
+	f.profileUpdatedCalls = append(f.profileUpdatedCalls, userID)
 }
 
 func (f *fakeActivityUsecase) RecordInvitationSent(ctx context.Context, inviterID, email string, roleNames []string) {

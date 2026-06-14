@@ -105,6 +105,30 @@ func (r *repository) SetPassword(ctx context.Context, id string, password string
 	return nil
 }
 
+func (r *repository) UpdateProfile(ctx context.Context, id string, name string, avatarURL string) error {
+	if id == "" {
+		return pkgErr.InvalidRequest("id is required")
+	}
+	if name == "" {
+		return pkgErr.InvalidRequest("name is required")
+	}
+
+	user := &entity.User{
+		ID:        id,
+		Name:      name,
+		AvatarURL: avatarURL,
+	}
+	_, err := r.db.NewUpdate().
+		Model(user).
+		Column("name", "avatar_url").
+		Where("id = ?", id).
+		Exec(ctx)
+	if err != nil {
+		return pkgErr.DatabaseError(err.Error())
+	}
+	return nil
+}
+
 func (r *repository) UpdateLastLogin(ctx context.Context, id string) error {
 	if id == "" {
 		return pkgErr.InvalidRequest("id is required")

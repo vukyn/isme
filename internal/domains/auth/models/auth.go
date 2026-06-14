@@ -2,6 +2,7 @@ package models
 
 import (
 	"errors"
+	"strings"
 
 	pkgClaims "github.com/vukyn/kuery/claims"
 
@@ -12,7 +13,26 @@ type GetMeResponse struct {
 	ID        string `json:"id"`
 	Name      string `json:"name"`
 	Email     string `json:"email"`
+	AvatarURL string `json:"avatar_url"` // medioa object URL or pasted link; empty = no avatar
 	CreatedAt string `json:"created_at"` // RFC3339; drives the "member since" stat
+}
+
+// UpdateMeRequest is the self-service profile update: display name + avatar.
+// Email is immutable (identity key) and is never updatable here.
+type UpdateMeRequest struct {
+	Name      string `json:"name"`
+	AvatarURL string `json:"avatar_url"`
+}
+
+func (r UpdateMeRequest) Validate() error {
+	name := strings.TrimSpace(r.Name)
+	if name == "" {
+		return errors.New("name is required")
+	}
+	if len(name) > 100 {
+		return errors.New("name must be at most 100 characters")
+	}
+	return nil
 }
 
 type LoginRequest struct {

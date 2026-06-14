@@ -52,6 +52,10 @@ func (f *fakeUserRepository) SetPassword(ctx context.Context, id string, passwor
 	return f.setPasswordErr
 }
 
+func (f *fakeUserRepository) UpdateProfile(ctx context.Context, id string, name string, avatarURL string) error {
+	return nil
+}
+
 func (f *fakeUserRepository) UpdateLastLogin(ctx context.Context, id string) error {
 	return nil
 }

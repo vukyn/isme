@@ -29,6 +29,8 @@ func (f *fakeActivityUsecase) RecordSignOut(ctx context.Context, userID string) 
 
 func (f *fakeActivityUsecase) RecordPasswordChanged(ctx context.Context, userID string) {}
 
+func (f *fakeActivityUsecase) RecordProfileUpdated(ctx context.Context, userID string) {}
+
 func (f *fakeActivityUsecase) RecordInvitationSent(ctx context.Context, inviterID, email string, roleNames []string) {
 	f.invitationSentCalls = append(f.invitationSentCalls, fakeInvitationCall{inviterID: inviterID, email: email, roleNames: roleNames})
 }

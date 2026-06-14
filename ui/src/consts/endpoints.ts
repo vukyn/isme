@@ -19,6 +19,12 @@ export const API_ENDPOINTS = {
 	AUTH_MY_OTHER_SESSIONS_REVOKE: "/api/v1/auth/sessions/others",
 	// Self-service recent-activity feed for the signed-in user.
 	AUTH_MY_ACTIVITY: "/api/v1/auth/me/activity",
+	// Self-service profile update (display name + avatar URL).
+	AUTH_UPDATE_ME: "/api/v1/auth/me",
+	AUTH_CHANGE_PASSWORD: "/api/v1/auth/change-password",
+
+	// Media — self-service avatar upload proxy to medioa.
+	MEDIA_UPLOAD: "/api/v1/media/upload",
 
 	// User
 	USER_ME: "/api/user/me",
