@@ -16,6 +16,8 @@ type GetMeResponse struct {
 		ID    string `json:"id"`
 		Name  string `json:"name"`
 		Email string `json:"email"`
+		// AvatarURL is the user's avatar URL (medioa object URL or pasted link); empty when unset.
+		AvatarURL string `json:"avatar_url"`
 	} `json:"data"`
 }
 
