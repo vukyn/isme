@@ -12,18 +12,21 @@ func NewBuilder() *di.EnhancedBuilder {
 		log.New().Fatal("Failed to create builder", err)
 	}
 
-	builder.Add(defineConfig())
-	builder.Add(defineMedioaClient())
-	builder.Add(defineDB())
-	builder.Add(defineScheduler())
-	builder.Add(defineScheduleProvider())
-	builder.Add(defineCache())
-	builder.Add(defineMiddleware())
-	for _, def := range defineRepository() {
-		builder.Add(def)
+	defs := []*di.Def{
+		defineConfig(),
+		defineMedioaClient(),
+		defineDB(),
+		defineScheduler(),
+		defineScheduleProvider(),
+		defineCache(),
+		defineMiddleware(),
 	}
-	for _, def := range defineUsecase() {
-		builder.Add(def)
+	defs = append(defs, defineRepository()...)
+	defs = append(defs, defineUsecase()...)
+	for _, def := range defs {
+		if err := builder.Add(def); err != nil {
+			log.New().Fatal("Failed to add definition to builder", err)
+		}
 	}
 	return builder
 }
