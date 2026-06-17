@@ -127,13 +127,17 @@ func main() {
 			id: "app_rainy", code: "rainy", name: "Rainy",
 			redirectURL: "http://app.rainy.local:8083/auth/callback", icon: "cloud-rain", color: "magenta",
 			adminRoleID: "rol_admin_rainy", adminEmail: "admin@rainy.local",
-			perms: crud("playlist", "station", "track", "album", "artist"),
+			perms: append(crud("playlist", "station", "track", "album", "artist"),
+				permission{"settings", "read"},
+				permission{"settings", "update"},
+			),
 			icons: map[string]string{
 				"album":    "album",
 				"artist":   "user",
 				"playlist": "playlist",
 				"station":  "station",
 				"track":    "music",
+				"settings": "settings",
 			},
 		},
 	}
