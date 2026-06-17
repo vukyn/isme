@@ -16,8 +16,9 @@ import (
 
 // defineScheduler builds the app-scoped scheduler engine singleton. It is
 // constructed once during the DI build from the App-scoped DB: it registers the
-// three isme jobs (session-revoke, rotation-cleanup, activity-cleanup) with their
-// job bodies as closures over freshly built repositories. No WithLocation option
+// four isme jobs (session-revoke, rotation-cleanup, activity-cleanup,
+// database-backup) with their job bodies as closures over freshly built
+// repositories. No WithLocation option
 // is passed, so the engine evaluates schedules in the process's local time —
 // matching the pre-migration engine exactly (parity).
 func defineScheduler() *di.Def {
@@ -51,6 +52,10 @@ func defineScheduler() *di.Def {
 			engine.Register(pkgScheduler.Job{
 				Key: pkgScheduler.JobKey(settingsEntity.JobKeyActivityCleanup),
 				Run: newActivityCleanupRun(activityRepository, settingsRepository),
+			})
+			engine.Register(pkgScheduler.Job{
+				Key: pkgScheduler.JobKey(settingsEntity.JobKeyDatabaseBackup),
+				Run: newDatabaseBackupRun(db, settingsRepository),
 			})
 
 			log.New().Debug("Scheduler initialized")

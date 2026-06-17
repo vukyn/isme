@@ -3,6 +3,9 @@ package di
 import (
 	"context"
 	"database/sql"
+	"os"
+	"path/filepath"
+	"sort"
 	"testing"
 	"time"
 
@@ -57,6 +60,89 @@ func TestActivityCutoff(t *testing.T) {
 	}
 }
 
+// makeBackups creates n dummy app-<timestamp>.db files in dir with ascending
+// timestamps, so a descending-name sort orders them newest-first. It returns
+// the sorted (newest-first) list of names it created.
+func makeBackups(t *testing.T, dir string, n int) []string {
+	t.Helper()
+	names := make([]string, 0, n)
+	base := time.Date(2026, 6, 17, 3, 0, 0, 0, time.UTC)
+	for i := 0; i < n; i++ {
+		name := "app-" + base.Add(time.Duration(i)*time.Minute).Format("20060102-150405") + ".db"
+		if err := os.WriteFile(filepath.Join(dir, name), []byte("x"), 0o644); err != nil {
+			t.Fatalf("write backup %s: %v", name, err)
+		}
+		names = append(names, name)
+	}
+	sort.Sort(sort.Reverse(sort.StringSlice(names)))
+	return names
+}
+
+func TestPruneBackups(t *testing.T) {
+	cases := []struct {
+		name        string
+		fileCount   int
+		retain      int
+		wantDeleted int
+		wantKept    int
+	}{
+		{"empty dir", 0, 10, 0, 0},
+		{"fewer than retain", 3, 10, 0, 3},
+		{"equal to retain", 10, 10, 0, 10},
+		{"more than retain", 13, 10, 3, 10},
+		{"retain one", 5, 1, 4, 1},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			created := makeBackups(t, dir, tc.fileCount)
+
+			deleted, kept, err := pruneBackups(dir, tc.retain)
+			if err != nil {
+				t.Fatalf("pruneBackups: %v", err)
+			}
+			if deleted != tc.wantDeleted {
+				t.Fatalf("deleted = %d, want %d", deleted, tc.wantDeleted)
+			}
+			if kept != tc.wantKept {
+				t.Fatalf("kept = %d, want %d", kept, tc.wantKept)
+			}
+
+			// the newest tc.wantKept files (created is newest-first) must survive.
+			for i, name := range created {
+				_, statErr := os.Stat(filepath.Join(dir, name))
+				if i < tc.wantKept {
+					if statErr != nil {
+						t.Fatalf("expected newest backup %s kept, got %v", name, statErr)
+					}
+				} else if !os.IsNotExist(statErr) {
+					t.Fatalf("expected stale backup %s deleted, stat err = %v", name, statErr)
+				}
+			}
+		})
+	}
+}
+
+// pruneBackups must ignore non-backup files and never delete them.
+func TestPruneBackupsIgnoresNonBackupFiles(t *testing.T) {
+	dir := t.TempDir()
+	makeBackups(t, dir, 5)
+	if err := os.WriteFile(filepath.Join(dir, "README.txt"), []byte("keep me"), 0o644); err != nil {
+		t.Fatalf("write non-backup file: %v", err)
+	}
+
+	deleted, kept, err := pruneBackups(dir, 2)
+	if err != nil {
+		t.Fatalf("pruneBackups: %v", err)
+	}
+	if deleted != 3 || kept != 2 {
+		t.Fatalf("deleted/kept = %d/%d, want 3/2", deleted, kept)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "README.txt")); err != nil {
+		t.Fatalf("non-backup file must survive prune, got %v", err)
+	}
+}
+
 // newTestDB opens an in-memory SQLite database and applies every migration.
 func newTestDB(t *testing.T) *bun.DB {
 	t.Helper()
@@ -75,12 +161,12 @@ func newTestDB(t *testing.T) *bun.DB {
 	return db
 }
 
-// The migration must seed exactly the three job rows the scheduler reads, so a
+// The migration must seed exactly the four job rows the scheduler reads, so a
 // Reload/Get can never silently target a non-existent row. The job-key strings
 // are a single source of truth (settings entity consts).
 func TestJobKeysAreConsistentWithMigration(t *testing.T) {
 	db := newTestDB(t)
-	for _, jobKey := range []string{settingsEntity.JobKeySessionRevoke, settingsEntity.JobKeyRotationCleanup, settingsEntity.JobKeyActivityCleanup} {
+	for _, jobKey := range []string{settingsEntity.JobKeySessionRevoke, settingsEntity.JobKeyRotationCleanup, settingsEntity.JobKeyActivityCleanup, settingsEntity.JobKeyDatabaseBackup} {
 		var count int
 		row := db.QueryRow("SELECT COUNT(*) FROM schedule_config WHERE job_key = ?", jobKey)
 		if err := row.Scan(&count); err != nil {
@@ -103,6 +189,7 @@ func TestScheduleProviderReportsSeededJobsDisabled(t *testing.T) {
 		pkgScheduler.JobKey(settingsEntity.JobKeySessionRevoke),
 		pkgScheduler.JobKey(settingsEntity.JobKeyRotationCleanup),
 		pkgScheduler.JobKey(settingsEntity.JobKeyActivityCleanup),
+		pkgScheduler.JobKey(settingsEntity.JobKeyDatabaseBackup),
 	} {
 		enabled, _, err := provider.Load(context.Background(), jobKey)
 		if err != nil {

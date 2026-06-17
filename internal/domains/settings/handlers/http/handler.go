@@ -123,3 +123,41 @@ func UpdateActivityCleanupConfig(c *fiber.Ctx) error {
 
 	return pkgHttp.OK(c, nil)
 }
+
+func GetDatabaseBackupConfig(c *fiber.Ctx) error {
+	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
+	defer ctn.Delete()
+
+	uc, err := idi.GetSettingsUsecase(ctn)
+	if err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	getResponse, err := uc.GetDatabaseBackup(pkgCtx.NewContextFromFiberCtx(c))
+	if err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	return pkgHttp.OK(c, getResponse)
+}
+
+func UpdateDatabaseBackupConfig(c *fiber.Ctx) error {
+	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
+	defer ctn.Delete()
+
+	uc, err := idi.GetSettingsUsecase(ctn)
+	if err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	updateRequest := models.DatabaseBackupUpdateRequest{}
+	if err := c.BodyParser(&updateRequest); err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	if err := uc.UpdateDatabaseBackup(pkgCtx.NewContextFromFiberCtx(c), updateRequest); err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	return pkgHttp.OK(c, nil)
+}

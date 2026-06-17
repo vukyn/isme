@@ -76,6 +76,8 @@ export type {
 	UpdateRotationCleanupConfigRequest,
 	ActivityCleanupConfig,
 	UpdateActivityCleanupConfigRequest,
+	DatabaseBackupConfig,
+	UpdateDatabaseBackupConfigRequest,
 } from "./settings";
 export type { MySessionItem, MySessionCount } from "./session";
 export type { ActivityItem } from "./activity";

@@ -41,6 +41,19 @@ type activityCleanupResult struct {
 	Pruned int64 `json:"pruned"`
 }
 
+// databaseBackupParams mirrors the params JSON of the database-backup job.
+type databaseBackupParams struct {
+	RetainCount int64 `json:"retain_count"`
+}
+
+// databaseBackupResult mirrors the last_result JSON of the database-backup job.
+type databaseBackupResult struct {
+	BackupPath string `json:"backup_path"`
+	Kept       int64  `json:"kept"`
+	Deleted    int64  `json:"deleted"`
+	Bytes      int64  `json:"bytes"`
+}
+
 type usecase struct {
 	settingsRepo settingsRepo.IRepository
 	reloader     pkgScheduler.IReloader
@@ -199,4 +212,59 @@ func (u *usecase) UpdateActivityCleanup(ctx context.Context, req models.Activity
 	// A retention-only change still reloads here, but retention is read fresh on
 	// each run regardless, so it would also take effect on the next run.
 	return u.reloader.Reload(ctx, pkgScheduler.JobKey(entity.JobKeyActivityCleanup), req.Enabled, pkgScheduler.Cron(req.Cron))
+}
+
+func (u *usecase) GetDatabaseBackup(ctx context.Context) (models.DatabaseBackupGetResponse, error) {
+	config, err := u.settingsRepo.GetSchedule(ctx, entity.JobKeyDatabaseBackup)
+	if err != nil {
+		return models.DatabaseBackupGetResponse{}, err
+	}
+
+	response := models.DatabaseBackupGetResponse{
+		Enabled: config.Enabled,
+		Cron:    config.Cron,
+	}
+	if config.Params != "" {
+		params := databaseBackupParams{}
+		if err := json.Unmarshal([]byte(config.Params), &params); err != nil {
+			return models.DatabaseBackupGetResponse{}, pkgErr.InternalServerError(err.Error())
+		}
+		response.RetainCount = params.RetainCount
+	}
+	if config.LastRunAt != nil {
+		lastRun := config.LastRunAt.Unix()
+		response.LastRunAt = &lastRun
+	}
+	if config.LastResult != nil {
+		result := databaseBackupResult{}
+		if err := json.Unmarshal([]byte(*config.LastResult), &result); err != nil {
+			return models.DatabaseBackupGetResponse{}, pkgErr.InternalServerError(err.Error())
+		}
+		backupPath := result.BackupPath
+		response.LastBackupPath = &backupPath
+		kept := result.Kept
+		response.LastKeptCount = &kept
+	}
+	return response, nil
+}
+
+func (u *usecase) UpdateDatabaseBackup(ctx context.Context, req models.DatabaseBackupUpdateRequest) error {
+	if err := req.Validate(); err != nil {
+		return pkgErr.InvalidRequest(err.Error())
+	}
+
+	params, err := json.Marshal(databaseBackupParams{RetainCount: req.RetainCount})
+	if err != nil {
+		return pkgErr.InternalServerError(err.Error())
+	}
+
+	updatedBy := pkgCtx.GetUserID(ctx)
+	if err := u.settingsRepo.UpdateSchedule(ctx, entity.JobKeyDatabaseBackup, req.Enabled, req.Cron, string(params), updatedBy); err != nil {
+		return err
+	}
+
+	// live-reload the scheduler so the change takes effect without a restart.
+	// A retain-only change still reloads here, but retain_count is read fresh on
+	// each run regardless, so it would also take effect on the next run.
+	return u.reloader.Reload(ctx, pkgScheduler.JobKey(entity.JobKeyDatabaseBackup), req.Enabled, pkgScheduler.Cron(req.Cron))
 }

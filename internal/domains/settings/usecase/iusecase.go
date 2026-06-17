@@ -21,4 +21,9 @@ type IUseCase interface {
 	// UpdateActivityCleanup validates and persists the cleanup schedule + retention
 	// (in days), then live-reloads the scheduler.
 	UpdateActivityCleanup(ctx context.Context, req models.ActivityCleanupUpdateRequest) error
+	// GetDatabaseBackup returns the current database-backup configuration.
+	GetDatabaseBackup(ctx context.Context) (models.DatabaseBackupGetResponse, error)
+	// UpdateDatabaseBackup validates and persists the backup schedule + retain
+	// count, then live-reloads the scheduler.
+	UpdateDatabaseBackup(ctx context.Context, req models.DatabaseBackupUpdateRequest) error
 }
