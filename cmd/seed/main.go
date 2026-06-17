@@ -84,14 +84,17 @@ func main() {
 	ctx := context.Background()
 
 	// --- admin users (per-app: each admin owns its namesake app) ---
-	users := []struct{ name, email string }{
-		{"ISME Admin", "admin@isme.local"},
-		{"Medioa Admin", "admin@medioa.local"},
-		{"Rainy Admin", "admin@rainy.local"},
+	// Fixed ULIDs so a wipe-and-reseed reproduces the SAME ids (other systems /
+	// downstream data reference these). On an existing DB the id is keyed by
+	// email and never changes.
+	users := []struct{ id, name, email string }{
+		{"01KTKDKNXTZDSGH5YKG151J877", "ISME Admin", "admin@isme.local"},
+		{"01KBYG3MYVVSYEKTRDJ4VT3DK6", "Medioa Admin", "admin@medioa.local"},
+		{"01KTR9CB27MT4PJQ3TZ4P6SCCX", "Rainy Admin", "admin@rainy.local"},
 	}
 	userIDs := map[string]string{}
 	for _, u := range users {
-		id, err := upsertUser(ctx, db, u.name, u.email, adminPass)
+		id, err := upsertUser(ctx, db, u.id, u.name, u.email, adminPass)
 		if err != nil {
 			log.Fatalf("upsert user %s: %v", u.email, err)
 		}
@@ -227,7 +230,10 @@ func medioaPerms() []permission {
 
 // upsertUser creates the user (verified + active) or, if the email exists,
 // resets its password/status so re-running the seed restores a known login.
-func upsertUser(ctx context.Context, db *bun.DB, name, email, password string) (string, error) {
+func upsertUser(ctx context.Context, db *bun.DB, id, name, email, password string) (string, error) {
+	if id == "" {
+		id = cryp.ULID()
+	}
 	_, err := db.ExecContext(ctx, `
 		INSERT INTO users (id, name, email, password, status, is_verified, created_by, updated_by)
 		VALUES (?, ?, ?, ?, ?, 1, ?, ?)
@@ -237,15 +243,15 @@ func upsertUser(ctx context.Context, db *bun.DB, name, email, password string) (
 			is_verified = 1,
 			updated_at = current_timestamp,
 			updated_by = excluded.updated_by
-	`, cryp.ULID(), name, email, cryp.HashArgon2id(password), statusActive, seedActor, seedActor)
+	`, id, name, email, cryp.HashArgon2id(password), statusActive, seedActor, seedActor)
 	if err != nil {
 		return "", err
 	}
-	var id string
-	if err := db.QueryRowContext(ctx, `SELECT id FROM users WHERE email = ?`, email).Scan(&id); err != nil {
+	var storedID string
+	if err := db.QueryRowContext(ctx, `SELECT id FROM users WHERE email = ?`, email).Scan(&storedID); err != nil {
 		return "", err
 	}
-	return id, nil
+	return storedID, nil
 }
 
 // ensureAppService creates the app_service once with a freshly generated,
