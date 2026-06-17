@@ -35,4 +35,5 @@ var Migrations = []pkgMigrate.Migration{
 	m026CreateActivityEventsTable,
 	m027SeedActivityCleanupSchedule,
 	m028AddUserAvatarURL,
+	m029SeedDatabaseBackupSchedule,
 }

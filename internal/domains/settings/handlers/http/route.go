@@ -21,4 +21,6 @@ func SetupSettingsRoutes(router fiber.Router) {
 	rSettings.Put(constants.SETTINGS_ENDPOINT_ROTATION_CLEANUP, rbac.RequirePermission(roleConstants.PERM_SETTINGS_UPDATE), UpdateRotationCleanupConfig)
 	rSettings.Get(constants.SETTINGS_ENDPOINT_ACTIVITY_CLEANUP, rbac.RequirePermission(roleConstants.PERM_SETTINGS_READ), GetActivityCleanupConfig)
 	rSettings.Put(constants.SETTINGS_ENDPOINT_ACTIVITY_CLEANUP, rbac.RequirePermission(roleConstants.PERM_SETTINGS_UPDATE), UpdateActivityCleanupConfig)
+	rSettings.Get(constants.SETTINGS_ENDPOINT_DATABASE_BACKUP, rbac.RequirePermission(roleConstants.PERM_SETTINGS_READ), GetDatabaseBackupConfig)
+	rSettings.Put(constants.SETTINGS_ENDPOINT_DATABASE_BACKUP, rbac.RequirePermission(roleConstants.PERM_SETTINGS_UPDATE), UpdateDatabaseBackupConfig)
 }

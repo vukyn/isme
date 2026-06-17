@@ -1,8 +1,10 @@
 import type {
 	ActivityCleanupConfig,
+	DatabaseBackupConfig,
 	RotationCleanupConfig,
 	SessionRevokeConfig,
 	UpdateActivityCleanupConfigRequest,
+	UpdateDatabaseBackupConfigRequest,
 	UpdateRotationCleanupConfigRequest,
 	UpdateSessionRevokeConfigRequest,
 } from "@/types";
@@ -94,5 +96,36 @@ export const updateActivityCleanupConfig = async (request: UpdateActivityCleanup
 		enabled: request.enabled,
 		cron: request.cron,
 		retention_days: request.retentionDays,
+	});
+};
+
+/** Raw backend shape (snake_case) for the database-backup config. */
+interface DatabaseBackupConfigDTO {
+	enabled: boolean;
+	cron: string;
+	retain_count: number;
+	last_run_at: number | null;
+	last_backup_path: string | null;
+	last_kept_count: number | null;
+}
+
+export const getDatabaseBackupConfig = async (): Promise<DatabaseBackupConfig> => {
+	const response = await apiClient.get<Envelope<DatabaseBackupConfigDTO>>(API_ENDPOINTS.SETTINGS_DATABASE_BACKUP);
+	const dto = response.data.data;
+	return {
+		enabled: dto.enabled,
+		cron: dto.cron,
+		retainCount: dto.retain_count,
+		lastRunAt: dto.last_run_at ?? null,
+		lastBackupPath: dto.last_backup_path ?? null,
+		lastKeptCount: dto.last_kept_count ?? null,
+	};
+};
+
+export const updateDatabaseBackupConfig = async (request: UpdateDatabaseBackupConfigRequest): Promise<void> => {
+	await apiClient.put(API_ENDPOINTS.SETTINGS_DATABASE_BACKUP, {
+		enabled: request.enabled,
+		cron: request.cron,
+		retain_count: request.retainCount,
 	});
 };

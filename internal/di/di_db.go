@@ -20,7 +20,7 @@ func defineDB() *di.Def {
 		Build: func(ctn di.Container) (any, error) {
 			// Open database connection
 			// Database file path
-			dbPath := "db/app.db"
+			dbPath := constants.DB_FILE_PATH
 			sqldb, err := sql.Open(sqliteshim.ShimName, dbPath)
 			if err != nil {
 				panic(err)

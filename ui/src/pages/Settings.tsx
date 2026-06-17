@@ -2,6 +2,7 @@
 
 import { Box, Center, Heading, Spinner, Stack, Text } from "@chakra-ui/react";
 import { ActivityCleanupCard } from "@/components/ActivityCleanupCard";
+import { DatabaseBackupCard } from "@/components/DatabaseBackupCard";
 import { RotationCleanupCard } from "@/components/RotationCleanupCard";
 import { SessionAutoRevokeCard } from "@/components/SessionAutoRevokeCard";
 import { AppShell } from "@/layouts/AppShell";
@@ -33,6 +34,7 @@ export const Settings = () => {
 						<SessionAutoRevokeCard />
 						<RotationCleanupCard />
 						<ActivityCleanupCard />
+						<DatabaseBackupCard />
 					</Stack>
 				</Stack>
 			)}
