@@ -1,6 +1,8 @@
 package history
 
 import (
+	"context"
+
 	pkgMigrate "github.com/vukyn/kuery/bun/migrate"
 
 	"github.com/uptrace/bun"
@@ -12,8 +14,8 @@ import (
 // management endpoints, granting both to the admin system role.
 var m022CreateSessionRevokeConfig = pkgMigrate.Migration{
 	Name: "022_create_session_revoke_config",
-	Up: func(db *bun.DB) error {
-		_, err := db.Exec(`
+	Up: func(db bun.IDB) error {
+		_, err := db.ExecContext(context.Background(), `
 			CREATE TABLE IF NOT EXISTS session_revoke_config (
 				id INTEGER PRIMARY KEY,
 				enabled INTEGER NOT NULL DEFAULT 0,
@@ -29,7 +31,7 @@ var m022CreateSessionRevokeConfig = pkgMigrate.Migration{
 		}
 
 		// single config row (id=1, disabled by default)
-		_, err = db.Exec(`
+		_, err = db.ExecContext(context.Background(), `
 			INSERT OR IGNORE INTO session_revoke_config (id, enabled, cron)
 			VALUES (1, 0, '0 3 * * *')
 		`)
@@ -46,36 +48,36 @@ var m022CreateSessionRevokeConfig = pkgMigrate.Migration{
 			{"settings", "update"},
 		}
 		for _, permission := range settingsPermissions {
-			_, err := db.Exec(`INSERT OR IGNORE INTO permissions (resource, action) VALUES (?, ?)`, permission.resource, permission.action)
+			_, err := db.ExecContext(context.Background(), `INSERT OR IGNORE INTO permissions (resource, action) VALUES (?, ?)`, permission.resource, permission.action)
 			if err != nil {
 				return err
 			}
 			var permissionID int64
-			row := db.QueryRow(`SELECT id FROM permissions WHERE resource = ? AND action = ?`, permission.resource, permission.action)
+			row := db.QueryRowContext(context.Background(), `SELECT id FROM permissions WHERE resource = ? AND action = ?`, permission.resource, permission.action)
 			if err := row.Scan(&permissionID); err != nil {
 				return err
 			}
 			// admin keeps holding the full catalog
-			_, err = db.Exec(`INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES ('rol_admin', ?)`, permissionID)
+			_, err = db.ExecContext(context.Background(), `INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES ('rol_admin', ?)`, permissionID)
 			if err != nil {
 				return err
 			}
 		}
 		return nil
 	},
-	Down: func(db *bun.DB) error {
-		_, err := db.Exec(`
+	Down: func(db bun.IDB) error {
+		_, err := db.ExecContext(context.Background(), `
 			DELETE FROM role_permissions
 			WHERE permission_id IN (SELECT id FROM permissions WHERE resource = 'settings' AND action IN ('read', 'update'))
 		`)
 		if err != nil {
 			return err
 		}
-		_, err = db.Exec(`DELETE FROM permissions WHERE resource = 'settings' AND action IN ('read', 'update')`)
+		_, err = db.ExecContext(context.Background(), `DELETE FROM permissions WHERE resource = 'settings' AND action IN ('read', 'update')`)
 		if err != nil {
 			return err
 		}
-		_, err = db.Exec(`DROP TABLE IF EXISTS session_revoke_config`)
+		_, err = db.ExecContext(context.Background(), `DROP TABLE IF EXISTS session_revoke_config`)
 		return err
 	},
 }

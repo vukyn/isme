@@ -1,6 +1,8 @@
 package history
 
 import (
+	"context"
+
 	pkgMigrate "github.com/vukyn/kuery/bun/migrate"
 
 	"github.com/uptrace/bun"
@@ -8,8 +10,8 @@ import (
 
 var m013CreateUserInvitationsTable = pkgMigrate.Migration{
 	Name: "013_create_user_invitations_table",
-	Up: func(db *bun.DB) error {
-		_, err := db.Exec(`
+	Up: func(db bun.IDB) error {
+		_, err := db.ExecContext(context.Background(), `
 			CREATE TABLE IF NOT EXISTS user_invitations (
 				id TEXT PRIMARY KEY NOT NULL,
 				email TEXT NOT NULL,
@@ -31,25 +33,25 @@ var m013CreateUserInvitationsTable = pkgMigrate.Migration{
 		}
 
 		// Create indexes
-		_, err = db.Exec(`CREATE INDEX IF NOT EXISTS user_invitations_token_hash_idx ON user_invitations (token_hash)`)
+		_, err = db.ExecContext(context.Background(), `CREATE INDEX IF NOT EXISTS user_invitations_token_hash_idx ON user_invitations (token_hash)`)
 		if err != nil {
 			return err
 		}
 
-		_, err = db.Exec(`CREATE INDEX IF NOT EXISTS user_invitations_email_idx ON user_invitations (email)`)
+		_, err = db.ExecContext(context.Background(), `CREATE INDEX IF NOT EXISTS user_invitations_email_idx ON user_invitations (email)`)
 		if err != nil {
 			return err
 		}
 
 		// at most one live pending invitation per email
-		_, err = db.Exec(`
+		_, err = db.ExecContext(context.Background(), `
 			CREATE UNIQUE INDEX IF NOT EXISTS user_invitations_pending_email_uidx
 			ON user_invitations (email) WHERE status = 1 AND deleted_at IS NULL
 		`)
 		return err
 	},
-	Down: func(db *bun.DB) error {
-		_, err := db.Exec(`DROP TABLE IF EXISTS user_invitations`)
+	Down: func(db bun.IDB) error {
+		_, err := db.ExecContext(context.Background(), `DROP TABLE IF EXISTS user_invitations`)
 		return err
 	},
 }

@@ -1,6 +1,8 @@
 package history
 
 import (
+	"context"
+
 	pkgMigrate "github.com/vukyn/kuery/bun/migrate"
 
 	"github.com/uptrace/bun"
@@ -8,8 +10,8 @@ import (
 
 var m004CreateAppServicesTable = pkgMigrate.Migration{
 	Name: "004_create_app_services_table",
-	Up: func(db *bun.DB) error {
-		_, err := db.Exec(`
+	Up: func(db bun.IDB) error {
+		_, err := db.ExecContext(context.Background(), `
 			CREATE TABLE IF NOT EXISTS app_services (
 				id TEXT PRIMARY KEY NOT NULL,
 				app_code TEXT UNIQUE NOT NULL,
@@ -31,14 +33,14 @@ var m004CreateAppServicesTable = pkgMigrate.Migration{
 		}
 
 		// Create index
-		_, err = db.Exec(`CREATE INDEX IF NOT EXISTS app_services_app_code_idx ON app_services (app_code)`)
+		_, err = db.ExecContext(context.Background(), `CREATE INDEX IF NOT EXISTS app_services_app_code_idx ON app_services (app_code)`)
 		if err != nil {
 			return err
 		}
 		return nil
 	},
-	Down: func(db *bun.DB) error {
-		_, err := db.Exec(`DROP TABLE IF EXISTS app_services`)
+	Down: func(db bun.IDB) error {
+		_, err := db.ExecContext(context.Background(), `DROP TABLE IF EXISTS app_services`)
 		return err
 	},
 }

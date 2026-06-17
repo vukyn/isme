@@ -1,6 +1,8 @@
 package history
 
 import (
+	"context"
+
 	pkgMigrate "github.com/vukyn/kuery/bun/migrate"
 
 	"github.com/uptrace/bun"
@@ -8,8 +10,8 @@ import (
 
 var m002CreateUserSessionsTable = pkgMigrate.Migration{
 	Name: "002_create_user_sessions_table",
-	Up: func(db *bun.DB) error {
-		_, err := db.Exec(`
+	Up: func(db bun.IDB) error {
+		_, err := db.ExecContext(context.Background(), `
 			CREATE TABLE IF NOT EXISTS user_sessions (
 				id TEXT PRIMARY KEY NOT NULL,
 				user_id TEXT NOT NULL,
@@ -28,19 +30,19 @@ var m002CreateUserSessionsTable = pkgMigrate.Migration{
 		}
 
 		// Create indexes
-		_, err = db.Exec(`CREATE INDEX IF NOT EXISTS user_sessions_refresh_token_idx ON user_sessions (refresh_token)`)
+		_, err = db.ExecContext(context.Background(), `CREATE INDEX IF NOT EXISTS user_sessions_refresh_token_idx ON user_sessions (refresh_token)`)
 		if err != nil {
 			return err
 		}
 
-		_, err = db.Exec(`CREATE INDEX IF NOT EXISTS user_sessions_user_id_idx ON user_sessions (user_id)`)
+		_, err = db.ExecContext(context.Background(), `CREATE INDEX IF NOT EXISTS user_sessions_user_id_idx ON user_sessions (user_id)`)
 		if err != nil {
 			return err
 		}
 		return nil
 	},
-	Down: func(db *bun.DB) error {
-		_, err := db.Exec(`DROP TABLE IF EXISTS user_sessions`)
+	Down: func(db bun.IDB) error {
+		_, err := db.ExecContext(context.Background(), `DROP TABLE IF EXISTS user_sessions`)
 		return err
 	},
 }

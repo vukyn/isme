@@ -1,6 +1,8 @@
 package history
 
 import (
+	"context"
+
 	pkgMigrate "github.com/vukyn/kuery/bun/migrate"
 
 	"github.com/uptrace/bun"
@@ -11,8 +13,8 @@ import (
 // itself, so the app_secret is left as a placeholder (decision 1).
 var m014SeedIsmeAppService = pkgMigrate.Migration{
 	Name: "014_seed_isme_app_service",
-	Up: func(db *bun.DB) error {
-		_, err := db.Exec(`
+	Up: func(db bun.IDB) error {
+		_, err := db.ExecContext(context.Background(), `
 			INSERT OR IGNORE INTO app_services
 				(id, app_code, app_name, app_secret, redirect_url, ctx_info, status)
 			VALUES
@@ -20,8 +22,8 @@ var m014SeedIsmeAppService = pkgMigrate.Migration{
 		`)
 		return err
 	},
-	Down: func(db *bun.DB) error {
-		_, err := db.Exec(`DELETE FROM app_services WHERE id = 'app_isme'`)
+	Down: func(db bun.IDB) error {
+		_, err := db.ExecContext(context.Background(), `DELETE FROM app_services WHERE id = 'app_isme'`)
 		return err
 	},
 }

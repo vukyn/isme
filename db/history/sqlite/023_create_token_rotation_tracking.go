@@ -1,6 +1,8 @@
 package history
 
 import (
+	"context"
+
 	pkgMigrate "github.com/vukyn/kuery/bun/migrate"
 
 	"github.com/uptrace/bun"
@@ -14,20 +16,20 @@ import (
 // count (a stored 24h counter would go stale).
 var m023CreateTokenRotationTracking = pkgMigrate.Migration{
 	Name: "023_create_token_rotation_tracking",
-	Up: func(db *bun.DB) error {
-		if _, err := db.Exec(`
+	Up: func(db bun.IDB) error {
+		if _, err := db.ExecContext(context.Background(), `
 			ALTER TABLE user_sessions
 			ADD COLUMN refresh_count INTEGER NOT NULL DEFAULT 0
 		`); err != nil {
 			return err
 		}
-		if _, err := db.Exec(`
+		if _, err := db.ExecContext(context.Background(), `
 			ALTER TABLE user_sessions
 			ADD COLUMN last_refreshed_at TIMESTAMP
 		`); err != nil {
 			return err
 		}
-		if _, err := db.Exec(`
+		if _, err := db.ExecContext(context.Background(), `
 			CREATE TABLE IF NOT EXISTS token_rotation_events (
 				id TEXT PRIMARY KEY,
 				user_id TEXT NOT NULL,
@@ -38,7 +40,7 @@ var m023CreateTokenRotationTracking = pkgMigrate.Migration{
 		`); err != nil {
 			return err
 		}
-		if _, err := db.Exec(`
+		if _, err := db.ExecContext(context.Background(), `
 			CREATE INDEX IF NOT EXISTS token_rotation_events_user_rotated_idx
 			ON token_rotation_events (user_id, rotated_at)
 		`); err != nil {
@@ -46,17 +48,17 @@ var m023CreateTokenRotationTracking = pkgMigrate.Migration{
 		}
 		return nil
 	},
-	Down: func(db *bun.DB) error {
-		if _, err := db.Exec(`DROP INDEX IF EXISTS token_rotation_events_user_rotated_idx`); err != nil {
+	Down: func(db bun.IDB) error {
+		if _, err := db.ExecContext(context.Background(), `DROP INDEX IF EXISTS token_rotation_events_user_rotated_idx`); err != nil {
 			return err
 		}
-		if _, err := db.Exec(`DROP TABLE IF EXISTS token_rotation_events`); err != nil {
+		if _, err := db.ExecContext(context.Background(), `DROP TABLE IF EXISTS token_rotation_events`); err != nil {
 			return err
 		}
-		if _, err := db.Exec(`ALTER TABLE user_sessions DROP COLUMN last_refreshed_at`); err != nil {
+		if _, err := db.ExecContext(context.Background(), `ALTER TABLE user_sessions DROP COLUMN last_refreshed_at`); err != nil {
 			return err
 		}
-		if _, err := db.Exec(`ALTER TABLE user_sessions DROP COLUMN refresh_count`); err != nil {
+		if _, err := db.ExecContext(context.Background(), `ALTER TABLE user_sessions DROP COLUMN refresh_count`); err != nil {
 			return err
 		}
 		return nil
