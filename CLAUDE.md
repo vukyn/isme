@@ -7,9 +7,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 make run                    # go run cmd/main.go
 make build                  # build to ./bin
-make migrate-up DB=app      # run db/migrate.go <DB> up
-make migrate-down DB=app    # rollback
-make migrate-reset DB=app   # reset
+make migrate-up DB=sqlite   # run db/migrate.go <DB> up (dbType is "sqlite", not "app")
+make migrate-down DB=sqlite # rollback
+make migrate-reset DB=sqlite # reset
 make gen-key-rsa256         # generate certs/private.pem + public.pem (RSA 2048)
 
 # UI (Vite + React + Chakra)
