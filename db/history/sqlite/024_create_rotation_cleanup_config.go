@@ -1,6 +1,8 @@
 package history
 
 import (
+	"context"
+
 	pkgMigrate "github.com/vukyn/kuery/bun/migrate"
 
 	"github.com/uptrace/bun"
@@ -13,8 +15,8 @@ import (
 // migration 022, so this migration only adds the config table.
 var m024CreateRotationCleanupConfig = pkgMigrate.Migration{
 	Name: "024_create_rotation_cleanup_config",
-	Up: func(db *bun.DB) error {
-		_, err := db.Exec(`
+	Up: func(db bun.IDB) error {
+		_, err := db.ExecContext(context.Background(), `
 			CREATE TABLE IF NOT EXISTS rotation_cleanup_config (
 				id INTEGER PRIMARY KEY,
 				enabled INTEGER NOT NULL DEFAULT 0,
@@ -31,14 +33,14 @@ var m024CreateRotationCleanupConfig = pkgMigrate.Migration{
 		}
 
 		// single config row (id=1, disabled by default)
-		_, err = db.Exec(`
+		_, err = db.ExecContext(context.Background(), `
 			INSERT OR IGNORE INTO rotation_cleanup_config (id, enabled, cron, retention_hours)
 			VALUES (1, 0, '0 4 * * *', 48)
 		`)
 		return err
 	},
-	Down: func(db *bun.DB) error {
-		_, err := db.Exec(`DROP TABLE IF EXISTS rotation_cleanup_config`)
+	Down: func(db bun.IDB) error {
+		_, err := db.ExecContext(context.Background(), `DROP TABLE IF EXISTS rotation_cleanup_config`)
 		return err
 	},
 }

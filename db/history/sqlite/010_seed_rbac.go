@@ -1,6 +1,8 @@
 package history
 
 import (
+	"context"
+
 	pkgMigrate "github.com/vukyn/kuery/bun/migrate"
 
 	"github.com/uptrace/bun"
@@ -9,7 +11,7 @@ import (
 
 var m010SeedRBAC = pkgMigrate.Migration{
 	Name: "010_seed_rbac",
-	Up: func(db *bun.DB) error {
+	Up: func(db bun.IDB) error {
 		// seed system roles with deterministic IDs
 		systemRoles := []struct {
 			id          string
@@ -22,7 +24,7 @@ var m010SeedRBAC = pkgMigrate.Migration{
 			{"rol_viewer", "viewer", "Viewer", "Read-only access to core resources"},
 		}
 		for _, role := range systemRoles {
-			_, err := db.Exec(`
+			_, err := db.ExecContext(context.Background(), `
 				INSERT OR IGNORE INTO roles (id, code, name, description, is_system)
 				VALUES (?, ?, ?, ?, 1)
 			`, role.id, role.code, role.name, role.description)
@@ -57,12 +59,12 @@ var m010SeedRBAC = pkgMigrate.Migration{
 		}
 		permissionIDs := map[string]int64{}
 		for _, permission := range permissionCatalog {
-			_, err := db.Exec(`INSERT OR IGNORE INTO permissions (resource, action) VALUES (?, ?)`, permission.resource, permission.action)
+			_, err := db.ExecContext(context.Background(), `INSERT OR IGNORE INTO permissions (resource, action) VALUES (?, ?)`, permission.resource, permission.action)
 			if err != nil {
 				return err
 			}
 			var permissionID int64
-			row := db.QueryRow(`SELECT id FROM permissions WHERE resource = ? AND action = ?`, permission.resource, permission.action)
+			row := db.QueryRowContext(context.Background(), `SELECT id FROM permissions WHERE resource = ? AND action = ?`, permission.resource, permission.action)
 			if err := row.Scan(&permissionID); err != nil {
 				return err
 			}
@@ -71,7 +73,7 @@ var m010SeedRBAC = pkgMigrate.Migration{
 
 		// grants: admin holds the full catalog; member and viewer hold core reads
 		grantPermission := func(roleID string, permissionID int64) error {
-			_, err := db.Exec(`INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)`, roleID, permissionID)
+			_, err := db.ExecContext(context.Background(), `INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)`, roleID, permissionID)
 			return err
 		}
 		for _, permission := range permissionCatalog {
@@ -94,7 +96,7 @@ var m010SeedRBAC = pkgMigrate.Migration{
 			id      string
 			isAdmin bool
 		}
-		rows, err := db.Query(`SELECT id, is_admin FROM users WHERE deleted_at IS NULL`)
+		rows, err := db.QueryContext(context.Background(), `SELECT id, is_admin FROM users WHERE deleted_at IS NULL`)
 		if err != nil {
 			return err
 		}
@@ -117,7 +119,7 @@ var m010SeedRBAC = pkgMigrate.Migration{
 			if row.isAdmin {
 				roleID = "rol_admin"
 			}
-			_, err := db.Exec(`
+			_, err := db.ExecContext(context.Background(), `
 				INSERT OR IGNORE INTO user_roles (id, user_id, role_id, app_service_id)
 				VALUES (?, ?, ?, NULL)
 			`, cryp.ULID(), row.id, roleID)
@@ -127,22 +129,22 @@ var m010SeedRBAC = pkgMigrate.Migration{
 		}
 		return nil
 	},
-	Down: func(db *bun.DB) error {
+	Down: func(db bun.IDB) error {
 		systemRoleIDs := []string{"rol_admin", "rol_member", "rol_viewer"}
 		for _, roleID := range systemRoleIDs {
-			if _, err := db.Exec(`DELETE FROM user_roles WHERE role_id = ?`, roleID); err != nil {
+			if _, err := db.ExecContext(context.Background(), `DELETE FROM user_roles WHERE role_id = ?`, roleID); err != nil {
 				return err
 			}
-			if _, err := db.Exec(`DELETE FROM role_permissions WHERE role_id = ?`, roleID); err != nil {
+			if _, err := db.ExecContext(context.Background(), `DELETE FROM role_permissions WHERE role_id = ?`, roleID); err != nil {
 				return err
 			}
-			if _, err := db.Exec(`DELETE FROM roles WHERE id = ?`, roleID); err != nil {
+			if _, err := db.ExecContext(context.Background(), `DELETE FROM roles WHERE id = ?`, roleID); err != nil {
 				return err
 			}
 		}
 
 		// the catalog is seeded exclusively by this migration
-		_, err := db.Exec(`DELETE FROM permissions`)
+		_, err := db.ExecContext(context.Background(), `DELETE FROM permissions`)
 		return err
 	},
 }

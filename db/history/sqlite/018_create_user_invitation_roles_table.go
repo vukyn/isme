@@ -1,6 +1,8 @@
 package history
 
 import (
+	"context"
+
 	pkgMigrate "github.com/vukyn/kuery/bun/migrate"
 
 	"github.com/uptrace/bun"
@@ -22,8 +24,8 @@ import (
 // works uniformly off the child table.
 var m018CreateUserInvitationRolesTable = pkgMigrate.Migration{
 	Name: "018_create_user_invitation_roles_table",
-	Up: func(db *bun.DB) error {
-		if _, err := db.Exec(`
+	Up: func(db bun.IDB) error {
+		if _, err := db.ExecContext(context.Background(), `
 			CREATE TABLE IF NOT EXISTS user_invitation_roles (
 				id TEXT PRIMARY KEY NOT NULL,
 				invitation_id TEXT NOT NULL,
@@ -40,7 +42,7 @@ var m018CreateUserInvitationRolesTable = pkgMigrate.Migration{
 		`); err != nil {
 			return err
 		}
-		if _, err := db.Exec(`
+		if _, err := db.ExecContext(context.Background(), `
 			CREATE INDEX IF NOT EXISTS user_invitation_roles_invitation_id_idx
 			ON user_invitation_roles (invitation_id)
 		`); err != nil {
@@ -49,7 +51,7 @@ var m018CreateUserInvitationRolesTable = pkgMigrate.Migration{
 
 		// relax user_invitations.role_id to be nullable via a table rebuild
 		// (preserving ids + the partial pending-email unique index)
-		if _, err := db.Exec(`
+		if _, err := db.ExecContext(context.Background(), `
 			CREATE TABLE user_invitations_new (
 				id TEXT PRIMARY KEY NOT NULL,
 				email TEXT NOT NULL,
@@ -68,7 +70,7 @@ var m018CreateUserInvitationRolesTable = pkgMigrate.Migration{
 		`); err != nil {
 			return err
 		}
-		if _, err := db.Exec(`
+		if _, err := db.ExecContext(context.Background(), `
 			INSERT INTO user_invitations_new
 				(id, email, role_id, token_hash, status, expires_at, accepted_at,
 				 created_at, created_by, updated_at, updated_by, deleted_at, deleted_by)
@@ -79,21 +81,21 @@ var m018CreateUserInvitationRolesTable = pkgMigrate.Migration{
 		`); err != nil {
 			return err
 		}
-		if _, err := db.Exec(`DROP TABLE user_invitations`); err != nil {
+		if _, err := db.ExecContext(context.Background(), `DROP TABLE user_invitations`); err != nil {
 			return err
 		}
-		if _, err := db.Exec(`ALTER TABLE user_invitations_new RENAME TO user_invitations`); err != nil {
+		if _, err := db.ExecContext(context.Background(), `ALTER TABLE user_invitations_new RENAME TO user_invitations`); err != nil {
 			return err
 		}
 
 		// restore the indexes from 013 on the rebuilt table
-		if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS user_invitations_token_hash_idx ON user_invitations (token_hash)`); err != nil {
+		if _, err := db.ExecContext(context.Background(), `CREATE INDEX IF NOT EXISTS user_invitations_token_hash_idx ON user_invitations (token_hash)`); err != nil {
 			return err
 		}
-		if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS user_invitations_email_idx ON user_invitations (email)`); err != nil {
+		if _, err := db.ExecContext(context.Background(), `CREATE INDEX IF NOT EXISTS user_invitations_email_idx ON user_invitations (email)`); err != nil {
 			return err
 		}
-		if _, err := db.Exec(`
+		if _, err := db.ExecContext(context.Background(), `
 			CREATE UNIQUE INDEX IF NOT EXISTS user_invitations_pending_email_uidx
 			ON user_invitations (email) WHERE status = 1 AND deleted_at IS NULL
 		`); err != nil {
@@ -102,7 +104,7 @@ var m018CreateUserInvitationRolesTable = pkgMigrate.Migration{
 
 		// backfill: migrate each existing single role_id into a child row.
 		// The owning role's app_id is the assignment scope (matches accept).
-		rows, err := db.Query(`
+		rows, err := db.QueryContext(context.Background(), `
 			SELECT uin.id, uin.role_id, rol.app_id
 			FROM user_invitations uin
 			JOIN roles rol ON rol.id = uin.role_id
@@ -132,7 +134,7 @@ var m018CreateUserInvitationRolesTable = pkgMigrate.Migration{
 		rows.Close()
 
 		for _, s := range seeds {
-			if _, err := db.Exec(`
+			if _, err := db.ExecContext(context.Background(), `
 				INSERT INTO user_invitation_roles (id, invitation_id, role_id, app_service_id)
 				VALUES (?, ?, ?, ?)
 			`, cryp.ULID(), s.invitationID, s.roleID, s.appServiceID); err != nil {
@@ -141,11 +143,11 @@ var m018CreateUserInvitationRolesTable = pkgMigrate.Migration{
 		}
 		return nil
 	},
-	Down: func(db *bun.DB) error {
+	Down: func(db bun.IDB) error {
 		// collapse child rows back into the legacy single role_id: pick the
 		// earliest assignment per invitation (lossy for multi-app invites —
 		// only the first role survives), then restore the NOT NULL column.
-		if _, err := db.Exec(`
+		if _, err := db.ExecContext(context.Background(), `
 			CREATE TABLE user_invitations_old (
 				id TEXT PRIMARY KEY NOT NULL,
 				email TEXT NOT NULL,
@@ -164,7 +166,7 @@ var m018CreateUserInvitationRolesTable = pkgMigrate.Migration{
 		`); err != nil {
 			return err
 		}
-		if _, err := db.Exec(`
+		if _, err := db.ExecContext(context.Background(), `
 			INSERT INTO user_invitations_old
 				(id, email, role_id, token_hash, status, expires_at, accepted_at,
 				 created_at, created_by, updated_at, updated_by, deleted_at, deleted_by)
@@ -182,31 +184,31 @@ var m018CreateUserInvitationRolesTable = pkgMigrate.Migration{
 		`); err != nil {
 			return err
 		}
-		if _, err := db.Exec(`DROP TABLE user_invitations`); err != nil {
+		if _, err := db.ExecContext(context.Background(), `DROP TABLE user_invitations`); err != nil {
 			return err
 		}
-		if _, err := db.Exec(`ALTER TABLE user_invitations_old RENAME TO user_invitations`); err != nil {
+		if _, err := db.ExecContext(context.Background(), `ALTER TABLE user_invitations_old RENAME TO user_invitations`); err != nil {
 			return err
 		}
 
 		// restore the indexes from 013
-		if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS user_invitations_token_hash_idx ON user_invitations (token_hash)`); err != nil {
+		if _, err := db.ExecContext(context.Background(), `CREATE INDEX IF NOT EXISTS user_invitations_token_hash_idx ON user_invitations (token_hash)`); err != nil {
 			return err
 		}
-		if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS user_invitations_email_idx ON user_invitations (email)`); err != nil {
+		if _, err := db.ExecContext(context.Background(), `CREATE INDEX IF NOT EXISTS user_invitations_email_idx ON user_invitations (email)`); err != nil {
 			return err
 		}
-		if _, err := db.Exec(`
+		if _, err := db.ExecContext(context.Background(), `
 			CREATE UNIQUE INDEX IF NOT EXISTS user_invitations_pending_email_uidx
 			ON user_invitations (email) WHERE status = 1 AND deleted_at IS NULL
 		`); err != nil {
 			return err
 		}
 
-		if _, err := db.Exec(`DROP INDEX IF EXISTS user_invitation_roles_invitation_id_idx`); err != nil {
+		if _, err := db.ExecContext(context.Background(), `DROP INDEX IF EXISTS user_invitation_roles_invitation_id_idx`); err != nil {
 			return err
 		}
-		_, err := db.Exec(`DROP TABLE IF EXISTS user_invitation_roles`)
+		_, err := db.ExecContext(context.Background(), `DROP TABLE IF EXISTS user_invitation_roles`)
 		return err
 	},
 }

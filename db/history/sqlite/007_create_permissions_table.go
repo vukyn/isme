@@ -1,6 +1,8 @@
 package history
 
 import (
+	"context"
+
 	pkgMigrate "github.com/vukyn/kuery/bun/migrate"
 
 	"github.com/uptrace/bun"
@@ -8,8 +10,8 @@ import (
 
 var m007CreatePermissionsTable = pkgMigrate.Migration{
 	Name: "007_create_permissions_table",
-	Up: func(db *bun.DB) error {
-		_, err := db.Exec(`
+	Up: func(db bun.IDB) error {
+		_, err := db.ExecContext(context.Background(), `
 			CREATE TABLE IF NOT EXISTS permissions (
 				id INTEGER PRIMARY KEY AUTOINCREMENT,
 				resource TEXT NOT NULL,
@@ -19,8 +21,8 @@ var m007CreatePermissionsTable = pkgMigrate.Migration{
 		`)
 		return err
 	},
-	Down: func(db *bun.DB) error {
-		_, err := db.Exec(`DROP TABLE IF EXISTS permissions`)
+	Down: func(db bun.IDB) error {
+		_, err := db.ExecContext(context.Background(), `DROP TABLE IF EXISTS permissions`)
 		return err
 	},
 }

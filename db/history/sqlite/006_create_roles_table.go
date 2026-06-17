@@ -1,6 +1,8 @@
 package history
 
 import (
+	"context"
+
 	pkgMigrate "github.com/vukyn/kuery/bun/migrate"
 
 	"github.com/uptrace/bun"
@@ -8,8 +10,8 @@ import (
 
 var m006CreateRolesTable = pkgMigrate.Migration{
 	Name: "006_create_roles_table",
-	Up: func(db *bun.DB) error {
-		_, err := db.Exec(`
+	Up: func(db bun.IDB) error {
+		_, err := db.ExecContext(context.Background(), `
 			CREATE TABLE IF NOT EXISTS roles (
 				id TEXT PRIMARY KEY NOT NULL,
 				code TEXT UNIQUE NOT NULL,
@@ -29,14 +31,14 @@ var m006CreateRolesTable = pkgMigrate.Migration{
 		}
 
 		// Create index
-		_, err = db.Exec(`CREATE INDEX IF NOT EXISTS roles_code_idx ON roles (code)`)
+		_, err = db.ExecContext(context.Background(), `CREATE INDEX IF NOT EXISTS roles_code_idx ON roles (code)`)
 		if err != nil {
 			return err
 		}
 		return nil
 	},
-	Down: func(db *bun.DB) error {
-		_, err := db.Exec(`DROP TABLE IF EXISTS roles`)
+	Down: func(db bun.IDB) error {
+		_, err := db.ExecContext(context.Background(), `DROP TABLE IF EXISTS roles`)
 		return err
 	},
 }
