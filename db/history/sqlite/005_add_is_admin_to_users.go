@@ -1,12 +1,12 @@
 package history
 
 import (
-	"github.com/vukyn/isme/internal/domains/migration/models"
+	pkgMigrate "github.com/vukyn/kuery/bun/migrate"
 
 	"github.com/uptrace/bun"
 )
 
-var m005AddIsAdminToUsers = models.Migration{
+var m005AddIsAdminToUsers = pkgMigrate.Migration{
 	Name: "005_add_is_admin_to_users",
 	Up: func(db *bun.DB) error {
 		_, err := db.Exec(`

@@ -1,7 +1,7 @@
 package history
 
 import (
-	"github.com/vukyn/isme/internal/domains/migration/models"
+	pkgMigrate "github.com/vukyn/kuery/bun/migrate"
 
 	"github.com/uptrace/bun"
 )
@@ -12,7 +12,7 @@ import (
 // token_rotation_events table records one row per refresh so the
 // Welcome "Token rotations" card can compute an accurate sliding-24h
 // count (a stored 24h counter would go stale).
-var m023CreateTokenRotationTracking = models.Migration{
+var m023CreateTokenRotationTracking = pkgMigrate.Migration{
 	Name: "023_create_token_rotation_tracking",
 	Up: func(db *bun.DB) error {
 		if _, err := db.Exec(`

@@ -1,12 +1,12 @@
 package history
 
 import (
-	"github.com/vukyn/isme/internal/domains/migration/models"
+	pkgMigrate "github.com/vukyn/kuery/bun/migrate"
 
 	"github.com/uptrace/bun"
 )
 
-var m019AddIconToPermissions = models.Migration{
+var m019AddIconToPermissions = pkgMigrate.Migration{
 	Name: "019_add_icon_to_permissions",
 	Up: func(db *bun.DB) error {
 		// per-resource icon key (e.g. "file", "database"); empty = neutral

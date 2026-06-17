@@ -1,12 +1,12 @@
 package history
 
 import (
-	"github.com/vukyn/isme/internal/domains/migration/models"
+	pkgMigrate "github.com/vukyn/kuery/bun/migrate"
 )
 
 // Migrations holds all database migrations in execution order.
 // One migration per file (NNN_<name>.go); append new ones at the end.
-var Migrations = []models.Migration{
+var Migrations = []pkgMigrate.Migration{
 	m001CreateUsersTable,
 	m002CreateUserSessionsTable,
 	m003AddTokenIDToUserSessions,

@@ -1,7 +1,7 @@
 package history
 
 import (
-	"github.com/vukyn/isme/internal/domains/migration/models"
+	pkgMigrate "github.com/vukyn/kuery/bun/migrate"
 
 	"github.com/uptrace/bun"
 )
@@ -11,7 +11,7 @@ import (
 // retention window (the table grows unbounded — one row per refresh).
 // The settings:read / settings:update permissions are already seeded by
 // migration 022, so this migration only adds the config table.
-var m024CreateRotationCleanupConfig = models.Migration{
+var m024CreateRotationCleanupConfig = pkgMigrate.Migration{
 	Name: "024_create_rotation_cleanup_config",
 	Up: func(db *bun.DB) error {
 		_, err := db.Exec(`

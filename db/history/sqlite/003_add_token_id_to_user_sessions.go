@@ -1,12 +1,12 @@
 package history
 
 import (
-	"github.com/vukyn/isme/internal/domains/migration/models"
+	pkgMigrate "github.com/vukyn/kuery/bun/migrate"
 
 	"github.com/uptrace/bun"
 )
 
-var m003AddTokenIDToUserSessions = models.Migration{
+var m003AddTokenIDToUserSessions = pkgMigrate.Migration{
 	Name: "003_add_token_id_to_user_sessions",
 	Up: func(db *bun.DB) error {
 		_, err := db.Exec(`

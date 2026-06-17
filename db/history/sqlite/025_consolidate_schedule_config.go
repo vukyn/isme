@@ -1,7 +1,7 @@
 package history
 
 import (
-	"github.com/vukyn/isme/internal/domains/migration/models"
+	pkgMigrate "github.com/vukyn/kuery/bun/migrate"
 
 	"github.com/uptrace/bun"
 )
@@ -13,7 +13,7 @@ import (
 // into the last_result JSON blob (replacing last_revoked_count /
 // last_cleaned_count). The job-key strings must match the JobKey consts
 // in internal/scheduler (asserted by a cross-package test).
-var m025ConsolidateScheduleConfig = models.Migration{
+var m025ConsolidateScheduleConfig = pkgMigrate.Migration{
 	Name: "025_consolidate_schedule_config",
 	Up: func(db *bun.DB) error {
 		if _, err := db.Exec(`

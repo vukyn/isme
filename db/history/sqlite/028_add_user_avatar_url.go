@@ -1,12 +1,12 @@
 package history
 
 import (
-	"github.com/vukyn/isme/internal/domains/migration/models"
+	pkgMigrate "github.com/vukyn/kuery/bun/migrate"
 
 	"github.com/uptrace/bun"
 )
 
-var m028AddUserAvatarURL = models.Migration{
+var m028AddUserAvatarURL = pkgMigrate.Migration{
 	Name: "028_add_user_avatar_url",
 	Up: func(db *bun.DB) error {
 		// avatar_url holds the medioa object URL (or a pasted external link)

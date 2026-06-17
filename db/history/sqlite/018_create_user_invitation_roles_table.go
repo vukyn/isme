@@ -1,7 +1,7 @@
 package history
 
 import (
-	"github.com/vukyn/isme/internal/domains/migration/models"
+	pkgMigrate "github.com/vukyn/kuery/bun/migrate"
 
 	"github.com/uptrace/bun"
 	"github.com/vukyn/kuery/cryp"
@@ -20,7 +20,7 @@ import (
 // NULL and rely solely on the child rows. Existing rows are backfilled
 // into a child row (preserving the invitation id as the FK), so accept
 // works uniformly off the child table.
-var m018CreateUserInvitationRolesTable = models.Migration{
+var m018CreateUserInvitationRolesTable = pkgMigrate.Migration{
 	Name: "018_create_user_invitation_roles_table",
 	Up: func(db *bun.DB) error {
 		if _, err := db.Exec(`

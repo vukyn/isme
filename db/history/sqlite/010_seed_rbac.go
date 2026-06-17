@@ -1,13 +1,13 @@
 package history
 
 import (
-	"github.com/vukyn/isme/internal/domains/migration/models"
+	pkgMigrate "github.com/vukyn/kuery/bun/migrate"
 
 	"github.com/uptrace/bun"
 	"github.com/vukyn/kuery/cryp"
 )
 
-var m010SeedRBAC = models.Migration{
+var m010SeedRBAC = pkgMigrate.Migration{
 	Name: "010_seed_rbac",
 	Up: func(db *bun.DB) error {
 		// seed system roles with deterministic IDs

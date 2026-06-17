@@ -1,12 +1,12 @@
 package history
 
 import (
-	"github.com/vukyn/isme/internal/domains/migration/models"
+	pkgMigrate "github.com/vukyn/kuery/bun/migrate"
 
 	"github.com/uptrace/bun"
 )
 
-var m021AddAppearanceToRolesPermissions = models.Migration{
+var m021AddAppearanceToRolesPermissions = pkgMigrate.Migration{
 	Name: "021_add_appearance_to_roles_permissions",
 	Up: func(db *bun.DB) error {
 		// appearance keys: roles get an icon (e.g. "shield") + color palette

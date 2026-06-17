@@ -1,12 +1,12 @@
 package history
 
 import (
-	"github.com/vukyn/isme/internal/domains/migration/models"
+	pkgMigrate "github.com/vukyn/kuery/bun/migrate"
 
 	"github.com/uptrace/bun"
 )
 
-var m001CreateUsersTable = models.Migration{
+var m001CreateUsersTable = pkgMigrate.Migration{
 	Name: "001_create_users_table",
 	Up: func(db *bun.DB) error {
 		_, err := db.Exec(`
