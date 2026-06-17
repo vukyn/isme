@@ -1,12 +1,12 @@
 package history
 
 import (
-	"github.com/vukyn/isme/internal/domains/migration/models"
+	pkgMigrate "github.com/vukyn/kuery/bun/migrate"
 
 	"github.com/uptrace/bun"
 )
 
-var m012AddUserVerification = models.Migration{
+var m012AddUserVerification = pkgMigrate.Migration{
 	Name: "012_add_user_verification",
 	Up: func(db *bun.DB) error {
 		// new signups start unverified (login blocked until verified)

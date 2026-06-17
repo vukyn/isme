@@ -1,7 +1,7 @@
 package history
 
 import (
-	"github.com/vukyn/isme/internal/domains/migration/models"
+	pkgMigrate "github.com/vukyn/kuery/bun/migrate"
 
 	"github.com/uptrace/bun"
 )
@@ -10,7 +10,7 @@ import (
 // drives the cronjob revoking expired sessions. Also seeds the
 // settings:read / settings:update permissions used to gate the
 // management endpoints, granting both to the admin system role.
-var m022CreateSessionRevokeConfig = models.Migration{
+var m022CreateSessionRevokeConfig = pkgMigrate.Migration{
 	Name: "022_create_session_revoke_config",
 	Up: func(db *bun.DB) error {
 		_, err := db.Exec(`

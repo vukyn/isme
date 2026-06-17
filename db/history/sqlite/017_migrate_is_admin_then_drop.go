@@ -1,7 +1,7 @@
 package history
 
 import (
-	"github.com/vukyn/isme/internal/domains/migration/models"
+	pkgMigrate "github.com/vukyn/kuery/bun/migrate"
 
 	"github.com/uptrace/bun"
 	"github.com/vukyn/kuery/cryp"
@@ -10,7 +10,7 @@ import (
 // Migrate is_admin away: every active is_admin user gets the isme admin
 // role (app-scoped to app_isme), then the column is dropped. Platform
 // superadmin = admin on the isme app from here on.
-var m017MigrateIsAdminThenDrop = models.Migration{
+var m017MigrateIsAdminThenDrop = pkgMigrate.Migration{
 	Name: "017_migrate_is_admin_then_drop",
 	Up: func(db *bun.DB) error {
 		rows, err := db.Query(`SELECT id FROM users WHERE is_admin = 1 AND deleted_at IS NULL`)

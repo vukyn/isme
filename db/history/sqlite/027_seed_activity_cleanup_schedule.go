@@ -1,12 +1,12 @@
 package history
 
 import (
-	"github.com/vukyn/isme/internal/domains/migration/models"
+	pkgMigrate "github.com/vukyn/kuery/bun/migrate"
 
 	"github.com/uptrace/bun"
 )
 
-var m027SeedActivityCleanupSchedule = models.Migration{
+var m027SeedActivityCleanupSchedule = pkgMigrate.Migration{
 	Name: "027_seed_activity_cleanup_schedule",
 	Up: func(db *bun.DB) error {
 		// Seed the third scheduled job (activity_cleanup) into the generic

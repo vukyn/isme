@@ -1,12 +1,12 @@
 package history
 
 import (
-	"github.com/vukyn/isme/internal/domains/migration/models"
+	pkgMigrate "github.com/vukyn/kuery/bun/migrate"
 
 	"github.com/uptrace/bun"
 )
 
-var m020AddIconColorToAppServices = models.Migration{
+var m020AddIconColorToAppServices = pkgMigrate.Migration{
 	Name: "020_add_icon_color_to_app_services",
 	Up: func(db *bun.DB) error {
 		// appearance keys for the app tile: icon (e.g. "shield") + color

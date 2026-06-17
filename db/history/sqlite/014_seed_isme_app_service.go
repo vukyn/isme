@@ -1,7 +1,7 @@
 package history
 
 import (
-	"github.com/vukyn/isme/internal/domains/migration/models"
+	pkgMigrate "github.com/vukyn/kuery/bun/migrate"
 
 	"github.com/uptrace/bun"
 )
@@ -9,7 +9,7 @@ import (
 // isme is itself an app_service that owns the original RBAC catalog.
 // The self-app row is a logical owner only — isme never SSO's into
 // itself, so the app_secret is left as a placeholder (decision 1).
-var m014SeedIsmeAppService = models.Migration{
+var m014SeedIsmeAppService = pkgMigrate.Migration{
 	Name: "014_seed_isme_app_service",
 	Up: func(db *bun.DB) error {
 		_, err := db.Exec(`

@@ -1,7 +1,7 @@
 package history
 
 import (
-	"github.com/vukyn/isme/internal/domains/migration/models"
+	pkgMigrate "github.com/vukyn/kuery/bun/migrate"
 
 	"github.com/uptrace/bun"
 )
@@ -11,7 +11,7 @@ import (
 // constraints are relaxed to be app-scoped via a table rebuild that
 // PRESERVES id values (role_permissions references permission ids, and
 // role ids like 'rol_admin' are referenced by value elsewhere).
-var m015AddAppIDToRBAC = models.Migration{
+var m015AddAppIDToRBAC = pkgMigrate.Migration{
 	Name: "015_add_app_id_to_rbac",
 	Up: func(db *bun.DB) error {
 		// add the owning-app column (existing rows -> isme self-app)
