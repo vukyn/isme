@@ -57,6 +57,12 @@ func (r *repository) GetByID(ctx context.Context, id string) (entity.User, error
 		Where("id = ?", id).
 		Scan(ctx)
 	if err != nil {
+		// mirror GetByEmail: a missing row is not an error — return the
+		// zero-value user so callers decide (404, skip enrichment, etc.).
+		// Callers already guard on user.ID == "".
+		if errors.Is(err, sql.ErrNoRows) {
+			return entity.User{}, nil
+		}
 		return entity.User{}, pkgErr.DatabaseError(err.Error())
 	}
 	return user, nil
