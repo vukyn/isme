@@ -25,10 +25,11 @@ init-ui:
 web:
 	cd ui && npm run dev
 
-build-web:	
+build-web:
 	cd ui && npm install && npm run build
-	rm -rf ./internal/ui
-	mv ./ui/dist ./internal/ui
+	rm -rf ./internal/web/dist
+	mv ./ui/dist ./internal/web/dist
+	touch ./internal/web/dist/.gitkeep
 
 v-tag:
 	git tag -l --sort=-version:refname

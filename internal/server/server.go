@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"io/fs"
 	"net/http"
 	"os"
 
@@ -14,6 +15,7 @@ import (
 	settingsHandlers "github.com/vukyn/isme/internal/domains/settings/handlers/http"
 	userHandlers "github.com/vukyn/isme/internal/domains/user/handlers/http"
 	userInvitationHandlers "github.com/vukyn/isme/internal/domains/user_invitation/handlers/http"
+	"github.com/vukyn/isme/internal/web"
 
 	pkgCtx "github.com/vukyn/kuery/ctx"
 
@@ -44,7 +46,10 @@ func NewServer(
 func (s *Server) Start() {
 	log.New().Info("Starting server")
 
-	engine := html.New("internal/ui", ".html")
+	// The built UI is embedded in the binary (internal/web) — served from that FS
+	// rather than a working-directory-relative path, so the binary is self-contained.
+	uiFS := web.FS()
+	engine := html.NewFileSystem(http.FS(uiFS), ".html")
 	s.app = fiber.New(fiber.Config{
 		AppName: s.cfg.App.Name,
 		Views:   engine,
@@ -63,9 +68,15 @@ func (s *Server) Start() {
 	// recover from panic
 	s.app.Use(pkgRecover.NewFiberRecover())
 
-	// Static files - serve from root paths to match HTML references
+	// Static files - serve from root paths to match HTML references. Assets live
+	// under the embedded FS's assets/ subtree.
+	assetsFS, err := fs.Sub(uiFS, "assets")
+	if err != nil {
+		log.New().Errorf("Failed to open embedded assets: %v", err)
+		os.Exit(1)
+	}
 	s.app.Use("/assets", filesystem.New(filesystem.Config{
-		Root: http.Dir("internal/ui/assets"),
+		Root: http.FS(assetsFS),
 	}))
 
 	// api/v1
@@ -80,7 +91,7 @@ func (s *Server) Start() {
 	mediaHandlers.SetupMediaRoutes(apiV1)
 
 	// web routes
-	s.webRoutes(s.app)
+	s.webRoutes(s.app, uiFS)
 
 	// start server
 	go func() {
@@ -105,7 +116,7 @@ func diContainerMiddleware(c *fiber.Ctx) error {
 	return c.Next()
 }
 
-func (s *Server) webRoutes(app *fiber.App) {
+func (s *Server) webRoutes(app *fiber.App, uiFS fs.FS) {
 	renderHomePage := func(c *fiber.Ctx) error {
 		apiBaseURL := s.cfg.Vite.BaseURL
 		if apiBaseURL == "" {
@@ -121,7 +132,7 @@ func (s *Server) webRoutes(app *fiber.App) {
 	// /favicon.svg, so the browser gets HTML instead of the icon and falls back
 	// to its generic globe. SendFile sets content-type from the .svg extension.
 	app.Get("/favicon.svg", func(c *fiber.Ctx) error {
-		return c.SendFile("internal/ui/favicon.svg")
+		return filesystem.SendFile(c, http.FS(uiFS), "favicon.svg")
 	})
 
 	app.Get("/*", renderHomePage)

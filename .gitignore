@@ -21,6 +21,12 @@ certs/
 # code-review-graph cache (local knowledge graph)
 .code-review-graph/
 
+# Embedded UI build output — produced by `make build-web` into internal/web/dist.
+# The bundle is a build artifact (not committed); the .gitkeep keeps the embed
+# directory (and the go:embed pattern) valid on a fresh checkout.
+internal/web/dist/*
+!internal/web/dist/.gitkeep
+
 # Local SQLite DB — runtime data, holds secrets (app_service secrets, session
 # tokens). Schema is created by db/migrate.go; never commit the binary.
 db/*.db
