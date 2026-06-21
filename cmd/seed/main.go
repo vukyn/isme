@@ -6,6 +6,14 @@
 // perms/roles. An app_service is created only once (its plaintext secret is
 // shown ONCE on creation — rotate via the UI if you lose it).
 //
+// Environment-aware (driven by APP_ENV / cfg.App.Env):
+//   - non-prod: admin emails use the `.local` suffix and share the fixed dev
+//     password "123456789"; secrets are printed to stdout.
+//   - production: admin emails use the `.prod` suffix, each admin gets a strong
+//     random password, and all sensitive values (admin passwords + minted app
+//     secrets) are written to ../SEED_CREDENTIALS_PROD.md (platform root, 0600,
+//     gitignored) INSTEAD of stdout.
+//
 // Usage: go run cmd/seed/main.go
 package main
 
@@ -14,6 +22,9 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"os"
+	"strings"
+	"time"
 
 	"github.com/vukyn/isme/internal/config"
 
@@ -110,37 +121,73 @@ func main() {
 	defer db.Close()
 	ctx := context.Background()
 
+	// Environment-aware behavior: prod uses `.prod` admin emails + per-account
+	// random passwords + a credentials file; everything else keeps the dev
+	// defaults (`.local` emails, shared password, stdout secrets).
+	isProd := cfg.App.Env == "production"
+	suffix := "local"
+	if isProd {
+		suffix = "prod"
+	}
+	ismeEmail := "admin@isme." + suffix
+	medioaEmail := "admin@medioa." + suffix
+	rainyEmail := "admin@rainy." + suffix
+
+	// redirect_url is left blank in prod (set per-environment later via the admin
+	// UI / consumer config); dev keeps the local callback URLs.
+	medioaRedirect := "http://app.medioa.local:8082/auth/callback"
+	rainyRedirect := "http://app.rainy.local:8083/auth/callback"
+	if isProd {
+		medioaRedirect = ""
+		rainyRedirect = ""
+	}
+
+	// adminPasswords collects each admin's plaintext password so prod runs can
+	// write them to the credentials file. In non-prod every entry is adminPass.
+	adminPasswords := map[string]string{}
+	// passwordFor returns the password to seed for an admin email: a strong
+	// per-account random string in prod, the shared dev constant otherwise.
+	passwordFor := func(email string) string {
+		if isProd {
+			return rand.RandMixedString(20, true, true)
+		}
+		return adminPass
+	}
+
 	// --- admin users (per-app: each admin owns its namesake app) ---
 	// Fixed ULIDs so a wipe-and-reseed reproduces the SAME ids (other systems /
 	// downstream data reference these). On an existing DB the id is keyed by
-	// email and never changes.
+	// email and never changes. (A `.prod` email is simply a new row that still
+	// gets the fixed id — dev and prod are separate DBs.)
 	users := []struct{ id, name, email string }{
-		{"01KTKDKNXTZDSGH5YKG151J877", "ISME Admin", "admin@isme.local"},
-		{"01KBYG3MYVVSYEKTRDJ4VT3DK6", "Medioa Admin", "admin@medioa.local"},
-		{"01KTR9CB27MT4PJQ3TZ4P6SCCX", "Rainy Admin", "admin@rainy.local"},
+		{"01KTKDKNXTZDSGH5YKG151J877", "ISME Admin", ismeEmail},
+		{"01KBYG3MYVVSYEKTRDJ4VT3DK6", "Medioa Admin", medioaEmail},
+		{"01KTR9CB27MT4PJQ3TZ4P6SCCX", "Rainy Admin", rainyEmail},
 	}
 	userIDs := map[string]string{}
 	for _, u := range users {
-		id, err := upsertUser(ctx, db, u.id, u.name, u.email, adminPass)
+		password := passwordFor(u.email)
+		id, err := upsertUser(ctx, db, u.id, u.name, u.email, password)
 		if err != nil {
 			log.Fatalf("upsert user %s: %v", u.email, err)
 		}
 		userIDs[u.email] = id
+		adminPasswords[u.email] = password
 		fmt.Printf("user  ok  %-20s %s\n", u.email, id)
 	}
 
-	// --- admin@isme.local -> existing isme admin role (seeded by migrations) ---
-	if err := assignRole(ctx, db, userIDs["admin@isme.local"], "rol_admin", "app_isme"); err != nil {
+	// --- isme admin -> existing isme admin role (seeded by migrations) ---
+	if err := assignRole(ctx, db, userIDs[ismeEmail], "rol_admin", "app_isme"); err != nil {
 		log.Fatalf("assign isme admin: %v", err)
 	}
-	fmt.Printf("role  ok  admin@isme.local -> rol_admin @ app_isme\n")
+	fmt.Printf("role  ok  %s -> rol_admin @ app_isme\n", ismeEmail)
 
 	// --- downstream apps: medioa + rainy ---
 	apps := []appSeed{
 		{
 			id: "app_medioa", code: "medioa", name: "Medioa",
-			redirectURL: "http://app.medioa.local:8082/auth/callback", icon: "layers", color: "sky",
-			adminRoleID: "rol_admin_medioa", adminEmail: "admin@medioa.local",
+			redirectURL: medioaRedirect, icon: "layers", color: "sky",
+			adminRoleID: "rol_admin_medioa", adminEmail: medioaEmail,
 			perms: medioaPerms(),
 			icons: map[string]string{
 				"object":   "file",
@@ -152,8 +199,8 @@ func main() {
 		},
 		{
 			id: "app_rainy", code: "rainy", name: "Rainy",
-			redirectURL: "http://app.rainy.local:8083/auth/callback", icon: "cloud-rain", color: "magenta",
-			adminRoleID: "rol_admin_rainy", adminEmail: "admin@rainy.local",
+			redirectURL: rainyRedirect, icon: "cloud-rain", color: "magenta",
+			adminRoleID: "rol_admin_rainy", adminEmail: rainyEmail,
 			perms: append(crud("playlist", "station", "track", "album", "artist"),
 				permission{"settings", "read"},
 				permission{"settings", "update"},
@@ -221,7 +268,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("medioa member perms: %v", err)
 	}
-	for _, email := range []string{"admin@isme.local", "admin@rainy.local"} {
+	for _, email := range []string{ismeEmail, rainyEmail} {
 		if err := assignRole(ctx, db, userIDs[email], "rol_member_medioa", "app_medioa"); err != nil {
 			log.Fatalf("assign medioa member %s: %v", email, err)
 		}
@@ -230,6 +277,20 @@ func main() {
 
 	// --- summary ---
 	fmt.Printf("\n=== Seed complete ===\n")
+	if isProd {
+		// Prod: never print passwords (or, for safety, secrets) to stdout —
+		// funnel every sensitive value into the credentials file at the
+		// platform root.
+		path, err := writeProdCredentials(cfg.App.Env, adminPasswords, secrets)
+		if err != nil {
+			log.Fatalf("write credentials file: %v", err)
+		}
+		fmt.Printf("Production seed: admin passwords + app secrets WRITTEN to %s (0600, gitignored).\n", path)
+		fmt.Printf("That file holds the sensitive values — store it securely, then delete it.\n")
+		fmt.Printf("Admin passwords are RANDOM per account; admins must change them after first login.\n")
+		return
+	}
+
 	fmt.Printf("All 3 admins password: %s\n", adminPass)
 	if len(secrets) > 0 {
 		fmt.Printf("\nApp secrets (shown ONCE — copy into the consumer's .env, or rotate later):\n")
@@ -239,6 +300,56 @@ func main() {
 		fmt.Printf("\nConsumer .env: set AUTH_APP_CODE + the app_secret above (medioa->medioa2/.env, rainy->rainy/.env).\n")
 		fmt.Printf("Verify each app_service redirect_url in the isme admin UI matches the consumer's callback.\n")
 	}
+}
+
+// writeProdCredentials writes a 0600 Markdown file at the platform root
+// (../SEED_CREDENTIALS_PROD.md — the seeder runs from the isme/ dir) holding
+// every sensitive value minted this run: per-admin plaintext passwords and the
+// freshly-created app secrets. It returns the path written. The file is the
+// SOLE record of these secrets in prod (they are not printed to stdout), so it
+// must be stored securely and then deleted.
+func writeProdCredentials(appEnv string, adminPasswords, secrets map[string]string) (string, error) {
+	const path = "../SEED_CREDENTIALS_PROD.md"
+
+	var b strings.Builder
+	b.WriteString("# isme Seed Credentials (PRODUCTION)\n\n")
+	b.WriteString("> WARNING: This file contains PLAINTEXT secrets (admin passwords + app secrets).\n")
+	b.WriteString("> It is gitignored and must NOT be committed. Store these values in your secret\n")
+	b.WriteString("> manager, then DELETE this file.\n\n")
+	b.WriteString("- Generated: " + time.Now().UTC().Format(time.RFC3339) + "\n")
+	b.WriteString("- APP_ENV: " + appEnv + "\n\n")
+
+	b.WriteString("## Admin accounts\n\n")
+	b.WriteString("| Email | Password |\n")
+	b.WriteString("| --- | --- |\n")
+	for _, email := range []string{"admin@isme.prod", "admin@medioa.prod", "admin@rainy.prod"} {
+		if pw, ok := adminPasswords[email]; ok {
+			b.WriteString("| " + email + " | `" + pw + "` |\n")
+		}
+	}
+	b.WriteString("\n")
+
+	b.WriteString("## App secrets (minted this run)\n\n")
+	if len(secrets) == 0 {
+		b.WriteString("_None minted this run (app_services already existed — rotate via the isme admin UI to get a new secret)._\n\n")
+	} else {
+		b.WriteString("| App code | app_secret |\n")
+		b.WriteString("| --- | --- |\n")
+		for code, s := range secrets {
+			b.WriteString("| " + code + " | `" + s + "` |\n")
+		}
+		b.WriteString("\n")
+	}
+
+	b.WriteString("## Next steps\n\n")
+	b.WriteString("- Set the `medioa` app_secret as `AUTH_APP_SECRET` in medioa2's environment.\n")
+	b.WriteString("- Set the `rainy` app_secret as `AUTH_APP_SECRET` in rainy's environment.\n")
+	b.WriteString("- Admins must change their password after first login.\n")
+
+	if err := os.WriteFile(path, []byte(b.String()), 0600); err != nil {
+		return "", err
+	}
+	return path, nil
 }
 
 // medioaPerms is the exact catalog medioa2 enforces (appCode=medioa). NOTE:
