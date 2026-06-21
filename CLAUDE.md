@@ -56,11 +56,11 @@ Container is request-scoped via middleware in `internal/middlewares/`.
 
 `internal/config/` uses `envconfig` + `godotenv`. `.env` at repo root drives:
 - `APP_NAME`, `APP_ENV`, `APP_PORT`
-- `AUTH_ACCESS_TOKEN_SECRET_KEY`, `AUTH_REFRESH_TOKEN_SECRET_KEY`, `AUTH_ACCESS_TOKEN_EXPIRE_IN`, `AUTH_REFRESH_TOKEN_EXPIRE_IN`
+- `AUTH_ACCESS_TOKEN_PRIVATE_KEY` + `AUTH_ACCESS_TOKEN_PUBLIC_KEY` (RS256, access token), `AUTH_REFRESH_TOKEN_SECRET_KEY` (HS256, refresh token), `AUTH_ACCESS_TOKEN_EXPIRE_IN`, `AUTH_REFRESH_TOKEN_EXPIRE_IN`
 - `LOGGER_MODE`, `LOGGER_LEVEL`
 - `GRACEFUL_*` (verbose, step delay, server shutdown timeout)
 
-JWT signing uses HS256 with the two secret keys above (RSA certs in `certs/` reserved for future use via `gen-key-rsa256`).
+JWT: **access token = RS256** (signed with `AUTH_ACCESS_TOKEN_PRIVATE_KEY`, verified with `AUTH_ACCESS_TOKEN_PUBLIC_KEY`; consumers like medioa2/rainy verify with the public key only). **Refresh token = HS256** (`AUTH_REFRESH_TOKEN_SECRET_KEY`, isme-internal). Generate an RS256 keypair with `make gen-key-rsa256` (→ `certs/`).
 
 ### Database
 

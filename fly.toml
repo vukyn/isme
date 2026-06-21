@@ -10,8 +10,7 @@
 #                                   #   sslmode=disable over the internal 6pn net)
 #   AUTH_ACCESS_TOKEN_PRIVATE_KEY   # RS256 PEM (multiline — use `fly secrets set ... < file` or import)
 #   AUTH_ACCESS_TOKEN_PUBLIC_KEY    # RS256 PEM
-#   AUTH_ACCESS_TOKEN_SECRET_KEY    # legacy HS256 secret
-#   AUTH_REFRESH_TOKEN_SECRET_KEY
+#   AUTH_REFRESH_TOKEN_SECRET_KEY   # HS256 secret (refresh token sign/validate)
 #   AES_SECRET                      # cryp key
 #   MEDIOA_API_KEY                  # mk_... (optional; avatar upload disabled while empty)
 #
@@ -30,8 +29,21 @@ primary_region = 'sin'
   LOGGER_MODE = 'json'
   LOGGER_LEVEL = 'info'
   DB_DRIVER = 'postgres'
-  DB_SSLMODE = 'disable'
+  DB_SSLMODE = 'require'
   MEDIOA_BASE_URL = 'http://127.0.0.1:8082'
+  # Auth — non-secret config only (token signing keys/secrets are fly secrets)
+  AUTH_APP_CODE = 'isme'
+  AUTH_ENDPOINT_WEB_SSO_LOGIN = '/sso/login'
+  AUTH_ENDPOINT_WEB_ACCEPT_INVITE = '/accept-invite'
+  AUTH_ACCESS_TOKEN_EXPIRE_IN = '900'
+  AUTH_REFRESH_TOKEN_EXPIRE_IN = '86400'
+  AUTH_EXTERNAL_LOGIN_SESSION_TTL = '600'
+  AUTH_EXTERNAL_EXCHANGE_CODE_TTL = '60'
+  # Graceful shutdown
+  GRACEFUL_VERBOSE = 'true'
+  GRACEFUL_STEP_DELAY = '100'
+  GRACEFUL_SERVER_SHUTDOWN_TIMEOUT = '20000'
+  GRACEFUL_SCHEDULER_SHUTDOWN_TIMEOUT = '10000'
 
 [http_service]
   internal_port = 8081
