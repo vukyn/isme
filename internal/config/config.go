@@ -21,7 +21,6 @@ type Config struct {
 		EndpointWebAcceptInvite string `envconfig:"AUTH_ENDPOINT_WEB_ACCEPT_INVITE"`
 		AccessTokenPrivateKey   string `envconfig:"AUTH_ACCESS_TOKEN_PRIVATE_KEY"`
 		AccessTokenPublicKey    string `envconfig:"AUTH_ACCESS_TOKEN_PUBLIC_KEY"`
-		AccessTokenSecretKey    string `envconfig:"AUTH_ACCESS_TOKEN_SECRET_KEY"`
 		RefreshTokenSecretKey   string `envconfig:"AUTH_REFRESH_TOKEN_SECRET_KEY"`
 		AccessTokenExpireIn     int    `envconfig:"AUTH_ACCESS_TOKEN_EXPIRE_IN"`
 		RefreshTokenExpireIn    int    `envconfig:"AUTH_REFRESH_TOKEN_EXPIRE_IN"`
