@@ -1,0 +1,25 @@
+.env
+.env.*
+.DS_Store
+.vscode
+.git
+.gitignore
+.golangci.yml
+logs
+vendor
+.bin
+bin
+fly.toml
+Dockerfile
+# local UI deps + build artifacts (Docker rebuilds the UI fresh)
+ui/node_modules
+ui/dist
+internal/web/dist
+# local SQLite dev DB + backups (Postgres in prod)
+db/app.db
+db/app.db-*
+db/*.bak-*
+# local infra + graph cache
+docker-compose.yml
+.code-review-graph
+certs

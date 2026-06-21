@@ -1,0 +1,46 @@
+# fly.toml — isme (auth/SSO). Deploy: `fly deploy` (builds from Dockerfile).
+#
+# One-time setup:
+#   fly launch --no-deploy            # or `fly apps create vukyn-isme`
+#   fly postgres create --name vukyn-isme-db --region sin
+#   fly postgres attach vukyn-isme-db # sets DATABASE_URL secret on the app
+#
+# Required SECRETS (never put in this file — `fly secrets set KEY=...`):
+#   DB_DSN                          # postgres conn string (from `fly pg attach`,
+#                                   #   sslmode=disable over the internal 6pn net)
+#   AUTH_ACCESS_TOKEN_PRIVATE_KEY   # RS256 PEM (multiline — use `fly secrets set ... < file` or import)
+#   AUTH_ACCESS_TOKEN_PUBLIC_KEY    # RS256 PEM
+#   AUTH_ACCESS_TOKEN_SECRET_KEY    # legacy HS256 secret
+#   AUTH_REFRESH_TOKEN_SECRET_KEY
+#   AES_SECRET                      # cryp key
+#   MEDIOA_API_KEY                  # mk_... (optional; avatar upload disabled while empty)
+#
+# See https://fly.io/docs/reference/configuration/
+
+app = 'vukyn-isme'
+primary_region = 'sin'
+
+[build]
+  dockerfile = 'Dockerfile'
+
+[env]
+  APP_NAME = 'isme'
+  APP_ENV = 'production'
+  APP_PORT = '8081'
+  LOGGER_MODE = 'json'
+  LOGGER_LEVEL = 'info'
+  DB_DRIVER = 'postgres'
+  DB_SSLMODE = 'disable'
+  MEDIOA_BASE_URL = 'http://127.0.0.1:8082'
+
+[http_service]
+  internal_port = 8081
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ['app']
+
+[[vm]]
+  size = 'shared-cpu-1x'
+  memory = '512mb'
