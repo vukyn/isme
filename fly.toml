@@ -30,7 +30,10 @@ primary_region = 'sin'
   LOGGER_LEVEL = 'info'
   DB_DRIVER = 'postgres'
   DB_SSLMODE = 'require'
-  MEDIOA_BASE_URL = 'http://127.0.0.1:8082'
+  MEDIOA_BASE_URL = 'https://medioa.fly.dev'
+  # UI API base — injected into the SPA's window.__APP_CONFIG__ at runtime.
+  # This app's public origin (UI + API are same-origin via the embedded server).
+  VITE_API_BASE_URL = 'https://vukyn-isme.fly.dev'
   # Auth — non-secret config only (token signing keys/secrets are fly secrets)
   AUTH_APP_CODE = 'isme'
   AUTH_ENDPOINT_WEB_SSO_LOGIN = '/sso/login'
