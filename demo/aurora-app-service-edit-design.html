@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>isme — Edit App Service (icon + color) · Aurora UI</title>
+<title>isme — Edit App Service (name + redirect + appearance) · Aurora UI</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -213,6 +213,17 @@
   .input-wrap.locked input { color: var(--fg-soft); cursor: not-allowed; font-variant-numeric: tabular-nums; }
   .input-wrap.locked .lock { color: var(--fg-mute); margin-left: auto; }
 
+  /* security-relevant field group — visually flag redirect URL as functional, not cosmetic */
+  .field-tag {
+    display: inline-flex; align-items: center; gap: 5px; margin-left: 8px;
+    padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; letter-spacing: 0.02em;
+    color: var(--c-amber); background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.32);
+    vertical-align: 1px;
+  }
+  .field-tag svg { width: 11px; height: 11px; }
+  /* monospace-ish url input + clear button */
+  .input-wrap input.url { font-variant-numeric: tabular-nums; letter-spacing: -0.005em; }
+
   /* ====== ICON PICKER — exact reuse of aurora-rbac-roles .iconpick-grid / .icon-opt ====== */
   .iconpick-grid {
     display: grid; grid-template-columns: repeat(auto-fill, 38px); gap: 8px; justify-content: start;
@@ -305,6 +316,17 @@
   .pv-hero .h-meta { line-height: 1.3; }
   .pv-hero .h-name { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
   .pv-hero .h-code { font-size: 12px; color: var(--fg-mute); font-variant-numeric: tabular-nums; }
+  /* preview: redirect URL shown as muted text under the hero (not a cosmetic tile attribute) */
+  .pv-redirect {
+    display: flex; align-items: center; gap: 7px; margin-top: 4px;
+    font-size: 11px; color: var(--fg-mute);
+  }
+  .pv-redirect svg { width: 12px; height: 12px; flex: 0 0 auto; color: var(--c-amber); }
+  .pv-redirect .url {
+    color: var(--fg-soft); font-variant-numeric: tabular-nums;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px;
+  }
+  .pv-redirect .url.empty { color: var(--c-amber); font-style: italic; }
 
   /* before/after strip */
   .ba { display: flex; align-items: center; gap: 14px; }
@@ -361,16 +383,26 @@
      (rose/sky/teal are aurora-consistent extension hues for palette breadth.)
 
   app_code is an IDENTITY KEY → rendered locked/read-only (cannot change after
-  register). app_name is editable here as a convenience; the FEATURE FOCUS is
-  icon + color. The live preview (right rail) re-renders the list tile, the
-  AppRoleChip pill, and the detail hero with the chosen icon+color — the payoff.
+  register). Editable here: app_name (convenience), redirect_url (FUNCTIONAL/SECURITY),
+  and icon + color (appearance). The live preview (right rail) re-renders the list
+  tile, the AppRoleChip pill, and the detail hero with the chosen icon+color, and
+  shows the redirect_url as text under the hero (functional, not cosmetic).
 
-  Backend: needs a PATCH/PUT /app-service/{id} endpoint (icon, color, app_name).
-  Today only register/verify/refresh exist (see aurora-app-services notes), so this
-  edit endpoint is forward-looking like the list/status endpoints there.
+  REDIRECT URL (added later): the SSO OAuth callback the app redirects to after login.
+  Was previously ONLY settable at register (RegisterAppServiceDialog) — no edit path.
+  Prod app_services were seeded with an EMPTY redirect_url, so admins need this to
+  set/change it. Tagged "SSO contract" (amber) to mark it as security-relevant, kept
+  distinct from the cosmetic icon/color pickers. Validates as an https:// URL.
+  The empty saved state is highlighted in amber in the preview ("No redirect URL set").
 
-  STATES MOCKED: default (dirty form, save enabled), pristine variant note,
-  long-name overflow handled by the preview tiles, and the locked app_code field.
+  Backend: needs a PATCH/PUT /app-service/{id} endpoint (app_name, redirect_url,
+  icon, color). Today only register/verify/refresh exist (see aurora-app-services
+  notes), so this edit endpoint is forward-looking like the list/status endpoints there.
+
+  STATES MOCKED: default opens DIRTY (admin typing a redirect URL into a previously-empty
+  field → dirty bar + preview flips out of empty state), pristine variant note, empty
+  redirect_url state (amber preview), long-name overflow handled by the preview tiles,
+  url-overflow ellipsis in the preview, and the locked app_code field.
 -->
 
 <!-- ====== Topbar shell (aurora AppShell/Topbar — App Services tab active) ====== -->
@@ -409,13 +441,13 @@
     <span class="sep">/</span>
     <a href="#">Medioa Cloud Storage</a>
     <span class="sep">/</span>
-    <span class="cur">Edit appearance</span>
+    <span class="cur">Edit settings</span>
   </div>
 
   <div class="page-head">
     <div>
       <h1>Edit App Service</h1>
-      <p class="page-sub">Set the icon and color used for <code>medioa</code> across tiles, chips, and the app detail header.</p>
+      <p class="page-sub">Update the display name, SSO redirect URL, and appearance (icon &amp; color) for <code>medioa</code>.</p>
     </div>
     <button class="btn btn-ghost" onclick="history.back()">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
@@ -432,7 +464,7 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3Z"/></svg>
         </div>
         <div class="sh-meta">
-          <div class="sh-title">Appearance &amp; identity</div>
+          <div class="sh-title">App settings &amp; appearance</div>
           <div class="sh-sub">app_id · <code style="color:var(--fg-soft);font-family:inherit;">app_medioa</code></div>
         </div>
       </div>
@@ -458,6 +490,25 @@
           </label>
         </div>
 
+        <!-- redirect_url — FUNCTIONAL/SECURITY field. The SSO OAuth callback the app
+             redirects to after login. Currently only set at register (RegisterAppServiceDialog);
+             this gives admins an edit path. Prod app_services were seeded with EMPTY redirect_url,
+             so the input mocks that empty starting state below the saved value note. -->
+        <div>
+          <span class="field-label">Redirect URL
+            <span class="field-tag">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              SSO contract
+            </span>
+          </span>
+          <label class="input-wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            <!-- on input: re-validate (must be https URL) + sync preview + dirty state -->
+            <input type="url" inputmode="url" class="url" id="f-redirect" value="" placeholder="https://app.example.com/auth/callback" oninput="syncPreview()" />
+          </label>
+          <div class="helper">OAuth callback the app redirects to after SSO login. Must be an <code>https://</code> URL registered in the app's SSO config — a mismatch here breaks the login round-trip.</div>
+        </div>
+
         <!-- ICON PICKER — 20-icon grid, exact aurora-rbac-roles styling -->
         <div>
           <span class="field-label">Icon <span class="opt" id="icon-hint">· pick from the shared icon set</span></span>
@@ -474,7 +525,7 @@
 
         <div class="note">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-          <span>Icon and color are stored on <code>app_service</code> as <code>icon</code> (string key) and <code>color</code> (palette key). They drive every rendered tile/chip — no more hashed gradients.</span>
+          <span><code>redirect_url</code> is part of the SSO contract (functional); <code>icon</code> (string key) and <code>color</code> (palette key) are appearance. All three are saved on <code>app_service</code> in one update — appearance drives every rendered tile/chip, redirect URL drives the login round-trip.</span>
         </div>
       </div>
 
@@ -485,7 +536,7 @@
         <span class="spacer"></span>
         <!-- on click: discard local edits, revert pickers to saved icon+color -->
         <button class="btn btn-ghost" onclick="discard()">Cancel</button>
-        <!-- on click: PATCH /app-service/{id} { app_name, icon, color } → toast + back to detail -->
+        <!-- on click: PATCH /app-service/{id} { app_name, redirect_url, icon, color } → toast + back to detail -->
         <button class="btn btn-primary" id="save-btn">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg>
           Save changes
@@ -506,6 +557,11 @@
             <div class="h-meta">
               <div class="h-name" id="pv-hero-name">Medioa Cloud Storage</div>
               <div class="h-code">medioa</div>
+              <!-- redirect URL shown as text (functional, not cosmetic) — empty state highlighted -->
+              <div class="pv-redirect">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                <span class="url empty" id="pv-redirect">No redirect URL set</span>
+              </div>
             </div>
           </div>
         </div>
@@ -600,9 +656,11 @@
     { key:'magenta', hex:'#EC4899', rgb:'236,72,153'  }
   ];
 
-  /* ===== saved (server) values + current selection ===== */
-  var SAVED = { name:'Medioa Cloud Storage', icon:'cloud', color:'violet' };
-  var sel = { name:SAVED.name, icon:SAVED.icon, color:SAVED.color };
+  /* ===== saved (server) values + current selection =====
+     redirect is empty here to mock the prod reality: app_services were seeded with an
+     EMPTY redirect_url and admins are using this edit path to set it for the first time. */
+  var SAVED = { name:'Medioa Cloud Storage', redirect:'', icon:'cloud', color:'violet' };
+  var sel = { name:SAVED.name, redirect:SAVED.redirect, icon:SAVED.icon, color:SAVED.color };
 
   function paletteOf(key){ return PALETTE.find(function(p){ return p.key === key; }) || PALETTE[0]; }
 
@@ -659,32 +717,40 @@
   }
   function syncPreview(){
     sel.name = document.getElementById('f-name').value || '—';
+    sel.redirect = document.getElementById('f-redirect').value.trim();
     ['pv-hero-tile','pv-row-tile','pv-chip-tile','pv-after-tile'].forEach(function(id){ applyTile(document.getElementById(id)); });
     document.getElementById('pv-hero-name').textContent = sel.name;
     document.getElementById('pv-row-name').textContent = sel.name;
     document.getElementById('pv-chip-name').textContent = sel.name;
 
-    // dirty-state + save enable
-    var dirty = sel.name !== SAVED.name || sel.icon !== SAVED.icon || sel.color !== SAVED.color;
+    // redirect URL preview text — empty state called out in amber (functional gap)
+    var rEl = document.getElementById('pv-redirect');
+    if (sel.redirect) { rEl.textContent = sel.redirect; rEl.classList.remove('empty'); }
+    else { rEl.textContent = 'No redirect URL set'; rEl.classList.add('empty'); }
+
+    // dirty-state + save enable — redirect participates in the same dirty check
+    var dirty = sel.name !== SAVED.name || sel.redirect !== SAVED.redirect || sel.icon !== SAVED.icon || sel.color !== SAVED.color;
     document.getElementById('dirty').style.visibility = dirty ? 'visible' : 'hidden';
     document.getElementById('save-btn').disabled = !dirty;
   }
 
   function discard(){
-    sel = { name:SAVED.name, icon:SAVED.icon, color:SAVED.color };
+    sel = { name:SAVED.name, redirect:SAVED.redirect, icon:SAVED.icon, color:SAVED.color };
     document.getElementById('f-name').value = SAVED.name;
+    document.getElementById('f-redirect').value = SAVED.redirect;
     pickIcon(SAVED.icon);
     pickColor(SAVED.color);
   }
 
-  /* init — preselect saved icon/color. Demo opens with a DIRTY edit (icon nudged
-     cloud→server, color violet→cyan would feel arbitrary) so the picker shows a
-     non-default selected state; instead we open clean but pre-highlight the saved
-     pair, then leave a sample dirty change visible: bump color to 'cyan'. */
+  /* init — preselect saved icon/color so pickers show their selected highlight. */
   pickIcon(SAVED.icon);
   pickColor(SAVED.color);
-  // show an in-progress edit so reviewers see selected highlight + dirty bar:
-  pickColor('cyan');
+  /* Demo opens DIRTY in the realistic scenario: the app_service has an EMPTY saved
+     redirect_url and the admin is typing one in for the first time. This shows the
+     redirect field driving the dirty bar + the preview flipping out of its empty state.
+     (Set f-redirect.value to '' to see the pristine seeded state instead.) */
+  document.getElementById('f-redirect').value = 'https://app.medioa.local/auth/callback';
+  syncPreview();
 </script>
 
 </body>

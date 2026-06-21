@@ -2,6 +2,7 @@ package models
 
 import (
 	"errors"
+	"net/url"
 
 	"github.com/vukyn/isme/internal/domains/app_service/constants"
 	roleConstants "github.com/vukyn/isme/internal/domains/role/constants"
@@ -162,21 +163,31 @@ func (r UpdateStatusRequest) Validate() error {
 	return nil
 }
 
-// UpdateAppearanceRequest is a partial update of an app service's display
-// fields. All fields are optional pointers; nil means "leave unchanged". At
-// least one field must be present.
+// UpdateAppearanceRequest is a partial update of an app service's display and
+// SSO-contract fields. All fields are optional pointers; nil means "leave
+// unchanged". At least one field must be present.
 type UpdateAppearanceRequest struct {
-	AppName *string `json:"app_name"`
-	Icon    *string `json:"icon"`
-	Color   *string `json:"color"`
+	AppName     *string `json:"app_name"`
+	RedirectURL *string `json:"redirect_url"`
+	Icon        *string `json:"icon"`
+	Color       *string `json:"color"`
 }
 
 func (r UpdateAppearanceRequest) Validate() error {
-	if r.AppName == nil && r.Icon == nil && r.Color == nil {
+	if r.AppName == nil && r.RedirectURL == nil && r.Icon == nil && r.Color == nil {
 		return errors.New("at least one field is required")
 	}
 	if r.AppName != nil && *r.AppName == "" {
 		return errors.New("app_name must not be empty")
+	}
+	// redirect_url is part of the SSO contract. An empty string is allowed to
+	// clear it (prod app_services were seeded empty); a non-empty value must be
+	// a valid absolute URL.
+	if r.RedirectURL != nil && *r.RedirectURL != "" {
+		parsed, err := url.ParseRequestURI(*r.RedirectURL)
+		if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+			return errors.New("redirect_url must be a valid URL")
+		}
 	}
 	if r.Icon != nil && !roleConstants.IsValidIcon(*r.Icon) {
 		return errors.New("icon is not a known icon key")

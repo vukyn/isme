@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Box, Button, Center, Flex, Grid, Heading, HStack, Input, Spinner, Stack, Text } from "@chakra-ui/react";
-import { LuArrowLeft, LuArrowRight, LuInfo, LuLock, LuPencil, LuSave } from "react-icons/lu";
+import { Box, Button, Center, Field, Flex, Grid, Heading, HStack, Input, Spinner, Stack, Text } from "@chakra-ui/react";
+import { LuArrowLeft, LuArrowRight, LuInfo, LuLink2, LuLock, LuPencil, LuSave } from "react-icons/lu";
 import { getAppService, updateAppServiceAppearance } from "@/apis";
 import { AppTile } from "@/components/AppTile";
 import { ColorSwatchPicker } from "@/components/ColorSwatchPicker";
@@ -44,6 +44,20 @@ const FIELD_LABEL_PROPS = {
 	mb: "8px",
 } as const;
 
+// Mirrors RegisterAppServiceDialog INPUT_PROPS so the redirect URL field is
+// visually identical to the create-time field.
+const INPUT_PROPS = {
+	h: "11",
+	borderRadius: "glassSm",
+	bg: "bg.glass",
+	borderColor: "border.strong",
+	fontSize: "sm",
+	color: "fg",
+	_placeholder: { color: "fg.muted" },
+	_hover: { borderColor: "rgba(255,255,255,0.28)" },
+	_focus: { borderColor: "aurora.violet", boxShadow: "focusRing", outline: "none", bg: "rgba(255,255,255,0.08)" },
+} as const;
+
 const PV_CAP_PROPS = {
 	fontSize: "11px",
 	fontWeight: "semibold",
@@ -65,9 +79,11 @@ export const EditAppService = () => {
 
 	// saved (server) values vs. local edits
 	const [savedName, setSavedName] = useState("");
+	const [savedRedirect, setSavedRedirect] = useState("");
 	const [savedIcon, setSavedIcon] = useState("");
 	const [savedColor, setSavedColor] = useState("");
 	const [name, setName] = useState("");
+	const [redirect, setRedirect] = useState("");
 	const [icon, setIcon] = useState("");
 	const [color, setColor] = useState("");
 
@@ -86,9 +102,11 @@ export const EditAppService = () => {
 				}
 				setApp(data);
 				setSavedName(data.app_name);
+				setSavedRedirect(data.redirect_url ?? "");
 				setSavedIcon(data.icon);
 				setSavedColor(data.color);
 				setName(data.app_name);
+				setRedirect(data.redirect_url ?? "");
 				setIcon(data.icon);
 				setColor(data.color);
 			})
@@ -103,11 +121,12 @@ export const EditAppService = () => {
 		};
 	}, [id, navigate]);
 
-	const dirty = name !== savedName || icon !== savedIcon || color !== savedColor;
+	const dirty = name !== savedName || redirect !== savedRedirect || icon !== savedIcon || color !== savedColor;
 	const colorHex = useMemo(() => (color && color in APP_COLORS ? APP_COLORS[color as keyof typeof APP_COLORS].hex : ""), [color]);
 
 	const discard = () => {
 		setName(savedName);
+		setRedirect(savedRedirect);
 		setIcon(savedIcon);
 		setColor(savedColor);
 	};
@@ -118,6 +137,7 @@ export const EditAppService = () => {
 		try {
 			await updateAppServiceAppearance(app.id, {
 				app_name: name !== savedName ? name : undefined,
+				redirect_url: redirect !== savedRedirect ? redirect : undefined,
 				icon: icon !== savedIcon ? icon : undefined,
 				color: color !== savedColor ? color : undefined,
 			});
@@ -144,7 +164,7 @@ export const EditAppService = () => {
 				<Text opacity="0.5">/</Text>
 				<Text color="fg.subtle">{app ? app.app_name : "…"}</Text>
 				<Text opacity="0.5">/</Text>
-				<Text color="fg.subtle">Edit appearance</Text>
+				<Text color="fg.subtle">Edit settings</Text>
 			</HStack>
 
 			{/* page head */}
@@ -154,11 +174,11 @@ export const EditAppService = () => {
 						Edit App Service
 					</Heading>
 					<Text mt="6px" color="fg.muted" fontSize="14px">
-						Set the icon and color used for{" "}
+						Update the display name, SSO redirect URL, and appearance (icon &amp; color) for{" "}
 						<Text as="code" color="fg.subtle" fontFamily="inherit">
 							{app?.app_code || "…"}
-						</Text>{" "}
-						across tiles, chips, and the app detail header.
+						</Text>
+						.
 					</Text>
 				</Box>
 				<Button h="11" px="4.5" fontSize="sm" {...GHOST_BUTTON_PROPS} onClick={() => navigate("/app-services")}>
@@ -194,7 +214,7 @@ export const EditAppService = () => {
 							</Center>
 							<Box lineHeight="1.25">
 								<Text fontSize="15px" fontWeight="semibold">
-									Appearance &amp; identity
+									App settings &amp; appearance
 								</Text>
 								<Text fontSize="12px" color="fg.muted">
 									app_id ·{" "}
@@ -279,6 +299,53 @@ export const EditAppService = () => {
 								</HStack>
 							</Box>
 
+							{/* redirect_url — FUNCTIONAL/SECURITY field (SSO contract) */}
+							<Field.Root>
+								<Field.Label {...FIELD_LABEL_PROPS} mb="0">
+									Redirect URL
+									<HStack
+										as="span"
+										display="inline-flex"
+										gap="5px"
+										ml="8px"
+										px="8px"
+										py="1px"
+										borderRadius="full"
+										fontSize="11px"
+										fontWeight="semibold"
+										letterSpacing="0.02em"
+										color="aurora.amber"
+										bg="rgba(245,158,11,0.12)"
+										borderWidth="1px"
+										borderColor="rgba(245,158,11,0.32)"
+										verticalAlign="middle"
+									>
+										<LuLock size={11} /> SSO contract
+									</HStack>
+								</Field.Label>
+								<Box w="full" position="relative" mt="8px" css={{ "&:focus-within .field-icon": { color: "#22D3EE" } }}>
+									<Box className="field-icon" position="absolute" left="3.5" top="3.5" color="fg.muted" pointerEvents="none" zIndex="1">
+										<LuLink2 size={16} />
+									</Box>
+									<Input
+										{...INPUT_PROPS}
+										pl="10"
+										type="url"
+										inputMode="url"
+										placeholder="https://app.example.com/auth/callback"
+										value={redirect}
+										onChange={(event) => setRedirect(event.target.value)}
+									/>
+								</Box>
+								<Field.HelperText mt="8px" fontSize="12px" color="fg.muted">
+									OAuth callback the app redirects to after SSO login. Must be an{" "}
+									<Text as="code" color="fg.subtle" fontFamily="inherit">
+										https://
+									</Text>{" "}
+									URL — a mismatch breaks the login round-trip. Leave empty to clear.
+								</Field.HelperText>
+							</Field.Root>
+
 							{/* ICON PICKER — 20-icon grid */}
 							<Box>
 								<Text {...FIELD_LABEL_PROPS}>
@@ -337,11 +404,10 @@ export const EditAppService = () => {
 									<LuInfo size={15} />
 								</Box>
 								<Box>
-									Icon and color are stored on{" "}
 									<Text as="code" color="fg.subtle" fontFamily="inherit">
-										app_service
+										redirect_url
 									</Text>{" "}
-									as{" "}
+									is part of the SSO contract (functional);{" "}
 									<Text as="code" color="fg.subtle" fontFamily="inherit">
 										icon
 									</Text>{" "}
@@ -349,7 +415,11 @@ export const EditAppService = () => {
 									<Text as="code" color="fg.subtle" fontFamily="inherit">
 										color
 									</Text>{" "}
-									(palette key). They drive every rendered tile/chip — no more hashed gradients.
+									(palette key) are appearance. All are saved on{" "}
+									<Text as="code" color="fg.subtle" fontFamily="inherit">
+										app_service
+									</Text>{" "}
+									in one update — appearance drives every rendered tile/chip, redirect URL drives the login round-trip.
 								</Box>
 							</HStack>
 						</Stack>
@@ -403,6 +473,21 @@ export const EditAppService = () => {
 										<Text fontSize="12px" color="fg.muted" css={{ fontVariantNumeric: "tabular-nums" }}>
 											{app.app_code}
 										</Text>
+										{/* redirect URL as functional text — empty state called out in amber */}
+										<HStack gap="7px" mt="4px" fontSize="11px" minW="0">
+											<Box color="aurora.amber" flex="none">
+												<LuLink2 size={12} />
+											</Box>
+											{redirect.trim() ? (
+												<Text color="fg.subtle" truncate maxW="220px" css={{ fontVariantNumeric: "tabular-nums" }}>
+													{redirect.trim()}
+												</Text>
+											) : (
+												<Text color="aurora.amber" fontStyle="italic" truncate>
+													No redirect URL set
+												</Text>
+											)}
+										</HStack>
 									</Box>
 								</HStack>
 							</Stack>

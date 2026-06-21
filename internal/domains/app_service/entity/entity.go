@@ -38,11 +38,12 @@ type CreateRequest struct {
 }
 
 type UpdateRequest struct {
-	ID        string
-	AppName   *string
-	AppSecret *string
-	Icon      *string
-	Color     *string
+	ID          string
+	AppName     *string
+	AppSecret   *string
+	RedirectURL *string
+	Icon        *string
+	Color       *string
 }
 
 // === Hooks ===
