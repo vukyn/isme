@@ -376,9 +376,10 @@ func (u *usecase) UpdateAppearance(ctx context.Context, id string, req models.Up
 	}
 
 	return u.appServiceRepo.Update(ctx, entity.UpdateRequest{
-		ID:      id,
-		AppName: req.AppName,
-		Icon:    req.Icon,
-		Color:   req.Color,
+		ID:          id,
+		AppName:     req.AppName,
+		RedirectURL: req.RedirectURL,
+		Icon:        req.Icon,
+		Color:       req.Color,
 	})
 }

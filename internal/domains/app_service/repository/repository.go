@@ -129,6 +129,11 @@ func (r *repository) Update(ctx context.Context, req entity.UpdateRequest) error
 		fields = append(fields, "app_name")
 	}
 
+	if req.RedirectURL != nil {
+		appService.RedirectURL = *req.RedirectURL
+		fields = append(fields, "redirect_url")
+	}
+
 	if req.Icon != nil {
 		appService.Icon = *req.Icon
 		fields = append(fields, "icon")

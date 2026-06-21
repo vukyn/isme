@@ -63,10 +63,13 @@ export interface RegisterAppServiceRequest {
 
 /**
  * Maps to models.UpdateAppearanceRequest (PATCH /api/v1/app-service/:id).
- * Partial update — only the provided fields change.
+ * Partial update — only the provided fields change. redirect_url is the SSO
+ * contract callback; an empty string clears it, a non-empty value must be a
+ * valid URL.
  */
 export interface UpdateAppServiceAppearanceRequest {
 	app_name?: string;
+	redirect_url?: string;
 	icon?: string;
 	color?: string;
 }
