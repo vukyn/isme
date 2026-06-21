@@ -12,7 +12,7 @@ COPY ui/ ./
 RUN npm run build            # outputs ui/dist
 
 # ---- Stage 2: build the Go binary (with embedded UI) ----
-FROM golang:1.25 AS builder
+FROM golang:1.26.4 AS builder
 WORKDIR /app
 # Cache modules on go.mod/go.sum
 COPY go.mod go.sum ./
