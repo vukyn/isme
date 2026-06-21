@@ -36,4 +36,5 @@ var Migrations = []pkgMigrate.Migration{
 	m027SeedActivityCleanupSchedule,
 	m028AddUserAvatarURL,
 	m029SeedDatabaseBackupSchedule,
+	m030FixBoolColumnsPg,
 }

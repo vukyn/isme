@@ -23,7 +23,9 @@ import (
 // dump (`sqlite3 db/app.db .schema`); the Postgres branch applies the documented
 // dialect translation rules (DATETIME -> TIMESTAMPTZ, INTEGER PK AUTOINCREMENT ->
 // BIGINT GENERATED ALWAYS AS IDENTITY, IFNULL -> COALESCE, INSERT OR IGNORE ->
-// ON CONFLICT DO NOTHING; boolean-ish INTEGER flags and JSON-as-TEXT stay as-is).
+// ON CONFLICT DO NOTHING; INTEGER flags whose Go entity field is a bool
+// — is_verified / is_system / enabled — become native BOOLEAN so bun's pgdialect
+// (which emits TRUE/FALSE for Go bool) round-trips them; JSON-as-TEXT stays as-is).
 // The user_sessions time columns are declared TEXT/TIMESTAMP in SQLite but the
 // Go entity fields are time.Time, so the Postgres branch declares them
 // TIMESTAMPTZ for correct bun round-tripping.
@@ -228,7 +230,7 @@ func baselinePostgresStatements() []string {
 			updated_by TEXT DEFAULT '',
 			deleted_at TIMESTAMPTZ,
 			deleted_by TEXT DEFAULT '',
-			is_verified INTEGER NOT NULL DEFAULT 0,
+			is_verified BOOLEAN NOT NULL DEFAULT FALSE,
 			avatar_url TEXT
 		)`,
 		// user_sessions: expires_at / last_login_at / created_at are declared
@@ -296,7 +298,7 @@ func baselinePostgresStatements() []string {
 			code TEXT NOT NULL,
 			name TEXT NOT NULL,
 			description TEXT DEFAULT '',
-			is_system INTEGER NOT NULL DEFAULT 0,
+			is_system BOOLEAN NOT NULL DEFAULT FALSE,
 			created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
 			created_by TEXT DEFAULT '',
 			updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
@@ -345,7 +347,7 @@ func baselinePostgresStatements() []string {
 		)`,
 		`CREATE TABLE IF NOT EXISTS schedule_config (
 			job_key TEXT PRIMARY KEY,
-			enabled INTEGER NOT NULL DEFAULT 0,
+			enabled BOOLEAN NOT NULL DEFAULT FALSE,
 			cron TEXT NOT NULL,
 			params TEXT NOT NULL DEFAULT '{}',
 			last_run_at TIMESTAMPTZ,
@@ -459,7 +461,7 @@ func baselineSeed(ctx context.Context, db bun.IDB) error {
 	// roles
 	roleSQL := `INSERT OR IGNORE INTO roles (id, code, name, description, is_system) VALUES (?, ?, ?, ?, 1)`
 	if pg {
-		roleSQL = `INSERT INTO roles (id, code, name, description, is_system) VALUES (?, ?, ?, ?, 1) ON CONFLICT (id) DO NOTHING`
+		roleSQL = `INSERT INTO roles (id, code, name, description, is_system) VALUES (?, ?, ?, ?, TRUE) ON CONFLICT (id) DO NOTHING`
 	}
 	for _, role := range baselineSystemRoles {
 		if _, err := db.ExecContext(ctx, roleSQL, role.id, role.code, role.name, role.description); err != nil {
@@ -517,7 +519,7 @@ func baselineSeed(ctx context.Context, db bun.IDB) error {
 	// schedule_config job rows (migrations 025/027/029)
 	scheduleSQL := `INSERT OR IGNORE INTO schedule_config (job_key, enabled, cron, params) VALUES (?, 0, ?, ?)`
 	if pg {
-		scheduleSQL = `INSERT INTO schedule_config (job_key, enabled, cron, params) VALUES (?, 0, ?, ?) ON CONFLICT (job_key) DO NOTHING`
+		scheduleSQL = `INSERT INTO schedule_config (job_key, enabled, cron, params) VALUES (?, FALSE, ?, ?) ON CONFLICT (job_key) DO NOTHING`
 	}
 	for _, job := range baselineScheduleJobs {
 		if _, err := db.ExecContext(ctx, scheduleSQL, job.jobKey, job.cron, job.params); err != nil {
