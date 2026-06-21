@@ -557,7 +557,11 @@ func (r *repository) ListMembers(ctx context.Context, roleID string, req models.
 			Where("ur.role_id = ?", roleID)
 		if req.Query != "" {
 			search := "%" + req.Query + "%"
-			query = query.Where("(usr.name LIKE ? OR usr.email LIKE ?)", search, search)
+			// dialect-aware case-insensitive match (ILIKE on Postgres, LIKE on SQLite)
+			query = query.Where(
+				"("+pkgBunQuery.ILike(r.db, "usr.name")+" OR "+pkgBunQuery.ILike(r.db, "usr.email")+")",
+				search, search,
+			)
 		}
 		return query
 	}

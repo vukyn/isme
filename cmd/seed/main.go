@@ -18,15 +18,14 @@ import (
 	"github.com/vukyn/isme/internal/config"
 
 	"github.com/uptrace/bun"
-	"github.com/uptrace/bun/dialect/sqlitedialect"
-	"github.com/uptrace/bun/driver/sqliteshim"
+	"github.com/uptrace/bun/dialect"
+	kueryDb "github.com/vukyn/kuery/bun/db"
 	"github.com/vukyn/kuery/cryp"
 	"github.com/vukyn/kuery/cryp/aes"
 	"github.com/vukyn/kuery/cryp/rand"
 )
 
 const (
-	dbPath      = "db/app.db"
 	// created_by/updated_by are left empty to match the migration-seeded system
 	// rows (app_isme, system roles). A non-empty marker like "seed" would point
 	// app_service/role list endpoints at a non-existent user → GetByID 500.
@@ -56,6 +55,23 @@ type appSeed struct {
 	icons       map[string]string // resource -> icon key (per-resource icon, migration 019)
 }
 
+// isPostgres reports whether the bun DB targets Postgres (vs SQLite).
+func isPostgres(db *bun.DB) bool {
+	return db.Dialect().Name() == dialect.PG
+}
+
+// insertIgnore renders a dialect-aware idempotent insert. On SQLite it uses
+// `INSERT OR IGNORE INTO`; on Postgres it uses `INSERT INTO ... ON CONFLICT
+// (<conflictCols>) DO NOTHING`. body is the `<table> (cols) VALUES (...)` part
+// (without the leading INSERT keyword). conflictCols is the conflict target for
+// Postgres (e.g. "code, action" or "id"); ignored on SQLite.
+func insertIgnore(db *bun.DB, body, conflictCols string) string {
+	if isPostgres(db) {
+		return "INSERT INTO " + body + " ON CONFLICT (" + conflictCols + ") DO NOTHING"
+	}
+	return "INSERT OR IGNORE INTO " + body
+}
+
 func crud(resources ...string) []permission {
 	out := []permission{}
 	for _, r := range resources {
@@ -75,12 +91,23 @@ func main() {
 		log.Fatal("AES_SECRET is empty — cannot encrypt app secrets")
 	}
 
-	sqldb, err := sql.Open(sqliteshim.ShimName, dbPath)
+	// Dialect-aware open driven by the same config the app uses: DB_DRIVER=postgres
+	// targets Postgres, otherwise SQLite (default). Mirrors internal/di/di_db.go.
+	db, err := kueryDb.Open(kueryDb.Config{
+		Driver:      kueryDb.Driver(cfg.DB.Driver),
+		SQLitePath:  cfg.DB.SQLitePath,
+		PostgresDSN: cfg.DB.DSN,
+		Host:        cfg.DB.Host,
+		Port:        cfg.DB.Port,
+		User:        cfg.DB.User,
+		Password:    cfg.DB.Password,
+		DBName:      cfg.DB.DBName,
+		SSLMode:     cfg.DB.SSLMode,
+	})
 	if err != nil {
 		log.Fatalf("open db: %v", err)
 	}
-	defer sqldb.Close()
-	db := bun.NewDB(sqldb, sqlitedialect.New())
+	defer db.Close()
 	ctx := context.Background()
 
 	// --- admin users (per-app: each admin owns its namesake app) ---
@@ -279,11 +306,14 @@ func ensureAppService(ctx context.Context, db *bun.DB, aesSecret string, a appSe
 	if err != nil {
 		return "", false, fmt.Errorf("encrypt app_secret: %w", err)
 	}
-	_, err = db.ExecContext(ctx, `
-		INSERT INTO app_services
+	// Guard the insert with ON CONFLICT DO NOTHING (app_code is UNIQUE) so a
+	// re-run can't violate the constraint even though the SELECT above already
+	// returned ErrNoRows for this code.
+	_, err = db.ExecContext(ctx, insertIgnore(db,
+		`app_services
 			(id, app_code, app_name, app_secret, redirect_url, ctx_info, status, icon, color, created_by, updated_by)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, a.id, a.code, a.name, encrypted, a.redirectURL, appCtxInfo, statusActive, a.icon, a.color, seedActor, seedActor)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, "app_code"),
+		a.id, a.code, a.name, encrypted, a.redirectURL, appCtxInfo, statusActive, a.icon, a.color, seedActor, seedActor)
 	if err != nil {
 		return "", false, err
 	}
@@ -303,10 +333,10 @@ func ensureRole(ctx context.Context, db *bun.DB, id, appID, code, name, descript
 	if isSystem {
 		systemFlag = 1
 	}
-	_, err := db.ExecContext(ctx, `
-		INSERT OR IGNORE INTO roles (id, app_id, code, name, description, is_system, created_by, updated_by)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-	`, id, appID, code, name, description, systemFlag, seedActor, seedActor)
+	_, err := db.ExecContext(ctx, insertIgnore(db,
+		`roles (id, app_id, code, name, description, is_system, created_by, updated_by)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, "id"),
+		id, appID, code, name, description, systemFlag, seedActor, seedActor)
 	return err
 }
 
@@ -315,7 +345,7 @@ func seedPermsAndGrant(ctx context.Context, db *bun.DB, appID, roleID string, pe
 	granted := 0
 	for _, p := range perms {
 		if _, err := db.ExecContext(ctx,
-			`INSERT OR IGNORE INTO permissions (app_id, resource, action) VALUES (?, ?, ?)`,
+			insertIgnore(db, `permissions (app_id, resource, action) VALUES (?, ?, ?)`, "app_id, resource, action"),
 			appID, p.resource, p.action); err != nil {
 			return granted, err
 		}
@@ -326,7 +356,7 @@ func seedPermsAndGrant(ctx context.Context, db *bun.DB, appID, roleID string, pe
 			return granted, err
 		}
 		if _, err := db.ExecContext(ctx,
-			`INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)`,
+			insertIgnore(db, `role_permissions (role_id, permission_id) VALUES (?, ?)`, "role_id, permission_id"),
 			roleID, permID); err != nil {
 			return granted, err
 		}
@@ -341,9 +371,12 @@ func assignRole(ctx context.Context, db *bun.DB, userID, roleID, appServiceID st
 	if userID == "" {
 		return fmt.Errorf("empty user id")
 	}
-	_, err := db.ExecContext(ctx, `
-		INSERT OR IGNORE INTO user_roles (id, user_id, role_id, app_service_id, created_by)
-		VALUES (?, ?, ?, ?, ?)
-	`, cryp.ULID(), userID, roleID, appServiceID, seedActor)
+	// The idempotency key is the unique index (user_id, role_id,
+	// COALESCE(app_service_id, '')) from migration 009; the seeder always passes a
+	// concrete app_service_id, so the conflict target matches that expression index.
+	_, err := db.ExecContext(ctx, insertIgnore(db,
+		`user_roles (id, user_id, role_id, app_service_id, created_by)
+		VALUES (?, ?, ?, ?, ?)`, "user_id, role_id, COALESCE(app_service_id, '')"),
+		cryp.ULID(), userID, roleID, appServiceID, seedActor)
 	return err
 }

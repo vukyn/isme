@@ -1,16 +1,13 @@
 package di
 
 import (
-	"database/sql"
-
-	"github.com/vukyn/isme/internal/constants"
-	pkgBunHooks "github.com/vukyn/kuery/bun/hooks"
-
 	"github.com/sarulabs/di/v2"
 	"github.com/uptrace/bun"
-	"github.com/uptrace/bun/dialect/sqlitedialect"
-	"github.com/uptrace/bun/driver/sqliteshim"
+	kueryDb "github.com/vukyn/kuery/bun/db"
+	pkgBunHooks "github.com/vukyn/kuery/bun/hooks"
 	"github.com/vukyn/kuery/log"
+
+	"github.com/vukyn/isme/internal/constants"
 )
 
 func defineDB() *di.Def {
@@ -18,15 +15,32 @@ func defineDB() *di.Def {
 		Name:  constants.CONTAINER_NAME_DB,
 		Scope: di.App,
 		Build: func(ctn di.Container) (any, error) {
-			// Open database connection
-			// Database file path
-			dbPath := constants.DB_FILE_PATH
-			sqldb, err := sql.Open(sqliteshim.ShimName, dbPath)
+			cfg := GetConfig(ctn)
+
+			// Build the dialect-aware connection config from cfg.DB. SQLite stays
+			// the default; Postgres is selected via DB_DRIVER=postgres. The pragma
+			// is left empty so kuery applies the shared default isme pragma.
+			db, err := kueryDb.Open(kueryDb.Config{
+				Driver:      kueryDb.Driver(cfg.DB.Driver),
+				SQLitePath:  cfg.DB.SQLitePath,
+				PostgresDSN: cfg.DB.DSN,
+				Host:        cfg.DB.Host,
+				Port:        cfg.DB.Port,
+				User:        cfg.DB.User,
+				Password:    cfg.DB.Password,
+				DBName:      cfg.DB.DBName,
+				SSLMode:     cfg.DB.SSLMode,
+			})
 			if err != nil {
-				panic(err)
+				return nil, err
 			}
-			db := bun.NewDB(sqldb, sqlitedialect.New())
-			log.New().Infof("Database initialized with file-based SQLite at %s", dbPath)
+
+			driver := cfg.DB.Driver
+			if driver == "" {
+				driver = string(kueryDb.DriverSQLite)
+			}
+			log.New().Infof("Database initialized with driver %q", driver)
+
 			db.AddQueryHook(pkgBunHooks.NewQueryHook(log.New()))
 			return db, nil
 		},

@@ -1,0 +1,23 @@
+# Local dev infra only — spins up a Postgres for DB_DRIVER=postgres. Not for production; isme itself still runs via `make run`.
+# NOTE: host port 5433 (rainy already uses 5432) so both services' local Postgres can run side by side.
+services:
+  postgres:
+    image: postgres:16
+    container_name: isme-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-isme}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-isme}
+      POSTGRES_DB: ${DB_NAME:-isme}
+    ports:
+      - "${DB_PORT:-5433}:5432"
+    volumes:
+      - isme-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  isme-pgdata:

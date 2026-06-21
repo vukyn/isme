@@ -29,11 +29,23 @@ type Config struct {
 		ExternalExchangeCodeTTL int    `envconfig:"AUTH_EXTERNAL_EXCHANGE_CODE_TTL"`
 	}
 	DB struct {
+		// Driver selects the backend: "sqlite" (default) or "postgres". SQLite
+		// stays the default so existing .env/prod is unaffected.
+		Driver string `envconfig:"DB_DRIVER" default:"sqlite"`
+		// SQLitePath is the SQLite file path (sqlite driver only).
+		SQLitePath string `envconfig:"DB_SQLITE_PATH" default:"db/app.db"`
+		// Host/Port/User/Password/DBName are the Postgres connection fields,
+		// used when Driver=postgres and DSN is empty.
 		Host     string `envconfig:"DB_HOST"`
 		Port     int    `envconfig:"DB_PORT"`
 		User     string `envconfig:"DB_USER"`
 		Password string `envconfig:"DB_PASSWORD"`
 		DBName   string `envconfig:"DB_NAME"`
+		// SSLMode is the Postgres sslmode (default "disable").
+		SSLMode string `envconfig:"DB_SSLMODE" default:"disable"`
+		// DSN is an optional full Postgres DSN override; when set it takes
+		// precedence over the discrete Host/Port/... fields.
+		DSN string `envconfig:"DB_DSN" default:""`
 	}
 	Graceful struct {
 		Verbose               bool `envconfig:"GRACEFUL_VERBOSE"`

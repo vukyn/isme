@@ -4,11 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"strings"
 
 	"github.com/vukyn/isme/internal/domains/app_service/entity"
 	"github.com/vukyn/isme/internal/domains/app_service/models"
 
+	pkgBunQuery "github.com/vukyn/kuery/bun/query"
 	pkgCtx "github.com/vukyn/kuery/ctx"
 	pkgErr "github.com/vukyn/kuery/http/errors"
 
@@ -161,10 +161,14 @@ func (r *repository) List(ctx context.Context, req models.ListRequest) ([]entity
 	query := r.db.NewSelect().
 		Model((*entity.AppService)(nil))
 
-	// Apply search filter (LOWER + LIKE for SQLite compatibility)
+	// Apply search filter (dialect-aware case-insensitive match; LowerLike folds
+	// both column and pattern to lower case, so pass the raw pattern).
 	if req.Search != "" {
-		pattern := "%" + strings.ToLower(req.Search) + "%"
-		query = query.Where("(LOWER(app_name) LIKE ? OR LOWER(app_code) LIKE ?)", pattern, pattern)
+		pattern := "%" + req.Search + "%"
+		query = query.Where(
+			"("+pkgBunQuery.LowerLike("app_name")+" OR "+pkgBunQuery.LowerLike("app_code")+")",
+			pattern, pattern,
+		)
 	}
 
 	// Apply status filter (only if status is set and non-zero)
