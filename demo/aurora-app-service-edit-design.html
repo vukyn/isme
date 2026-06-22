@@ -224,6 +224,58 @@
   /* monospace-ish url input + clear button */
   .input-wrap input.url { font-variant-numeric: tabular-nums; letter-spacing: -0.005em; }
 
+  /* ====== ADDITIONAL REDIRECT URLs (allowlist) ======
+     A list of extra permitted callback URLs below the primary redirect_url.
+     Each row reuses .input-wrap styling + the same link glyph, plus a remove (×)
+     button. Capped at 10 entries. "+ Add redirect URL" appends a blank row. */
+  .url-list { display: grid; gap: 10px; }
+  .url-row { display: flex; align-items: center; gap: 8px; }
+  .url-row .input-wrap { flex: 1; min-width: 0; }
+  /* remove button — sibling of the .qa quick-action used in the list mock, danger hue */
+  .url-remove {
+    width: 44px; height: 44px; flex: 0 0 auto; border-radius: var(--radius-sm);
+    display: grid; place-items: center; cursor: pointer;
+    background: var(--glass); border: 1px solid var(--border-strong);
+    color: var(--fg-mute); backdrop-filter: blur(12px);
+    transition: all .15s var(--easing);
+  }
+  .url-remove:hover { color: var(--c-magenta); border-color: rgba(236,72,153,0.40); background: rgba(236,72,153,0.12); }
+  .url-remove:focus-visible { outline: 0; box-shadow: 0 0 0 3px rgba(236,72,153,0.30); }
+  /* "+ Add redirect URL" — dashed ghost row, disabled at the 10-URL cap */
+  .url-add {
+    display: inline-flex; align-items: center; gap: 9px;
+    height: 40px; padding: 0 14px; border-radius: var(--radius-sm);
+    border: 1px dashed var(--border-strong); background: rgba(7,7,26,0.30);
+    color: var(--fg-soft); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+    transition: all .15s var(--easing); width: fit-content;
+  }
+  .url-add:hover:not(:disabled) { color: var(--fg); border-color: var(--c-violet); background: rgba(139,92,246,0.10); }
+  .url-add:focus-visible { outline: 0; box-shadow: 0 0 0 3px rgba(139,92,246,0.25); }
+  .url-add:disabled { opacity: 0.40; cursor: not-allowed; }
+  .url-add svg { width: 15px; height: 15px; }
+  /* empty state — no additional URLs yet */
+  .url-empty {
+    font-size: 12px; color: var(--fg-mute); font-style: italic;
+    padding: 4px 2px;
+  }
+  /* counter chip next to the section label */
+  .url-count {
+    margin-left: 8px; font-size: 11px; font-weight: 600;
+    color: var(--fg-mute); font-variant-numeric: tabular-nums;
+  }
+  .url-count.full { color: var(--c-amber); }
+  /* preview: additional-URL lines under the hero redirect */
+  .pv-extra {
+    display: flex; align-items: center; gap: 7px; margin-top: 3px;
+    font-size: 11px; color: var(--fg-mute);
+  }
+  .pv-extra svg { width: 11px; height: 11px; flex: 0 0 auto; color: var(--fg-mute); }
+  .pv-extra .url {
+    color: var(--fg-soft); font-variant-numeric: tabular-nums;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px;
+  }
+  .pv-extra-more { font-size: 11px; color: var(--c-cyan); font-weight: 600; margin-top: 3px; }
+
   /* ====== ICON PICKER — exact reuse of aurora-rbac-roles .iconpick-grid / .icon-opt ====== */
   .iconpick-grid {
     display: grid; grid-template-columns: repeat(auto-fill, 38px); gap: 8px; justify-content: start;
@@ -395,9 +447,18 @@
   distinct from the cosmetic icon/color pickers. Validates as an https:// URL.
   The empty saved state is highlighted in amber in the preview ("No redirect URL set").
 
+  ADDITIONAL REDIRECT URLs (added later): an OAuth-style ALLOWLIST of extra permitted
+  callback URLs. The primary redirect_url above stays the PRIMARY/default callback; this
+  section manages additional URLs the SSO client may ALSO redirect to after login. Capped
+  at 10. Add/remove rows; the "+ Add redirect URL" button disables at the cap. Each row
+  reuses the primary field's .input-wrap + link glyph, plus a remove (×) button. Stored as
+  a redirect_urls string list on app_service (separate from the single redirect_url).
+  Mocked with 2 populated rows; the preview rail lists up to 2 then "+N more".
+
   Backend: needs a PATCH/PUT /app-service/{id} endpoint (app_name, redirect_url,
-  icon, color). Today only register/verify/refresh exist (see aurora-app-services
-  notes), so this edit endpoint is forward-looking like the list/status endpoints there.
+  redirect_urls[], icon, color). Today only register/verify/refresh exist (see
+  aurora-app-services notes), so this edit endpoint is forward-looking like the
+  list/status endpoints there.
 
   STATES MOCKED: default opens DIRTY (admin typing a redirect URL into a previously-empty
   field → dirty bar + preview flips out of empty state), pristine variant note, empty
@@ -509,6 +570,35 @@
           <div class="helper">OAuth callback the app redirects to after SSO login. Must be an <code>https://</code> URL registered in the app's SSO config — a mismatch here breaks the login round-trip.</div>
         </div>
 
+        <!-- ADDITIONAL REDIRECT URLs — OAuth-style allowlist of EXTRA permitted callbacks.
+             The primary redirect_url above stays the default/PRIMARY callback; these are
+             additional URLs the SSO client may also redirect to after login. Capped at 10.
+             Each row = .input-wrap (same link glyph as the primary field) + a remove (×) button.
+             "+ Add redirect URL" appends a blank row; the button disables at the cap.
+             Mocked with 2 populated rows + 1 blank/just-added row to show all states. -->
+        <div>
+          <span class="field-label">Additional redirect URLs
+            <span class="field-tag">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              SSO contract
+            </span>
+            <span class="url-count" id="url-count">2 / 3</span>
+          </span>
+
+          <div class="url-list" id="url-list"><!-- rows injected by JS; populated examples below --></div>
+
+          <!-- shown only when the list is empty -->
+          <div class="url-empty hidden" id="url-empty">No additional URLs — this app may only redirect to the primary URL above.</div>
+
+          <!-- on click: append a blank row + refocus it; disabled once 10 rows exist -->
+          <button type="button" class="url-add" id="url-add-btn" style="margin-top:10px;" onclick="addUrl()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+            Add redirect URL
+          </button>
+
+          <div class="helper">Extra callback URLs this app may redirect to after login. Each must be an <code>https://</code> URL. <b>Max 3.</b></div>
+        </div>
+
         <!-- ICON PICKER — 20-icon grid, exact aurora-rbac-roles styling -->
         <div>
           <span class="field-label">Icon <span class="opt" id="icon-hint">· pick from the shared icon set</span></span>
@@ -562,6 +652,8 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
                 <span class="url empty" id="pv-redirect">No redirect URL set</span>
               </div>
+              <!-- additional allowed URLs: list up to 2, then "+N more" -->
+              <div id="pv-extra-wrap"><!-- injected by syncPreview --></div>
             </div>
           </div>
         </div>
@@ -659,8 +751,12 @@
   /* ===== saved (server) values + current selection =====
      redirect is empty here to mock the prod reality: app_services were seeded with an
      EMPTY redirect_url and admins are using this edit path to set it for the first time. */
-  var SAVED = { name:'Medioa Cloud Storage', redirect:'', icon:'cloud', color:'violet' };
-  var sel = { name:SAVED.name, redirect:SAVED.redirect, icon:SAVED.icon, color:SAVED.color };
+  var SAVED = { name:'Medioa Cloud Storage', redirect:'', icon:'cloud', color:'violet',
+                extras:['https://app.medioa.local/auth/callback/staging','https://medioa.hasaki.vn/oauth2/return'] };
+  var sel = { name:SAVED.name, redirect:SAVED.redirect, icon:SAVED.icon, color:SAVED.color,
+              extras:SAVED.extras.slice() };
+  var MAX_EXTRAS = 3;
+  var LINK_GLYPH = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
 
   function paletteOf(key){ return PALETTE.find(function(p){ return p.key === key; }) || PALETTE[0]; }
 
@@ -683,6 +779,38 @@
         + ' style="--sw:'+p.hex+';" onclick="pickColor(\''+p.key+'\')"></button>';
     }).join('');
   })();
+
+  /* ---- additional redirect URL allowlist (add/remove rows, max 10) ---- */
+  function renderUrls(){
+    var list = document.getElementById('url-list');
+    list.innerHTML = sel.extras.map(function(url, i){
+      return '<div class="url-row">'
+        + '<label class="input-wrap">' + LINK_GLYPH
+        + '<input type="url" inputmode="url" class="url" value="'+url.replace(/"/g,'&quot;')+'"'
+        + ' placeholder="https://app.example.com/auth/callback"'
+        + ' oninput="onUrlInput('+i+', this.value)" /></label>'
+        // on click: drop this row from the allowlist
+        + '<button type="button" class="url-remove" aria-label="Remove URL" title="Remove" onclick="removeUrl('+i+')">'
+        + '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>'
+        + '</button></div>';
+    }).join('');
+    document.getElementById('url-empty').classList.toggle('hidden', sel.extras.length > 0);
+    var cnt = document.getElementById('url-count');
+    cnt.textContent = sel.extras.length + ' / ' + MAX_EXTRAS;
+    cnt.classList.toggle('full', sel.extras.length >= MAX_EXTRAS);
+    document.getElementById('url-add-btn').disabled = sel.extras.length >= MAX_EXTRAS;
+  }
+  function onUrlInput(i, val){ sel.extras[i] = val; syncPreview(); }
+  function addUrl(){
+    if (sel.extras.length >= MAX_EXTRAS) return;
+    sel.extras.push('');
+    renderUrls();
+    // focus the just-added row's input
+    var inputs = document.querySelectorAll('#url-list .input-wrap input');
+    if (inputs.length) inputs[inputs.length - 1].focus();
+    syncPreview();
+  }
+  function removeUrl(i){ sel.extras.splice(i, 1); renderUrls(); syncPreview(); }
 
   function pickIcon(name){
     sel.icon = name;
@@ -728,21 +856,34 @@
     if (sel.redirect) { rEl.textContent = sel.redirect; rEl.classList.remove('empty'); }
     else { rEl.textContent = 'No redirect URL set'; rEl.classList.add('empty'); }
 
-    // dirty-state + save enable — redirect participates in the same dirty check
-    var dirty = sel.name !== SAVED.name || sel.redirect !== SAVED.redirect || sel.icon !== SAVED.icon || sel.color !== SAVED.color;
+    // additional allowed URLs preview — show up to 2 non-empty, then "+N more"
+    var extras = sel.extras.filter(function(u){ return u.trim(); });
+    var ex = document.getElementById('pv-extra-wrap');
+    var exHtml = extras.slice(0, 2).map(function(u){
+      return '<div class="pv-extra">'+LINK_GLYPH.replace('width="16" height="16"','')+'<span class="url" title="'+u.replace(/"/g,'&quot;')+'">'+u+'</span></div>';
+    }).join('');
+    if (extras.length > 2) exHtml += '<div class="pv-extra-more">+'+(extras.length - 2)+' more allowed URL'+(extras.length - 2 > 1 ? 's' : '')+'</div>';
+    ex.innerHTML = exHtml;
+
+    // dirty-state + save enable — redirect + extras participate in the same dirty check
+    var extrasChanged = JSON.stringify(sel.extras) !== JSON.stringify(SAVED.extras);
+    var dirty = sel.name !== SAVED.name || sel.redirect !== SAVED.redirect || sel.icon !== SAVED.icon || sel.color !== SAVED.color || extrasChanged;
     document.getElementById('dirty').style.visibility = dirty ? 'visible' : 'hidden';
     document.getElementById('save-btn').disabled = !dirty;
   }
 
   function discard(){
-    sel = { name:SAVED.name, redirect:SAVED.redirect, icon:SAVED.icon, color:SAVED.color };
+    sel = { name:SAVED.name, redirect:SAVED.redirect, icon:SAVED.icon, color:SAVED.color, extras:SAVED.extras.slice() };
     document.getElementById('f-name').value = SAVED.name;
     document.getElementById('f-redirect').value = SAVED.redirect;
+    renderUrls();
     pickIcon(SAVED.icon);
     pickColor(SAVED.color);
   }
 
-  /* init — preselect saved icon/color so pickers show their selected highlight. */
+  /* init — preselect saved icon/color so pickers show their selected highlight,
+     and render the saved additional-URL allowlist (2 example rows). */
+  renderUrls();
   pickIcon(SAVED.icon);
   pickColor(SAVED.color);
   /* Demo opens DIRTY in the realistic scenario: the app_service has an EMPTY saved

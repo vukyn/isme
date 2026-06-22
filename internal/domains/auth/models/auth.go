@@ -126,6 +126,11 @@ type RequestLoginRequest struct {
 	AppCode   string `json:"app_code"`
 	AppSecret string `json:"app_secret"`
 	CtxInfo   string `json:"ctx_info"`
+	// RedirectURI is the OPTIONAL OAuth-style callback the app wants the SSO
+	// flow to return to. When empty, the app's primary redirect_url is used.
+	// When set, it must exact-match the app's redirect_url or one of its
+	// additional redirect_urls (the allowlist) or the request is rejected.
+	RedirectURI string `json:"redirect_uri"`
 }
 
 func (r RequestLoginRequest) Validate() error {

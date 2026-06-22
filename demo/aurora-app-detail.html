@@ -96,6 +96,35 @@
   .info-cell .v .copy:hover { color: var(--fg); }
   .secret-mask { font-size: 14px; color: var(--fg-mute); letter-spacing: 3px; user-select: none; }
   .url-cell { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* primary redirect URL gets a small "primary" tag when an allowlist exists */
+  .redirect-primary { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .tag-primary {
+    flex: 0 0 auto; font-size: 10px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+    color: var(--c-violet); background: rgba(139,92,246,0.14); border: 1px solid rgba(139,92,246,0.36);
+    padding: 1px 7px; border-radius: 999px;
+  }
+
+  /* ====== Additional redirect URLs (allowlist) — read-only full-width panel row ====== */
+  .allowlist-cell { background: rgba(7,7,26,0.30); padding: 16px 20px; grid-column: 1 / -1; }
+  .allowlist-cell .k {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--fg-mute); margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
+  }
+  .allowlist-cell .k .cnt { color: var(--fg-soft); font-variant-numeric: tabular-nums; }
+  .allow-list { display: grid; gap: 7px; }
+  .allow-row {
+    display: flex; align-items: center; gap: 9px;
+    font-size: 13px; color: var(--fg-soft); font-variant-numeric: tabular-nums;
+    padding: 7px 11px; border-radius: 10px;
+    background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+  }
+  .allow-row svg { width: 13px; height: 13px; flex: 0 0 auto; color: var(--c-cyan); }
+  .allow-row .u { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .allow-more {
+    font-size: 12px; color: var(--c-cyan); font-weight: 600;
+    padding: 4px 2px; cursor: default;
+  }
+  .allow-none { font-size: 12px; color: var(--fg-mute); font-style: italic; }
 
   /* ====== RBAC section ====== */
   .sys-banner { display: flex; align-items: center; gap: 12px; padding: 14px 20px; background: linear-gradient(90deg, rgba(245,158,11,0.16), rgba(245,158,11,0.04)); border-bottom: 1px solid rgba(245,158,11,0.30); font-size: 13px; color: var(--fg-soft); }
@@ -153,6 +182,11 @@
   Shows one app_service: app info block (app_code, name, ctx, status,
   redirect_url with secret MASKED — AES at rest, never revealed) + an RBAC
   section listing the app's auto-provisioned roles and its permission set.
+
+  ADDITIONAL REDIRECT URLs (allowlist): read-only full-width row under the info grid.
+  The primary redirect_url gets a "primary" tag; the allowlist lists extra permitted
+  callbacks (first 3, then "+N more"). Apps with no allowlist (isme self) hide the row
+  and the "primary" tag entirely. medioa2 carries 4 to demonstrate the "+1 more" overflow.
 
   READ-ONLY vs MANAGE:
     • isme app    → RBAC section is system/read-only: amber banner, lock glyphs,
@@ -225,7 +259,12 @@
       </div>
       <div class="info-cell">
         <div class="k">Redirect URL</div>
-        <div class="v"><span class="url-cell" id="info-redirect" title="https://app.medioa.local/auth/callback">https://app.medioa.local/auth/callback</span></div>
+        <div class="v">
+          <span class="redirect-primary">
+            <span class="url-cell" id="info-redirect" title="https://app.medioa.local/auth/callback">https://app.medioa.local/auth/callback</span>
+            <span class="tag-primary" id="info-redirect-tag" style="display:none;">primary</span>
+          </span>
+        </div>
       </div>
       <div class="info-cell">
         <div class="k">Client secret</div>
@@ -235,6 +274,14 @@
       <div class="info-cell">
         <div class="k">Created</div>
         <div class="v" style="font-size:13px;color:var(--fg-soft);" id="info-created">2025-11-03 · by Vu Ky</div>
+      </div>
+
+      <!-- Additional redirect URLs (allowlist) — read-only. Full-width row spanning the
+           info grid. Lists extra permitted callbacks; if long, shows first 3 then "+N more".
+           Empty for apps with no allowlist (e.g. isme self / rainy). -->
+      <div class="allowlist-cell" id="allowlist-cell">
+        <div class="k">Additional redirect URLs <span class="cnt" id="allow-count">2</span></div>
+        <div class="allow-list" id="allow-list"><!-- rendered per app --></div>
       </div>
     </div>
   </section>
@@ -294,6 +341,7 @@
       label:'isme', code:'isme', appId:'app_isme', tile:'tile-isme', name:'isme — Identity &amp; SSO',
       ctx:'authen', appIcon:'<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 7l8 5 8-5-8-5Z"/><path d="m4 17 8 5 8-5"/><path d="m4 12 8 5 8-5"/></svg>',
       redirect:'(self — no SSO callback)', created:'seeded by migration 014', readOnly:true, permCount:19,
+      extras:[],
       roles:[
         { code:'admin', icon:'violet', shield:true, desc:'full access · all isme resources', perms:19, users:3, badge:'system' },
         { code:'member', icon:'cyan', desc:'default on signup', perms:2, users:1156, badge:'system' },
@@ -308,6 +356,12 @@
       label:'medioa2', code:'medioa2', appId:'app_medioa2', tile:'tile-medioa', name:'Medioa Cloud Storage',
       ctx:'authen', appIcon:'<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>',
       redirect:'https://app.medioa.local/auth/callback', created:'2025-11-03 · by Vu Ky', readOnly:false, permCount:12,
+      extras:[
+        'https://app.medioa.local/auth/callback/staging',
+        'https://medioa.hasaki.vn/oauth2/return',
+        'https://medioa-preview.hasaki.vn/auth/callback',
+        'https://localhost:5173/auth/callback'
+      ],
       roles:[
         { code:'admin', icon:'violet', shield:true, desc:'auto-provisioned on app create · full CRUD', perms:12, users:2, badge:'auto' },
         { code:'editor', icon:'amber', desc:'custom · upload + edit, no delete', perms:5, users:14, badge:'custom' }
@@ -333,6 +387,30 @@
     document.getElementById('info-redirect').textContent = d.redirect;
     document.getElementById('info-redirect').title = d.redirect;
     document.getElementById('info-created').textContent = d.created;
+
+    // additional redirect URLs (allowlist) — read-only. Show first 3, then "+N more".
+    var LINK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
+    var extras = d.extras || [];
+    var cell = document.getElementById('allowlist-cell');
+    var redirectTag = document.getElementById('info-redirect-tag');
+    if (extras.length === 0) {
+      // no allowlist → hide the row entirely and the "primary" tag
+      cell.style.display = 'none';
+      redirectTag.style.display = 'none';
+    } else {
+      cell.style.display = '';
+      redirectTag.style.display = '';
+      document.getElementById('allow-count').textContent = extras.length;
+      var SHOW = 3;
+      var html = extras.slice(0, SHOW).map(function(u){
+        return '<div class="allow-row">'+LINK+'<span class="u" title="'+u.replace(/"/g,'&quot;')+'">'+u+'</span></div>';
+      }).join('');
+      if (extras.length > SHOW) {
+        var rest = extras.length - SHOW;
+        html += '<div class="allow-more" title="'+extras.slice(SHOW).join('&#10;')+'">+'+rest+' more allowed URL'+(rest>1?'s':'')+'</div>';
+      }
+      document.getElementById('allow-list').innerHTML = html;
+    }
 
     // rbac section chrome
     document.getElementById('sys-banner').style.display = d.readOnly ? '' : 'none';

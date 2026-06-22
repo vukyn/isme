@@ -14,6 +14,7 @@ type AppService struct {
 	AppName       string    `bun:"app_name,notnull"`
 	AppSecret     string    `bun:"app_secret,notnull"`
 	RedirectURL   string    `bun:"redirect_url,notnull"`
+	RedirectURLs  string    `bun:"redirect_urls,notnull,default:'[]'"`
 	CtxInfo       string    `bun:"ctx_info,notnull"`
 	Status        int32     `bun:"status,notnull"`
 	Icon          string    `bun:"icon"`
@@ -27,23 +28,25 @@ type AppService struct {
 }
 
 type CreateRequest struct {
-	AppCode     string
-	AppName     string
-	AppSecret   string
-	RedirectURL string
-	CtxInfo     string
-	Status      int32
-	Icon        string
-	Color       string
+	AppCode      string
+	AppName      string
+	AppSecret    string
+	RedirectURL  string
+	RedirectURLs string
+	CtxInfo      string
+	Status       int32
+	Icon         string
+	Color        string
 }
 
 type UpdateRequest struct {
-	ID          string
-	AppName     *string
-	AppSecret   *string
-	RedirectURL *string
-	Icon        *string
-	Color       *string
+	ID           string
+	AppName      *string
+	AppSecret    *string
+	RedirectURL  *string
+	RedirectURLs *string
+	Icon         *string
+	Color        *string
 }
 
 // === Hooks ===

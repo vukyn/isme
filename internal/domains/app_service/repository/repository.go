@@ -29,16 +29,17 @@ func NewRepository(
 func (r *repository) Create(ctx context.Context, req entity.CreateRequest) (string, error) {
 	userID := pkgCtx.GetUserID(ctx)
 	appService := &entity.AppService{
-		ID:          cryp.ULID(),
-		AppCode:     req.AppCode,
-		AppName:     req.AppName,
-		AppSecret:   req.AppSecret,
-		RedirectURL: req.RedirectURL,
-		CtxInfo:     req.CtxInfo,
-		Status:      req.Status,
-		Icon:        req.Icon,
-		Color:       req.Color,
-		CreatedBy:   userID,
+		ID:           cryp.ULID(),
+		AppCode:      req.AppCode,
+		AppName:      req.AppName,
+		AppSecret:    req.AppSecret,
+		RedirectURL:  req.RedirectURL,
+		RedirectURLs: req.RedirectURLs,
+		CtxInfo:      req.CtxInfo,
+		Status:       req.Status,
+		Icon:         req.Icon,
+		Color:        req.Color,
+		CreatedBy:    userID,
 	}
 	_, err := r.db.NewInsert().
 		Model(appService).
@@ -132,6 +133,11 @@ func (r *repository) Update(ctx context.Context, req entity.UpdateRequest) error
 	if req.RedirectURL != nil {
 		appService.RedirectURL = *req.RedirectURL
 		fields = append(fields, "redirect_url")
+	}
+
+	if req.RedirectURLs != nil {
+		appService.RedirectURLs = *req.RedirectURLs
+		fields = append(fields, "redirect_urls")
 	}
 
 	if req.Icon != nil {

@@ -25,7 +25,9 @@ import (
 // BIGINT GENERATED ALWAYS AS IDENTITY, IFNULL -> COALESCE, INSERT OR IGNORE ->
 // ON CONFLICT DO NOTHING; INTEGER flags whose Go entity field is a bool
 // — is_verified / is_system / enabled — become native BOOLEAN so bun's pgdialect
-// (which emits TRUE/FALSE for Go bool) round-trips them; JSON-as-TEXT stays as-is).
+// (which emits TRUE/FALSE for Go bool) round-trips them; JSON-as-TEXT columns
+// such as app_services.redirect_urls stay as-is — a TEXT JSON array defaulting
+// to '[]' on both dialects).
 // The user_sessions time columns are declared TEXT/TIMESTAMP in SQLite but the
 // Go entity fields are time.Time, so the Postgres branch declares them
 // TIMESTAMPTZ for correct bun round-tripping.
@@ -93,7 +95,8 @@ func baselineSQLiteStatements() []string {
 			deleted_at DATETIME,
 			deleted_by TEXT DEFAULT '',
 			icon TEXT NOT NULL DEFAULT '',
-			color TEXT NOT NULL DEFAULT ''
+			color TEXT NOT NULL DEFAULT '',
+			redirect_urls TEXT NOT NULL DEFAULT '[]'
 		)`,
 		`CREATE INDEX IF NOT EXISTS app_services_app_code_idx ON app_services (app_code)`,
 		`CREATE TABLE IF NOT EXISTS role_permissions (
@@ -268,7 +271,8 @@ func baselinePostgresStatements() []string {
 			deleted_at TIMESTAMPTZ,
 			deleted_by TEXT DEFAULT '',
 			icon TEXT NOT NULL DEFAULT '',
-			color TEXT NOT NULL DEFAULT ''
+			color TEXT NOT NULL DEFAULT '',
+			redirect_urls TEXT NOT NULL DEFAULT '[]'
 		)`,
 		`CREATE TABLE IF NOT EXISTS role_permissions (
 			role_id TEXT NOT NULL,

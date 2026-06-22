@@ -625,9 +625,39 @@ export const AppServices = () => {
 												<CtxPill ctxInfo={service.ctx_info} />
 											</Table.Cell>
 											<Table.Cell px="3.5" py="13px">
-												<Text display="block" maxW="240px" fontSize="13px" color="fg.subtle" truncate title={service.redirect_url}>
-													{service.redirect_url}
-												</Text>
+												<HStack gap="2" maxW="280px" alignItems="center">
+													<Text flex="1" minW="0" fontSize="13px" color="fg.subtle" truncate title={service.redirect_url}>
+														{service.redirect_url}
+													</Text>
+													{(service.redirect_urls ?? []).length > 0 && (
+														<Tooltip
+															content={`${(service.redirect_urls ?? []).length} additional allowed URL${(service.redirect_urls ?? []).length === 1 ? "" : "s"}:\n${(service.redirect_urls ?? [])
+																.map((url) => `• ${url}`)
+																.join("\n")}`}
+															showArrow
+															positioning={{ placement: "top" }}
+														>
+															<HStack
+																as="span"
+																flex="none"
+																gap="0.5"
+																px="2"
+																py="0.5"
+																borderRadius="full"
+																fontSize="11px"
+																fontWeight="semibold"
+																color="aurora.cyan"
+																bg="rgba(34,211,238,0.12)"
+																borderWidth="1px"
+																borderColor="rgba(34,211,238,0.30)"
+																css={{ whiteSpace: "nowrap", cursor: "default" }}
+															>
+																<LuPlus size={10} />
+																{(service.redirect_urls ?? []).length}
+															</HStack>
+														</Tooltip>
+													)}
+												</HStack>
 											</Table.Cell>
 											<Table.Cell px="3.5" py="13px" lineHeight="1.3">
 												{/* Permanent mask — AES-encrypted at rest, no reveal affordance by design. */}

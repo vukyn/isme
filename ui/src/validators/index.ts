@@ -90,6 +90,9 @@ export const registerAppServiceSchema = z.object({
 	app_code: z.string().min(1, "App code is required"),
 	app_name: z.string().min(1, "App name is required"),
 	redirect_url: z.url("Redirect URL must be a valid URL"),
+	// additional allowed callbacks — OAuth-style allowlist, capped at 3 (mirrors
+	// models.MaxAdditionalRedirectURLs). Each entry must be a valid URL.
+	redirect_urls: z.array(z.url("Each redirect URL must be a valid URL")).max(3, "At most 3 additional URLs").optional(),
 	ctx_info: appServiceCtxInfoSchema,
 	icon: z.string().optional(),
 	color: z.string().optional(),

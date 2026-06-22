@@ -195,12 +195,15 @@ func (u *usecase) Login(ctx context.Context, req models.LoginRequest) (models.Lo
 	// check if session ID is valid
 	var redirectURL, appServiceID, appCode string
 	if req.SessionID != "" {
-		cacheAppServiceID, ok := u.cache.Get(req.SessionID)
+		rawSession, ok := u.cache.Get(req.SessionID)
 		if !ok {
 			return models.LoginResponse{}, pkgErr.InvalidRequest("invalid session_id")
-		} else {
-			appServiceID = cacheAppServiceID
 		}
+		session, ok := decodeSSOSession(rawSession)
+		if !ok {
+			return models.LoginResponse{}, pkgErr.InvalidRequest("invalid session_id")
+		}
+		appServiceID = session.AppServiceID
 		appService, err := u.appServiceRepo.GetByID(ctx, appServiceID)
 		if err != nil {
 			return models.LoginResponse{}, err
@@ -208,7 +211,12 @@ func (u *usecase) Login(ctx context.Context, req models.LoginRequest) (models.Lo
 		if appService.ID == "" {
 			return models.LoginResponse{}, pkgErr.InvalidRequest("invalid session_id")
 		}
-		redirectURL = appService.RedirectURL
+		// use ONLY the frozen session redirect; never re-derive from client input.
+		// legacy sessions (no frozen redirect) fall back to the app's primary URL.
+		redirectURL = session.RedirectURL
+		if redirectURL == "" {
+			redirectURL = appService.RedirectURL
+		}
 		appCode = appService.AppCode
 	}
 
@@ -515,9 +523,22 @@ func (u *usecase) RequestLogin(ctx context.Context, req models.RequestLoginReque
 		return models.RequestLoginResponse{}, pkgErr.InvalidRequest("invalid app_secret")
 	}
 
-	// generate session ID and set to cache
+	// resolve the redirect destination: empty redirect_uri → the app's primary
+	// redirect_url; a non-empty redirect_uri must exact-match the app's primary
+	// redirect_url or one of its additional redirect_urls (the allowlist union).
+	chosenRedirectURL, allowed := chooseRedirectURL(appService, req.RedirectURI)
+	if !allowed {
+		return models.RequestLoginResponse{}, pkgErr.InvalidRequest("redirect_uri is not allowed")
+	}
+
+	// generate session ID and freeze BOTH the app and the chosen redirect in the
+	// session cache, so the later login/consent steps never re-derive the
+	// destination from client input.
 	sessionID := cryp.ULID()
-	u.cache.Set(sessionID, appService.ID, time.Duration(u.cfg.Auth.ExternalLoginSessionTTL)*time.Second)
+	u.cache.Set(sessionID, encodeSSOSession(ssoSession{
+		AppServiceID: appService.ID,
+		RedirectURL:  chosenRedirectURL,
+	}), time.Duration(u.cfg.Auth.ExternalLoginSessionTTL)*time.Second)
 
 	// return response
 	return models.RequestLoginResponse{
@@ -586,11 +607,15 @@ func (u *usecase) SSOCheck(ctx context.Context, req models.SSOCheckRequest) (mod
 	}
 
 	// resolve session_id → requesting app service (same as Login)
-	appServiceID, ok := u.cache.Get(req.SessionID)
+	rawSession, ok := u.cache.Get(req.SessionID)
 	if !ok {
 		return models.SSOCheckResponse{}, pkgErr.InvalidRequest("invalid session_id")
 	}
-	appService, err := u.appServiceRepo.GetByID(ctx, appServiceID)
+	session, ok := decodeSSOSession(rawSession)
+	if !ok {
+		return models.SSOCheckResponse{}, pkgErr.InvalidRequest("invalid session_id")
+	}
+	appService, err := u.appServiceRepo.GetByID(ctx, session.AppServiceID)
 	if err != nil {
 		return models.SSOCheckResponse{}, err
 	}
@@ -598,11 +623,18 @@ func (u *usecase) SSOCheck(ctx context.Context, req models.SSOCheckRequest) (mod
 		return models.SSOCheckResponse{}, pkgErr.InvalidRequest("invalid session_id")
 	}
 
+	// the frozen session redirect is the destination the app asked for; fall
+	// back to the app's primary URL for legacy sessions.
+	checkRedirectURL := session.RedirectURL
+	if checkRedirectURL == "" {
+		checkRedirectURL = appService.RedirectURL
+	}
+
 	// app identity is always returned (even when invalid) so the password form
 	// can render "continue to <app>" instead of a generic placeholder
 	app := models.SSOCheckApp{
 		Name:        appService.AppName,
-		RedirectURL: appService.RedirectURL,
+		RedirectURL: checkRedirectURL,
 		AppCode:     appService.AppCode,
 		Icon:        appService.Icon,
 		Color:       appService.Color,
@@ -646,16 +678,29 @@ func (u *usecase) SSOConsent(ctx context.Context, req models.SSOConsentRequest) 
 	}
 
 	// resolve session_id → requesting app service (independent re-resolution)
-	appServiceID, ok := u.cache.Get(req.SessionID)
+	rawSession, ok := u.cache.Get(req.SessionID)
 	if !ok {
 		return models.SSOConsentResponse{}, pkgErr.InvalidRequest("invalid session_id")
 	}
+	session, ok := decodeSSOSession(rawSession)
+	if !ok {
+		return models.SSOConsentResponse{}, pkgErr.InvalidRequest("invalid session_id")
+	}
+	appServiceID := session.AppServiceID
 	appService, err := u.appServiceRepo.GetByID(ctx, appServiceID)
 	if err != nil {
 		return models.SSOConsentResponse{}, err
 	}
 	if appService.ID == "" {
 		return models.SSOConsentResponse{}, pkgErr.InvalidRequest("invalid session_id")
+	}
+
+	// the redirect is taken ONLY from the frozen session — never re-derived from
+	// client input — so consent cannot be steered to an unvalidated destination.
+	// legacy sessions (no frozen redirect) fall back to the app's primary URL.
+	consentRedirectURL := session.RedirectURL
+	if consentRedirectURL == "" {
+		consentRedirectURL = appService.RedirectURL
 	}
 
 	// re-run the read-only validity probe server-side — never trust prior /check.
@@ -707,7 +752,7 @@ func (u *usecase) SSOConsent(ctx context.Context, req models.SSOConsentRequest) 
 	authorizationCode := u.mintAuthorizationCode(accessToken, refreshToken, expiresAt, req.SessionID)
 
 	return models.SSOConsentResponse{
-		RedirectURL:       appService.RedirectURL,
+		RedirectURL:       consentRedirectURL,
 		AuthorizationCode: authorizationCode,
 	}, nil
 }
