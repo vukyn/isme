@@ -37,4 +37,5 @@ var Migrations = []pkgMigrate.Migration{
 	m028AddUserAvatarURL,
 	m029SeedDatabaseBackupSchedule,
 	m030FixBoolColumnsPg,
+	m031AddRedirectURLsToAppServices,
 }

@@ -16,6 +16,9 @@ import { registerAppServiceSchema } from "@/validators";
 const DEFAULT_ICON = "box";
 const DEFAULT_COLOR = "violet";
 
+/** Max ADDITIONAL redirect URLs (the allowlist) — mirrors models.MaxAdditionalRedirectURLs. */
+const MAX_ADDITIONAL_REDIRECT_URLS = 3;
+
 interface RegisterAppServiceDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
@@ -51,20 +54,47 @@ export const RegisterAppServiceDialog = ({ open, onOpenChange, onRegistered }: R
 	const [appCode, setAppCode] = useState("");
 	const [appName, setAppName] = useState("");
 	const [redirectUrl, setRedirectUrl] = useState("");
+	const [redirectUrls, setRedirectUrls] = useState<string[]>([]);
 	const [ctxInfo, setCtxInfo] = useState<AppServiceCtxInfo>("authen");
 	const [icon, setIcon] = useState(DEFAULT_ICON);
 	const [color, setColor] = useState(DEFAULT_COLOR);
 	const [errors, setErrors] = useState<FieldErrors>({});
+	// per-row validation messages for the additional-URL allowlist, keyed by index
+	const [urlErrors, setUrlErrors] = useState<Record<number, string>>({});
 	const [submitting, setSubmitting] = useState(false);
 
 	const resetForm = () => {
 		setAppCode("");
 		setAppName("");
 		setRedirectUrl("");
+		setRedirectUrls([]);
 		setCtxInfo("authen");
 		setIcon(DEFAULT_ICON);
 		setColor(DEFAULT_COLOR);
 		setErrors({});
+		setUrlErrors({});
+	};
+
+	const addRedirectUrl = () => {
+		if (redirectUrls.length >= MAX_ADDITIONAL_REDIRECT_URLS) return;
+		setRedirectUrls((prev) => [...prev, ""]);
+	};
+
+	const updateRedirectUrl = (index: number, value: string) => {
+		setRedirectUrls((prev) => prev.map((url, i) => (i === index ? value : url)));
+	};
+
+	const removeRedirectUrl = (index: number) => {
+		setRedirectUrls((prev) => prev.filter((_, i) => i !== index));
+		setUrlErrors((prev) => {
+			const next: Record<number, string> = {};
+			for (const [key, message] of Object.entries(prev)) {
+				const k = Number(key);
+				if (k < index) next[k] = message;
+				else if (k > index) next[k - 1] = message;
+			}
+			return next;
+		});
 	};
 
 	const handleClose = (next: boolean) => {
@@ -73,24 +103,39 @@ export const RegisterAppServiceDialog = ({ open, onOpenChange, onRegistered }: R
 	};
 
 	const handleSubmit = async () => {
+		// drop blank rows; the backend only stores the populated allowlist.
+		const cleanedRedirectUrls = redirectUrls.map((url) => url.trim()).filter((url) => url !== "");
 		const parsed = registerAppServiceSchema.safeParse({
 			app_code: appCode.trim(),
 			app_name: appName.trim(),
 			redirect_url: redirectUrl.trim(),
+			redirect_urls: cleanedRedirectUrls.length > 0 ? cleanedRedirectUrls : undefined,
 			ctx_info: ctxInfo,
 			icon,
 			color,
 		});
 		if (!parsed.success) {
 			const next: FieldErrors = {};
+			const nextUrlErrors: Record<number, string> = {};
 			for (const issue of parsed.error.issues) {
+				// redirect_urls issues carry a numeric index as the second path segment;
+				// surface them inline per row, mapping back to the original (unfiltered) row.
+				if (issue.path[0] === "redirect_urls" && typeof issue.path[1] === "number") {
+					const cleanedIndex = issue.path[1];
+					const url = cleanedRedirectUrls[cleanedIndex];
+					const originalIndex = redirectUrls.findIndex((value) => value.trim() === url);
+					if (originalIndex >= 0 && !nextUrlErrors[originalIndex]) nextUrlErrors[originalIndex] = issue.message;
+					continue;
+				}
 				const key = issue.path[0] as keyof FieldErrors;
-				if (!next[key]) next[key] = issue.message;
+				if (key && !next[key]) next[key] = issue.message;
 			}
 			setErrors(next);
+			setUrlErrors(nextUrlErrors);
 			return;
 		}
 		setErrors({});
+		setUrlErrors({});
 		setSubmitting(true);
 		try {
 			const response = await registerAppService(parsed.data);
@@ -200,6 +245,89 @@ export const RegisterAppServiceDialog = ({ open, onOpenChange, onRegistered }: R
 									Where the SSO flow returns the user after sign-in
 								</Field.HelperText>
 							)}
+						</Field.Root>
+						{/* Additional redirect URLs — OAuth-style allowlist of EXTRA permitted callbacks.
+						    The primary redirect_url above stays the default; these are extra URLs the
+						    SSO client may also redirect to. Capped at 3; the Add button disables at the cap. */}
+						<Field.Root>
+							<Field.Label {...FIELD_LABEL_PROPS}>
+								Additional redirect URLs{" "}
+								<Text as="span" color="fg.muted" fontWeight="normal" fontSize="12px">
+									· allowlist, max {MAX_ADDITIONAL_REDIRECT_URLS}
+								</Text>
+							</Field.Label>
+							{redirectUrls.length === 0 ? (
+								<Text fontSize="12px" color="fg.muted" fontStyle="italic">
+									No additional URLs — the primary redirect URL is the only allowed callback.
+								</Text>
+							) : (
+								<Box display="flex" flexDirection="column" gap="2.5" w="full">
+									{redirectUrls.map((url, index) => (
+										<Box key={index}>
+											<HStack gap="2" alignItems="center">
+												<Box flex="1" minW="0" position="relative" css={{ "&:focus-within .field-icon": { color: "#22D3EE" } }}>
+													<Box className="field-icon" position="absolute" left="3.5" top="3.5" color={urlErrors[index] ? "aurora.magenta" : "fg.muted"} pointerEvents="none" zIndex="1">
+														<LuLink2 size={16} />
+													</Box>
+													<Input
+														{...INPUT_PROPS}
+														{...(urlErrors[index] ? { "aria-invalid": true } : {})}
+														pl="10"
+														type="url"
+														inputMode="url"
+														placeholder="https://app.example.local/auth/callback/alt"
+														value={url}
+														onChange={(event) => updateRedirectUrl(index, event.target.value)}
+													/>
+												</Box>
+												<Button
+													variant="ghost"
+													size="xs"
+													p="1.5"
+													minW="auto"
+													h="11"
+													borderRadius="9px"
+													color="fg.muted"
+													_hover={{ bg: "rgba(236,72,153,0.14)", color: "aurora.magenta" }}
+													aria-label="Remove URL"
+													onClick={() => removeRedirectUrl(index)}
+												>
+													<LuX size={16} />
+												</Button>
+											</HStack>
+											{urlErrors[index] && (
+												<Text mt="1" fontSize="12px" color="aurora.magenta">
+													{urlErrors[index]}
+												</Text>
+											)}
+										</Box>
+									))}
+								</Box>
+							)}
+							<Button
+								variant="outline"
+								mt="2.5"
+								h="10"
+								px="3.5"
+								borderRadius="glassSm"
+								borderColor="border.strong"
+								borderStyle="dashed"
+								bg="transparent"
+								fontSize="13px"
+								fontWeight="medium"
+								color="fg.muted"
+								_hover={{ color: "fg", borderColor: "aurora.violet", bg: "rgba(139,92,246,0.10)" }}
+								disabled={redirectUrls.length >= MAX_ADDITIONAL_REDIRECT_URLS}
+								onClick={addRedirectUrl}
+							>
+								<LuPlus size={15} /> Add redirect URL
+							</Button>
+							<Field.HelperText fontSize="12px" color="fg.muted">
+								Extra callback URLs this app may redirect to after login. Each must be a valid URL.{" "}
+								<Text as="span" fontWeight="semibold" color="fg.subtle">
+									Max {MAX_ADDITIONAL_REDIRECT_URLS}.
+								</Text>
+							</Field.HelperText>
 						</Field.Root>
 						<Field.Root>
 							<Field.Label {...FIELD_LABEL_PROPS}>

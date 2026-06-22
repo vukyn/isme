@@ -19,6 +19,8 @@ export interface AppService {
 	app_code: string;
 	app_name: string;
 	redirect_url: string;
+	/** Additional allowed OAuth callbacks (allowlist, max 3); never null — defaults to []. */
+	redirect_urls: string[];
 	ctx_info: AppServiceCtxInfo;
 	status: AppServiceStatus;
 	/** Appearance icon key (shared allowlist); empty = neutral fallback. */
@@ -54,6 +56,8 @@ export interface RegisterAppServiceRequest {
 	app_code: string;
 	app_name: string;
 	redirect_url: string;
+	/** Optional additional allowed callbacks (allowlist, max 3). */
+	redirect_urls?: string[];
 	ctx_info: AppServiceCtxInfo;
 	/** Optional appearance icon key; empty = neutral. */
 	icon?: string;
@@ -70,6 +74,8 @@ export interface RegisterAppServiceRequest {
 export interface UpdateAppServiceAppearanceRequest {
 	app_name?: string;
 	redirect_url?: string;
+	/** Additional allowed callbacks. Omit = unchanged, [] = clear, else replace (max 3). */
+	redirect_urls?: string[];
 	icon?: string;
 	color?: string;
 }

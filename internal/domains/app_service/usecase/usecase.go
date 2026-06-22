@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/vukyn/isme/internal/config"
@@ -37,6 +38,35 @@ func NewUsecase(
 	}
 }
 
+// marshalRedirectURLs serializes the additional-redirect-URL allowlist to the
+// JSON-array TEXT shape stored on app_services.redirect_urls. A nil/empty list
+// marshals to "[]" so the column is always valid JSON (never an empty string).
+func marshalRedirectURLs(urls []string) string {
+	if len(urls) == 0 {
+		return "[]"
+	}
+	encoded, err := json.Marshal(urls)
+	if err != nil {
+		return "[]"
+	}
+	return string(encoded)
+}
+
+// unmarshalRedirectURLs parses the stored JSON-array TEXT back into a slice. It
+// is tolerant: empty, malformed, or null-decoding input yields a non-nil empty
+// slice (never nil) so the JSON response is "[]" rather than null and the
+// frontend's .length access never crashes.
+func unmarshalRedirectURLs(raw string) []string {
+	urls := make([]string, 0)
+	if raw == "" {
+		return urls
+	}
+	if err := json.Unmarshal([]byte(raw), &urls); err != nil || urls == nil {
+		return make([]string, 0)
+	}
+	return urls
+}
+
 func (u *usecase) RegisterApp(ctx context.Context, req models.RegisterRequest) (models.RegisterResponse, error) {
 	// validation
 	if err := req.Validate(); err != nil {
@@ -63,16 +93,24 @@ func (u *usecase) RegisterApp(ctx context.Context, req models.RegisterRequest) (
 		return models.RegisterResponse{}, err
 	}
 
+	// normalize the additional-redirect-URL allowlist (trim/dedupe/cap) before
+	// persisting; req.Validate already rejected an invalid or over-cap list.
+	cleanedRedirectURLs, err := models.ValidateRedirectURLList(req.RedirectURLs)
+	if err != nil {
+		return models.RegisterResponse{}, pkgErr.InvalidRequest(err.Error())
+	}
+
 	// create app service
 	appServiceID, err := u.appServiceRepo.Create(ctx, entity.CreateRequest{
-		AppCode:     req.AppCode,
-		AppName:     req.AppName,
-		AppSecret:   encryptedSecret,
-		RedirectURL: req.RedirectURL,
-		CtxInfo:     req.CtxInfo,
-		Status:      constants.AppServiceStatusActive,
-		Icon:        req.Icon,
-		Color:       req.Color,
+		AppCode:      req.AppCode,
+		AppName:      req.AppName,
+		AppSecret:    encryptedSecret,
+		RedirectURL:  req.RedirectURL,
+		RedirectURLs: marshalRedirectURLs(cleanedRedirectURLs),
+		CtxInfo:      req.CtxInfo,
+		Status:       constants.AppServiceStatusActive,
+		Icon:         req.Icon,
+		Color:        req.Color,
 	})
 	if err != nil {
 		return models.RegisterResponse{}, err
@@ -256,6 +294,7 @@ func (u *usecase) ListApps(ctx context.Context, req models.ListRequest) (models.
 			AppCode:        appService.AppCode,
 			AppName:        appService.AppName,
 			RedirectURL:    appService.RedirectURL,
+			RedirectURLs:   unmarshalRedirectURLs(appService.RedirectURLs),
 			CtxInfo:        appService.CtxInfo,
 			Status:         appService.Status,
 			Icon:           appService.Icon,
@@ -342,6 +381,7 @@ func (u *usecase) GetApp(ctx context.Context, id string) (models.AppServiceListI
 		AppCode:        appService.AppCode,
 		AppName:        appService.AppName,
 		RedirectURL:    appService.RedirectURL,
+		RedirectURLs:   unmarshalRedirectURLs(appService.RedirectURLs),
 		CtxInfo:        appService.CtxInfo,
 		Status:         appService.Status,
 		Icon:           appService.Icon,
@@ -375,11 +415,24 @@ func (u *usecase) UpdateAppearance(ctx context.Context, id string, req models.Up
 		return pkgErr.Forbidden("the isme platform app is read-only and cannot be modified")
 	}
 
+	// marshal the additional-redirect-URL allowlist only when the field is
+	// present (nil = leave unchanged; non-nil empty slice clears it to "[]").
+	var redirectURLs *string
+	if req.RedirectURLs != nil {
+		cleaned, err := models.ValidateRedirectURLList(*req.RedirectURLs)
+		if err != nil {
+			return pkgErr.InvalidRequest(err.Error())
+		}
+		marshaled := marshalRedirectURLs(cleaned)
+		redirectURLs = &marshaled
+	}
+
 	return u.appServiceRepo.Update(ctx, entity.UpdateRequest{
-		ID:          id,
-		AppName:     req.AppName,
-		RedirectURL: req.RedirectURL,
-		Icon:        req.Icon,
-		Color:       req.Color,
+		ID:           id,
+		AppName:      req.AppName,
+		RedirectURL:  req.RedirectURL,
+		RedirectURLs: redirectURLs,
+		Icon:         req.Icon,
+		Color:        req.Color,
 	})
 }

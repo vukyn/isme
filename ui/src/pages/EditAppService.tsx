@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Box, Button, Center, Field, Flex, Grid, Heading, HStack, Input, Spinner, Stack, Text } from "@chakra-ui/react";
-import { LuArrowLeft, LuArrowRight, LuInfo, LuLink2, LuLock, LuPencil, LuSave } from "react-icons/lu";
+import { LuArrowLeft, LuArrowRight, LuInfo, LuLink2, LuLock, LuPencil, LuPlus, LuSave, LuX } from "react-icons/lu";
 import { getAppService, updateAppServiceAppearance } from "@/apis";
 import { AppTile } from "@/components/AppTile";
 import { ColorSwatchPicker } from "@/components/ColorSwatchPicker";
@@ -66,6 +66,12 @@ const PV_CAP_PROPS = {
 	color: "fg.muted",
 } as const;
 
+/** Max ADDITIONAL redirect URLs (the allowlist) — mirrors models.MaxAdditionalRedirectURLs. */
+const MAX_ADDITIONAL_REDIRECT_URLS = 3;
+
+/** Compare two string lists for order-sensitive equality (drives the dirty check). */
+const sameUrlList = (a: string[], b: string[]) => a.length === b.length && a.every((value, index) => value === b[index]);
+
 export const EditAppService = () => {
 	const { id = "" } = useParams();
 	const navigate = useNavigate();
@@ -80,10 +86,12 @@ export const EditAppService = () => {
 	// saved (server) values vs. local edits
 	const [savedName, setSavedName] = useState("");
 	const [savedRedirect, setSavedRedirect] = useState("");
+	const [savedRedirectUrls, setSavedRedirectUrls] = useState<string[]>([]);
 	const [savedIcon, setSavedIcon] = useState("");
 	const [savedColor, setSavedColor] = useState("");
 	const [name, setName] = useState("");
 	const [redirect, setRedirect] = useState("");
+	const [redirectUrls, setRedirectUrls] = useState<string[]>([]);
 	const [icon, setIcon] = useState("");
 	const [color, setColor] = useState("");
 
@@ -101,12 +109,15 @@ export const EditAppService = () => {
 					return;
 				}
 				setApp(data);
+				const loadedUrls = data.redirect_urls ?? [];
 				setSavedName(data.app_name);
 				setSavedRedirect(data.redirect_url ?? "");
+				setSavedRedirectUrls(loadedUrls);
 				setSavedIcon(data.icon);
 				setSavedColor(data.color);
 				setName(data.app_name);
 				setRedirect(data.redirect_url ?? "");
+				setRedirectUrls(loadedUrls);
 				setIcon(data.icon);
 				setColor(data.color);
 			})
@@ -121,12 +132,30 @@ export const EditAppService = () => {
 		};
 	}, [id, navigate]);
 
-	const dirty = name !== savedName || redirect !== savedRedirect || icon !== savedIcon || color !== savedColor;
+	// trimmed, blank-row-dropped view of the allowlist used for both the dirty
+	// check and submit (so a trailing empty row doesn't falsely mark the form dirty).
+	const cleanedRedirectUrls = useMemo(() => redirectUrls.map((url) => url.trim()).filter((url) => url !== ""), [redirectUrls]);
+	const urlsDirty = !sameUrlList(cleanedRedirectUrls, savedRedirectUrls);
+	const dirty = name !== savedName || redirect !== savedRedirect || urlsDirty || icon !== savedIcon || color !== savedColor;
 	const colorHex = useMemo(() => (color && color in APP_COLORS ? APP_COLORS[color as keyof typeof APP_COLORS].hex : ""), [color]);
+
+	const addRedirectUrl = () => {
+		if (redirectUrls.length >= MAX_ADDITIONAL_REDIRECT_URLS) return;
+		setRedirectUrls((prev) => [...prev, ""]);
+	};
+
+	const updateRedirectUrl = (index: number, value: string) => {
+		setRedirectUrls((prev) => prev.map((url, i) => (i === index ? value : url)));
+	};
+
+	const removeRedirectUrl = (index: number) => {
+		setRedirectUrls((prev) => prev.filter((_, i) => i !== index));
+	};
 
 	const discard = () => {
 		setName(savedName);
 		setRedirect(savedRedirect);
+		setRedirectUrls(savedRedirectUrls);
 		setIcon(savedIcon);
 		setColor(savedColor);
 	};
@@ -138,6 +167,7 @@ export const EditAppService = () => {
 			await updateAppServiceAppearance(app.id, {
 				app_name: name !== savedName ? name : undefined,
 				redirect_url: redirect !== savedRedirect ? redirect : undefined,
+				redirect_urls: urlsDirty ? cleanedRedirectUrls : undefined,
 				icon: icon !== savedIcon ? icon : undefined,
 				color: color !== savedColor ? color : undefined,
 			});
@@ -345,6 +375,82 @@ export const EditAppService = () => {
 									URL — a mismatch breaks the login round-trip. Leave empty to clear.
 								</Field.HelperText>
 							</Field.Root>
+
+							{/* ADDITIONAL REDIRECT URLs — OAuth-style allowlist of EXTRA permitted callbacks.
+							    The primary redirect_url above stays the default; these are extra URLs the
+							    SSO client may also redirect to. Capped at 3; the Add button disables at the cap. */}
+							<Box>
+								<Text {...FIELD_LABEL_PROPS}>
+									Additional redirect URLs{" "}
+									<Text as="span" color="fg.muted" fontWeight="normal" fontSize="12px">
+										· allowlist, max {MAX_ADDITIONAL_REDIRECT_URLS}
+									</Text>
+								</Text>
+								{redirectUrls.length === 0 ? (
+									<Text fontSize="12px" color="fg.muted" fontStyle="italic">
+										No additional URLs — the primary redirect URL is the only allowed callback.
+									</Text>
+								) : (
+									<Stack gap="10px">
+										{redirectUrls.map((url, index) => (
+											<HStack key={index} gap="8px" alignItems="center">
+												<Box flex="1" minW="0" position="relative" css={{ "&:focus-within .field-icon": { color: "#22D3EE" } }}>
+													<Box className="field-icon" position="absolute" left="3.5" top="3.5" color="fg.muted" pointerEvents="none" zIndex="1">
+														<LuLink2 size={16} />
+													</Box>
+													<Input
+														{...INPUT_PROPS}
+														pl="10"
+														type="url"
+														inputMode="url"
+														placeholder="https://app.example.com/auth/callback/alt"
+														value={url}
+														onChange={(event) => updateRedirectUrl(index, event.target.value)}
+													/>
+												</Box>
+												<Button
+													variant="ghost"
+													size="xs"
+													p="1.5"
+													minW="auto"
+													h="11"
+													borderRadius="9px"
+													color="fg.muted"
+													_hover={{ bg: "rgba(236,72,153,0.14)", color: "aurora.magenta" }}
+													aria-label="Remove URL"
+													onClick={() => removeRedirectUrl(index)}
+												>
+													<LuX size={16} />
+												</Button>
+											</HStack>
+										))}
+									</Stack>
+								)}
+								<Button
+									variant="outline"
+									mt="10px"
+									h="40px"
+									px="14px"
+									borderRadius="glassSm"
+									borderColor="border.strong"
+									borderStyle="dashed"
+									bg="transparent"
+									fontSize="13px"
+									fontWeight="medium"
+									color="fg.muted"
+									_hover={{ color: "fg", borderColor: "aurora.violet", bg: "rgba(139,92,246,0.10)" }}
+									disabled={redirectUrls.length >= MAX_ADDITIONAL_REDIRECT_URLS}
+									onClick={addRedirectUrl}
+								>
+									<LuPlus size={15} /> Add redirect URL
+								</Button>
+								<Text mt="8px" fontSize="12px" color="fg.muted">
+									Extra callback URLs this app may redirect to after login. Each must be a valid URL.{" "}
+									<Text as="b" color="fg.subtle" fontWeight="semibold">
+										Max {MAX_ADDITIONAL_REDIRECT_URLS}.
+									</Text>
+								</Text>
+							</Box>
 
 							{/* ICON PICKER — 20-icon grid */}
 							<Box>
