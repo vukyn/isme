@@ -23,9 +23,10 @@ type GetMeResponse struct {
 
 type RequestLoginRequest struct {
 	models.ApiRequest
-	AppCode   string `json:"app_code"`
-	AppSecret string `json:"app_secret"`
-	CtxInfo   string `json:"ctx_info"`
+	AppCode     string `json:"app_code"`
+	AppSecret   string `json:"app_secret"`
+	CtxInfo     string `json:"ctx_info"`
+	RedirectURI string `json:"redirect_uri,omitempty"`
 }
 
 type RequestLoginResponse struct {
