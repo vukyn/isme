@@ -366,6 +366,7 @@ func medioaPerms() []permission {
 		permission{"api_key", "delete"},
 		permission{"settings", "read"},
 		permission{"settings", "update"},
+		permission{"analytics", "read"},
 	)
 	return perms
 }
