@@ -63,7 +63,7 @@ func (s *service) GetMe(ctx context.Context, req *models.GetMeRequest) (*models.
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		log.New().Errorf("Error get me from external auth: %v", resp.String())
+		logResponseError("get me", resp)
 		return nil, handleResponseError(resp, resp.StatusCode())
 	}
 
@@ -91,7 +91,7 @@ func (s *service) RequestLogin(ctx context.Context, req *models.RequestLoginRequ
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		log.New().Errorf("Error request login from external auth: %v", resp.String())
+		logResponseError("request login", resp)
 		return nil, handleResponseError(resp, resp.StatusCode())
 	}
 
@@ -119,7 +119,7 @@ func (s *service) RefreshToken(ctx context.Context, req *models.RefreshTokenRequ
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		log.New().Errorf("Error refresh token from external auth: %v", resp.String())
+		logResponseError("refresh token", resp)
 		return nil, handleResponseError(resp, resp.StatusCode())
 	}
 
@@ -147,7 +147,7 @@ func (s *service) ExchangeCode(ctx context.Context, req *models.ExchangeCodeRequ
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		log.New().Errorf("Error exchange code from external auth: %v", resp.String())
+		logResponseError("exchange code", resp)
 		return nil, handleResponseError(resp, resp.StatusCode())
 	}
 
@@ -175,7 +175,7 @@ func (s *service) Logout(ctx context.Context, req *models.LogoutRequest) (*model
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		log.New().Errorf("Error logout from external auth: %v", resp.String())
+		logResponseError("logout", resp)
 		return nil, handleResponseError(resp, resp.StatusCode())
 	}
 
@@ -194,4 +194,32 @@ func handleResponseError(resp *resty.Response, statusCode int) error {
 		return pkgErr.InternalServerError(resp.String())
 	}
 	return pkgErr.Forward(baseErr)
+}
+
+// logResponseError records a non-2xx from isme at a level that matches whose
+// fault it is.
+//
+// A 401 or 403 is the ORDINARY outcome for an expired, missing or revoked token —
+// the caller turns it into its own 401 and the user re-authenticates. Logging that
+// at error level fills an operator's log with normal client behaviour, which is
+// how a single unauthenticated /auth/me call ended up looking like a server fault
+// in rainy's production logs. Anything else (a 5xx from isme, an unexpected 4xx)
+// is a genuine problem and stays at error.
+//
+// The message deliberately drops the "Error" prefix on the warn path so existing
+// error-grepping alerts stop matching it, and carries the status code either way.
+func logResponseError(operation string, resp *resty.Response) {
+	status := resp.StatusCode()
+	if isExpectedRejection(status) {
+		log.New().Warnf("Rejected %s from external auth (%d): %v", operation, status, resp.String())
+		return
+	}
+	log.New().Errorf("Failed %s from external auth (%d): %v", operation, status, resp.String())
+}
+
+// isExpectedRejection reports whether a status is isme correctly refusing a
+// caller's credentials, as opposed to something being broken. Split out from the
+// logging so the decision is testable without capturing log output.
+func isExpectedRejection(status int) bool {
+	return status == http.StatusUnauthorized || status == http.StatusForbidden
 }
