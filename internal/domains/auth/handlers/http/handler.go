@@ -11,7 +11,6 @@ import (
 
 func Login(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetAuthUsecase(ctn)
 	if err != nil {
@@ -33,7 +32,6 @@ func Login(c *fiber.Ctx) error {
 
 func GetMe(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetAuthUsecase(ctn)
 	if err != nil {
@@ -50,7 +48,6 @@ func GetMe(c *fiber.Ctx) error {
 
 func UpdateMe(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetAuthUsecase(ctn)
 	if err != nil {
@@ -72,7 +69,6 @@ func UpdateMe(c *fiber.Ctx) error {
 
 func RefreshToken(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetAuthUsecase(ctn)
 	if err != nil {
@@ -94,7 +90,6 @@ func RefreshToken(c *fiber.Ctx) error {
 
 func ChangePassword(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetAuthUsecase(ctn)
 	if err != nil {
@@ -116,7 +111,6 @@ func ChangePassword(c *fiber.Ctx) error {
 
 func Logout(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetAuthUsecase(ctn)
 	if err != nil {
@@ -133,7 +127,6 @@ func Logout(c *fiber.Ctx) error {
 
 func RequestLogin(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetAuthUsecase(ctn)
 	if err != nil {
@@ -155,7 +148,6 @@ func RequestLogin(c *fiber.Ctx) error {
 
 func ExchangeCode(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetAuthUsecase(ctn)
 	if err != nil {
@@ -177,7 +169,6 @@ func ExchangeCode(c *fiber.Ctx) error {
 
 func SSOCheck(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetAuthUsecase(ctn)
 	if err != nil {
@@ -199,7 +190,6 @@ func SSOCheck(c *fiber.Ctx) error {
 
 func ListMySessions(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetAuthUsecase(ctn)
 	if err != nil {
@@ -216,7 +206,6 @@ func ListMySessions(c *fiber.Ctx) error {
 
 func CountMySessions(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetAuthUsecase(ctn)
 	if err != nil {
@@ -233,7 +222,6 @@ func CountMySessions(c *fiber.Ctx) error {
 
 func RevokeMySession(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetAuthUsecase(ctn)
 	if err != nil {
@@ -250,7 +238,6 @@ func RevokeMySession(c *fiber.Ctx) error {
 
 func RevokeMyOtherSessions(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetAuthUsecase(ctn)
 	if err != nil {
@@ -267,7 +254,6 @@ func RevokeMyOtherSessions(c *fiber.Ctx) error {
 
 func GetMyActivity(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetAuthUsecase(ctn)
 	if err != nil {
@@ -284,7 +270,6 @@ func GetMyActivity(c *fiber.Ctx) error {
 
 func SSOConsent(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetAuthUsecase(ctn)
 	if err != nil {

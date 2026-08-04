@@ -41,6 +41,10 @@ exceptions/     domain errors
 Rules:
 - Repository implements interface in `irepository.go` (`type IRepository interface`); same for `iusecase.go`.
 - Handlers receive deps via DI container injected by middleware; resolve with `di.Get(ctx, key)`.
+  ⚠️ **A handler must NOT call `ctn.Delete()`** — it only *borrows* the container;
+  `middlewares.DiContainerMiddleware` created it and releases it (see Dependency
+  Injection below). This is the reverse of the old rule, which had every handler
+  carry a `defer ctn.Delete()` (55 of them).
 - Usecase never imports repository implementation — only the interface.
 - Entities live in `entity/entity.go` with Bun tags + lifecycle hooks (`BeforeAppendModel`).
 
@@ -50,7 +54,63 @@ Existing domains: `user`, `auth`, `user_session`, `app_service`.
 
 `di.NewBuilder()` aggregates definitions: `defineConfig`, `defineDB`, `defineMiddleware`, `defineRepository`, `defineUsecase`. Each returns `di.Def` with `Name`, `Build`. DI key constants live alongside (`di_repo`, `di_usecase`, `di_db`, `di_middleware`, `di_config`, `di_cache`).
 
-Container is request-scoped via middleware in `internal/middlewares/`.
+Container is request-scoped via `middlewares.DiContainerMiddleware` in
+`internal/middlewares/di_container_middleware.go`, mounted globally in
+`internal/server/server.go` ahead of the routes.
+
+⚠️ **`DiContainerMiddleware` owns the request container's whole lifetime.** It
+creates the `di.Request` sub-container, stores it in Fiber locals, and releases it
+with its own `defer` — so the release runs on every path: a handled 200, a 401 from
+`Middleware.AuthMiddleware`, a 403 from `rbac.RequirePermission`, `/assets`,
+`/favicon.svg`, a 404, every SPA catch-all render, a handler that returns an error,
+and a panic recovered by `pkgRecover.NewFiberRecover()` (the recover middleware is
+mounted INSIDE this one, and a `defer` runs during unwinding anyway).
+
+**Whoever creates a sub-container releases it. Handlers only borrow one, so they must
+not call `Delete`.** The rule used to be the opposite (a `defer ctn.Delete()` in each
+of 55 handlers) and it leaked in production: this middleware is mounted globally,
+ahead of the routes, so it had already built a sub-container by the time anything
+decided the request would not reach a handler — and `sarulabs/di` keeps every
+sub-container in its parent's `children` map until deleted, so each of those was
+retained for the life of the **process**. A handler-owned lifetime cannot cover a
+request that never reaches a handler. The leaking paths were also the cheapest,
+unauthenticated ones (a tokenless 401, a 403, `/assets`, `/favicon.svg`, a 404, every
+SPA render), so the leak was free to trigger. Measured in gardener, which carried the
+byte-identical bug: live heap climbed monotonically to 58 MB over 60k unauthenticated
+401s, versus 3–4 MB with the release in place.
+
+It calls **`DeleteWithSubContainers`**, not `Delete`: `Delete` is conditional
+(`containerSlayer.go:22-34`) — with any child present it merely sets
+`deleteIfNoChild` and returns nil, leaving the container in the parent's `children`
+map, i.e. the leak. A single owner needs an unconditional release. Its documented
+hazard (tearing down a sub-container another goroutine still uses) does not apply:
+nothing here touches the container after its handler returns — no
+`SendStream`/`SetBodyStreamWriter`/`StreamRequestBody`, and no goroutine that resolves
+from a request container (the only `go` statement outside tests is the Fiber listener
+in `server.go`, and the scheduler deliberately builds its repositories straight off
+the App-scoped DB). That is a **precondition of this design**: if you ever hand a
+request-scoped dependency to a goroutine that outlives the request, this release is a
+use-after-free and the ownership has to be rethought, not worked around.
+
+⚠️ **`internal/di/di_middleware.go`'s sub-container is intentionally never deleted —
+do not "fix" it.** It exists because the auth usecase is a `di.Request`-scoped
+definition and a Request-scoped object cannot be resolved straight out of an `App`
+container; the app-scoped `Middleware` then **retains** that usecase for the whole
+process, so deleting the container it came from would run the usecase's `Close` and
+destroy an object the middleware keeps calling. That is exactly ONE
+permanently-retained container, created once at boot — bounded, unlike one per
+request. It is also why `cmd/main.go` shuts down with `DeleteWithSubContainers()`: a
+plain `Delete()` on the app container would be a no-op while that child exists.
+
+`TestDiContainerMiddlewareReleasesRequestContainer`
+(`internal/middlewares/di_container_middleware_test.go`) pins all of it: every path
+above, `Close` called **exactly once** per request (so a re-added handler defer fails
+the suite instead of silently double-closing — di's second `Delete` returns nil and
+merely re-runs every registered `Close`, and isme's `Close` funcs are all debug log
+lines, so nothing else would notice), and — the leak itself — that the app container
+retains **zero** children afterwards. That last assertion needs no reflection:
+`Delete()` on the parent only closes it when its `children` map is empty, so "the app
+container closed on its first `Delete`" *is* "nothing was retained".
 
 ### Configuration
 

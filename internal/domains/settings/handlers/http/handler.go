@@ -12,7 +12,6 @@ import (
 
 func GetSessionRevokeConfig(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetSettingsUsecase(ctn)
 	if err != nil {
@@ -29,7 +28,6 @@ func GetSessionRevokeConfig(c *fiber.Ctx) error {
 
 func UpdateSessionRevokeConfig(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetSettingsUsecase(ctn)
 	if err != nil {
@@ -50,7 +48,6 @@ func UpdateSessionRevokeConfig(c *fiber.Ctx) error {
 
 func GetRotationCleanupConfig(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetSettingsUsecase(ctn)
 	if err != nil {
@@ -67,7 +64,6 @@ func GetRotationCleanupConfig(c *fiber.Ctx) error {
 
 func UpdateRotationCleanupConfig(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetSettingsUsecase(ctn)
 	if err != nil {
@@ -88,7 +84,6 @@ func UpdateRotationCleanupConfig(c *fiber.Ctx) error {
 
 func GetActivityCleanupConfig(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetSettingsUsecase(ctn)
 	if err != nil {
@@ -105,7 +100,6 @@ func GetActivityCleanupConfig(c *fiber.Ctx) error {
 
 func UpdateActivityCleanupConfig(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetSettingsUsecase(ctn)
 	if err != nil {
@@ -126,7 +120,6 @@ func UpdateActivityCleanupConfig(c *fiber.Ctx) error {
 
 func GetDatabaseBackupConfig(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetSettingsUsecase(ctn)
 	if err != nil {
@@ -143,7 +136,6 @@ func GetDatabaseBackupConfig(c *fiber.Ctx) error {
 
 func UpdateDatabaseBackupConfig(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetSettingsUsecase(ctn)
 	if err != nil {

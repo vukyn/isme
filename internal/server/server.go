@@ -15,9 +15,8 @@ import (
 	settingsHandlers "github.com/vukyn/isme/internal/domains/settings/handlers/http"
 	userHandlers "github.com/vukyn/isme/internal/domains/user/handlers/http"
 	userInvitationHandlers "github.com/vukyn/isme/internal/domains/user_invitation/handlers/http"
+	"github.com/vukyn/isme/internal/middlewares"
 	"github.com/vukyn/isme/internal/web"
-
-	pkgCtx "github.com/vukyn/kuery/ctx"
 
 	"github.com/gofiber/contrib/fiberzerolog"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -62,8 +61,12 @@ func (s *Server) Start() {
 		Logger: &zerologLogger,
 	}))
 
-	// inject di container to fiber ctx
-	s.app.Use(diContainerMiddleware)
+	// Inject the request-scoped di container into the fiber ctx — and release it
+	// when the request ends. The middleware owns the whole lifetime (handlers only
+	// borrow it), so the release covers every path, including the ones that never
+	// reach a handler. Mounted ahead of the recover middleware below so its defer
+	// also runs while a panic unwinds.
+	s.app.Use(middlewares.DiContainerMiddleware(iapp.App))
 
 	// recover from panic
 	s.app.Use(pkgRecover.NewFiberRecover())
@@ -105,15 +108,6 @@ func (s *Server) Start() {
 
 func (s *Server) Stop() error {
 	return s.app.Shutdown()
-}
-
-func diContainerMiddleware(c *fiber.Ctx) error {
-	request, err := iapp.App.SubContainer()
-	if err != nil {
-		return err
-	}
-	pkgCtx.SetDiContainerRequestToFiberCtx(c, request)
-	return c.Next()
 }
 
 func (s *Server) webRoutes(app *fiber.App, uiFS fs.FS) {

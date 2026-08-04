@@ -15,7 +15,6 @@ import (
 
 func ListRoles(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetRoleUsecase(ctn)
 	if err != nil {
@@ -37,7 +36,6 @@ func ListRoles(c *fiber.Ctx) error {
 
 func CreateRole(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetRoleUsecase(ctn)
 	if err != nil {
@@ -59,7 +57,6 @@ func CreateRole(c *fiber.Ctx) error {
 
 func GetRoleDetail(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetRoleUsecase(ctn)
 	if err != nil {
@@ -76,7 +73,6 @@ func GetRoleDetail(c *fiber.Ctx) error {
 
 func UpdateRole(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetRoleUsecase(ctn)
 	if err != nil {
@@ -97,7 +93,6 @@ func UpdateRole(c *fiber.Ctx) error {
 
 func DeleteRole(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetRoleUsecase(ctn)
 	if err != nil {
@@ -113,7 +108,6 @@ func DeleteRole(c *fiber.Ctx) error {
 
 func SetRolePermissions(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetRoleUsecase(ctn)
 	if err != nil {
@@ -134,7 +128,6 @@ func SetRolePermissions(c *fiber.Ctx) error {
 
 func ListRoleMembers(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetRoleUsecase(ctn)
 	if err != nil {
@@ -156,7 +149,6 @@ func ListRoleMembers(c *fiber.Ctx) error {
 
 func AddRoleMembers(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetRoleUsecase(ctn)
 	if err != nil {
@@ -177,7 +169,6 @@ func AddRoleMembers(c *fiber.Ctx) error {
 
 func RemoveRoleMember(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetRoleUsecase(ctn)
 	if err != nil {
@@ -198,7 +189,6 @@ func RemoveRoleMember(c *fiber.Ctx) error {
 
 func ListPermissions(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetRoleUsecase(ctn)
 	if err != nil {
@@ -220,7 +210,6 @@ func ListPermissions(c *fiber.Ctx) error {
 
 func CreatePermissions(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetRoleUsecase(ctn)
 	if err != nil {
@@ -242,7 +231,6 @@ func CreatePermissions(c *fiber.Ctx) error {
 
 func UpdatePermissionAppearance(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetRoleUsecase(ctn)
 	if err != nil {
@@ -263,7 +251,6 @@ func UpdatePermissionAppearance(c *fiber.Ctx) error {
 
 func DeletePermission(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetRoleUsecase(ctn)
 	if err != nil {
