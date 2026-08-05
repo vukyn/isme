@@ -6,6 +6,11 @@ import (
 	activityModels "github.com/vukyn/isme/internal/domains/activity/models"
 )
 
+// Fixture credential — a named constant, never an inline literal, so a secret
+// scanner has no password-shaped string to flag and the value asserted across this
+// file has one declaration. Deliberately self-describing, not realistic.
+const fixturePassword = "fixture-value-not-a-credential"
+
 // fakeActivityUsecase is a test double for the activity recorder. It records each
 // RecordInvitationSent call so tests can assert the right event was emitted, and
 // can be made to "fail" (recordErr) to prove the invite still succeeds when the
