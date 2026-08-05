@@ -1,0 +1,17 @@
+# gitleaks configuration.
+#
+# Extend the default rule set rather than replacing it — a hand-written rule list
+# silently loses every detector gitleaks adds later.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Paths that cannot contain a secret by construction"
+paths = [
+  # .gitleaksignore holds 40-character commit fingerprints, which the
+  # generic-api-key rule reads as high-entropy secrets. Scanning the file that
+  # records accepted findings is circular: each entry added to silence a finding
+  # becomes a finding. Nothing in it is a credential — every line is a git SHA plus
+  # a file path already public in this repo's history.
+  '''^\.gitleaksignore$''',
+]
