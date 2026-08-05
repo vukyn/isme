@@ -12,7 +12,6 @@ import (
 
 func ListUsers(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetUserUsecase(ctn)
 	if err != nil {
@@ -34,7 +33,6 @@ func ListUsers(c *fiber.Ctx) error {
 
 func UpdateUserStatus(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetUserUsecase(ctn)
 	if err != nil {
@@ -55,7 +53,6 @@ func UpdateUserStatus(c *fiber.Ctx) error {
 
 func VerifyUser(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetUserUsecase(ctn)
 	if err != nil {
@@ -71,7 +68,6 @@ func VerifyUser(c *fiber.Ctx) error {
 
 func DeleteUser(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetUserUsecase(ctn)
 	if err != nil {
@@ -87,7 +83,6 @@ func DeleteUser(c *fiber.Ctx) error {
 
 func ListUserSessions(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetUserUsecase(ctn)
 	if err != nil {
@@ -104,7 +99,6 @@ func ListUserSessions(c *fiber.Ctx) error {
 
 func RevokeUserSession(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetUserUsecase(ctn)
 	if err != nil {

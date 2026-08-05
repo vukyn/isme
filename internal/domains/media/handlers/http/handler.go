@@ -19,7 +19,6 @@ import (
 // sees the key — it only ever talks to this isme endpoint.
 func Upload(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetMediaUsecase(ctn)
 	if err != nil {

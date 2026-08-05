@@ -12,7 +12,6 @@ import (
 
 func CreateInvitation(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetUserInvitationUsecase(ctn)
 	if err != nil {
@@ -34,7 +33,6 @@ func CreateInvitation(c *fiber.Ctx) error {
 
 func ListInvitations(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetUserInvitationUsecase(ctn)
 	if err != nil {
@@ -51,7 +49,6 @@ func ListInvitations(c *fiber.Ctx) error {
 
 func RevokeInvitation(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetUserInvitationUsecase(ctn)
 	if err != nil {
@@ -67,7 +64,6 @@ func RevokeInvitation(c *fiber.Ctx) error {
 
 func GetInvitationByToken(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetUserInvitationUsecase(ctn)
 	if err != nil {
@@ -84,7 +80,6 @@ func GetInvitationByToken(c *fiber.Ctx) error {
 
 func AcceptInvitation(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetUserInvitationUsecase(ctn)
 	if err != nil {

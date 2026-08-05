@@ -11,7 +11,6 @@ import (
 
 func RegisterApp(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetAppServiceUsecase(ctn)
 	if err != nil {
@@ -33,7 +32,6 @@ func RegisterApp(c *fiber.Ctx) error {
 
 func VerifyApp(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetAppServiceUsecase(ctn)
 	if err != nil {
@@ -55,7 +53,6 @@ func VerifyApp(c *fiber.Ctx) error {
 
 func RefreshApp(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetAppServiceUsecase(ctn)
 	if err != nil {
@@ -77,7 +74,6 @@ func RefreshApp(c *fiber.Ctx) error {
 
 func ListApps(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetAppServiceUsecase(ctn)
 	if err != nil {
@@ -99,7 +95,6 @@ func ListApps(c *fiber.Ctx) error {
 
 func GetApp(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetAppServiceUsecase(ctn)
 	if err != nil {
@@ -116,7 +111,6 @@ func GetApp(c *fiber.Ctx) error {
 
 func UpdateAppAppearance(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetAppServiceUsecase(ctn)
 	if err != nil {
@@ -137,7 +131,6 @@ func UpdateAppAppearance(c *fiber.Ctx) error {
 
 func UpdateAppStatus(c *fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
-	defer ctn.Delete()
 
 	uc, err := idi.GetAppServiceUsecase(ctn)
 	if err != nil {
