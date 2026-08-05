@@ -1,0 +1,17 @@
+# Accepted gitleaks findings. One entry per fingerprint, each with a reason.
+#
+# This file is for findings that CANNOT be fixed in the working tree — i.e. values
+# already in git history. It is NOT a place to silence a live literal: if a scanner
+# can see a credential-shaped string in the current code, the fix is to name it as a
+# fixture constant (see the auth usecase tests) or remove it, not to list it here.
+
+# A high-entropy invite token in a DESIGN MOCK, replaced in the working tree by an
+# obviously-fake placeholder but still present in commit a42c3ac.
+#
+# Judged not a real credential: the mock's host is `sso.isme.local` and the recipient
+# is `linh.tran@example.com`, both placeholder markers, and invite tokens are
+# single-use and short-lived by design. Nothing to rotate. History is left alone
+# because rewriting it for a mock string is disproportionate — but note that means the
+# value stays reachable in the repo's history, so if it ever turns out to have been
+# copied from a real invite, revoke that invite rather than relying on this note.
+a42c3ac4c46d83157bfa888fbf87d8dc08011601:demo/aurora-invite-design.html:generic-api-key:712

@@ -23,12 +23,11 @@ import (
 // reuses the in-package fakes (fakeUserRepository, ssoUserSessionRepo,
 // ssoAppServiceRepo, fakeRoleRepository) so created sessions can be inspected.
 // An empty sessionID exercises the non-SSO branch.
-func newSSOLoginFixture(t *testing.T, sessionID string, grouped map[string][]string) (*usecase, *ssoUserSessionRepo, string) {
+func newSSOLoginFixture(t *testing.T, sessionID string, grouped map[string][]string) (*usecase, *ssoUserSessionRepo) {
 	t.Helper()
 
 	const userID = "user-sso"
 	const email = "sso@example.com"
-	const password = "s3cret-password"
 
 	cfg := newTestConfig(t)
 	cache := pkgCache.NewCache[string, string]()
@@ -37,7 +36,7 @@ func newSSOLoginFixture(t *testing.T, sessionID string, grouped map[string][]str
 		ID:         userID,
 		Name:       "Thao Nguyen",
 		Email:      email,
-		Password:   cryp.HashArgon2id(password),
+		Password:   cryp.HashArgon2id(fixturePassword),
 		Status:     userConstants.UserStatusActive,
 		IsVerified: true,
 	}
@@ -71,21 +70,23 @@ func newSSOLoginFixture(t *testing.T, sessionID string, grouped map[string][]str
 		cache.Set(sessionID, "app-1", time.Minute)
 	}
 
-	return uc, sessionRepo, password
+	// The password is no longer returned: it is the package fixture constant, so a
+	// caller reads it directly instead of threading it back out of here.
+	return uc, sessionRepo
 }
 
 // TestSSOLoginEmitsSingleSignIn proves the password-form SSO login path (a
 // genuine human login) records exactly one sign_in — never one per app session.
 func TestSSOLoginEmitsSingleSignIn(t *testing.T) {
 	const sessionID = "sess-signin"
-	uc, _, password := newSSOLoginFixture(t, sessionID, map[string][]string{
+	uc, _ := newSSOLoginFixture(t, sessionID, map[string][]string{
 		"medioa2": {"storage:read"},
 	})
 	activity := uc.activityUsecase.(*fakeActivityUsecase)
 
 	_, err := uc.Login(context.Background(), models.LoginRequest{
 		Email:     "sso@example.com",
-		Password:  password,
+		Password:  fixturePassword,
 		SessionID: sessionID,
 	})
 	if err != nil {
@@ -105,13 +106,13 @@ func TestSSOLoginEmitsSingleSignIn(t *testing.T) {
 // (browser cookies). Previously the response tokens were sanitized to empty.
 func TestSSOLoginReturnsIdPTokensAndCode(t *testing.T) {
 	const sessionID = "sess-1"
-	uc, _, password := newSSOLoginFixture(t, sessionID, map[string][]string{
+	uc, _ := newSSOLoginFixture(t, sessionID, map[string][]string{
 		"medioa2": {"storage:read"},
 	})
 
 	resp, err := uc.Login(context.Background(), models.LoginRequest{
 		Email:     "sso@example.com",
-		Password:  password,
+		Password:  fixturePassword,
 		SessionID: sessionID,
 	})
 	if err != nil {
@@ -140,14 +141,14 @@ func TestSSOLoginReturnsIdPTokensAndCode(t *testing.T) {
 // the authorization-code-exchanged token is aud-restricted to the requesting app.
 func TestSSOLoginIdPTokenIsFullScope(t *testing.T) {
 	const sessionID = "sess-2"
-	uc, _, password := newSSOLoginFixture(t, sessionID, map[string][]string{
+	uc, _ := newSSOLoginFixture(t, sessionID, map[string][]string{
 		"medioa2": {"storage:read", "storage:write"},
 		"rainy":   {"playlist:read"},
 	})
 
 	resp, err := uc.Login(context.Background(), models.LoginRequest{
 		Email:     "sso@example.com",
-		Password:  password,
+		Password:  fixturePassword,
 		SessionID: sessionID,
 	})
 	if err != nil {
@@ -197,13 +198,13 @@ func TestSSOLoginIdPTokenIsFullScope(t *testing.T) {
 // (AppServiceID="").
 func TestSSOLoginCreatesIdPSessionEmptyAppServiceID(t *testing.T) {
 	const sessionID = "sess-3"
-	uc, sessionRepo, password := newSSOLoginFixture(t, sessionID, map[string][]string{
+	uc, sessionRepo := newSSOLoginFixture(t, sessionID, map[string][]string{
 		"medioa2": {"storage:read"},
 	})
 
 	_, err := uc.Login(context.Background(), models.LoginRequest{
 		Email:     "sso@example.com",
-		Password:  password,
+		Password:  fixturePassword,
 		SessionID: sessionID,
 	})
 	if err != nil {
@@ -234,13 +235,13 @@ func TestSSOLoginCreatesIdPSessionEmptyAppServiceID(t *testing.T) {
 // TestNonSSOLoginUnchanged verifies the non-SSO branch is untouched: full-scope
 // tokens, no authorization code, exactly one IdP session (AppServiceID="").
 func TestNonSSOLoginUnchanged(t *testing.T) {
-	uc, sessionRepo, password := newSSOLoginFixture(t, "", map[string][]string{
+	uc, sessionRepo := newSSOLoginFixture(t, "", map[string][]string{
 		"medioa2": {"storage:read"},
 	})
 
 	resp, err := uc.Login(context.Background(), models.LoginRequest{
 		Email:    "sso@example.com",
-		Password: password,
+		Password: fixturePassword,
 	})
 	if err != nil {
 		t.Fatalf("expected login to succeed, got %v", err)

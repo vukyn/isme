@@ -597,7 +597,7 @@ func TestAcceptInvitationHappyPath(t *testing.T) {
 	err := invitationUsecase.Accept(context.Background(), models.AcceptRequest{
 		Token:    rawToken,
 		Name:     "Linh Tran",
-		Password: "s3cret-pass",
+		Password: fixturePassword,
 	})
 	if err != nil {
 		t.Fatalf("expected accept to succeed, got: %v", err)
@@ -614,7 +614,7 @@ func TestAcceptInvitationHappyPath(t *testing.T) {
 	if len(userRepository.setPasswordCalls) != 1 {
 		t.Fatalf("expected 1 SetPassword call, got %d", len(userRepository.setPasswordCalls))
 	}
-	if userRepository.setPasswordCalls[0] != (setPasswordCall{id: "user-1", password: "s3cret-pass"}) {
+	if userRepository.setPasswordCalls[0] != (setPasswordCall{id: "user-1", password: fixturePassword}) {
 		t.Errorf("unexpected SetPassword call: %+v", userRepository.setPasswordCalls[0])
 	}
 
@@ -646,7 +646,7 @@ func TestAcceptInvitationMultiAppCreatesRolePerAssignment(t *testing.T) {
 		models.RoleAssignment{RoleID: "rol_viewer", AppServiceID: "app_rainy"},
 	)
 
-	err := invitationUsecase.Accept(context.Background(), models.AcceptRequest{Token: rawToken, Name: "Multi", Password: "s3cret-pass"})
+	err := invitationUsecase.Accept(context.Background(), models.AcceptRequest{Token: rawToken, Name: "Multi", Password: fixturePassword})
 	if err != nil {
 		t.Fatalf("expected accept to succeed, got: %v", err)
 	}
@@ -680,7 +680,7 @@ func TestAcceptInvitationRejections(t *testing.T) {
 		invitationID, rawToken := createInvitation(t, invitationUsecase, "old@hasaki.vn")
 		invitationRepository.invitations[invitationID].ExpiresAt = time.Now().UTC().Add(-time.Hour)
 
-		err := invitationUsecase.Accept(context.Background(), models.AcceptRequest{Token: rawToken, Name: "Old", Password: "s3cret-pass"})
+		err := invitationUsecase.Accept(context.Background(), models.AcceptRequest{Token: rawToken, Name: "Old", Password: fixturePassword})
 		if err == nil || !strings.Contains(err.Error(), "invalid or expired") {
 			t.Fatalf("expected expired rejection, got: %v", err)
 		}
@@ -694,7 +694,7 @@ func TestAcceptInvitationRejections(t *testing.T) {
 		invitationID, rawToken := createInvitation(t, invitationUsecase, "rev@hasaki.vn")
 		invitationRepository.invitations[invitationID].Status = int32(constants.InvitationStatusRevoked)
 
-		err := invitationUsecase.Accept(context.Background(), models.AcceptRequest{Token: rawToken, Name: "Rev", Password: "s3cret-pass"})
+		err := invitationUsecase.Accept(context.Background(), models.AcceptRequest{Token: rawToken, Name: "Rev", Password: fixturePassword})
 		if err == nil || !strings.Contains(err.Error(), "invalid or expired") {
 			t.Fatalf("expected revoked rejection, got: %v", err)
 		}
@@ -703,11 +703,11 @@ func TestAcceptInvitationRejections(t *testing.T) {
 	t.Run("already accepted", func(t *testing.T) {
 		_, _, _, invitationUsecase := newTestFixture()
 		_, rawToken := createInvitation(t, invitationUsecase, "twice@hasaki.vn")
-		if err := invitationUsecase.Accept(context.Background(), models.AcceptRequest{Token: rawToken, Name: "First", Password: "s3cret-pass"}); err != nil {
+		if err := invitationUsecase.Accept(context.Background(), models.AcceptRequest{Token: rawToken, Name: "First", Password: fixturePassword}); err != nil {
 			t.Fatalf("first accept failed: %v", err)
 		}
 
-		err := invitationUsecase.Accept(context.Background(), models.AcceptRequest{Token: rawToken, Name: "Second", Password: "s3cret-pass"})
+		err := invitationUsecase.Accept(context.Background(), models.AcceptRequest{Token: rawToken, Name: "Second", Password: fixturePassword})
 		if err == nil || !strings.Contains(err.Error(), "invalid or expired") {
 			t.Fatalf("expected already-accepted rejection, got: %v", err)
 		}
@@ -718,7 +718,7 @@ func TestAcceptInvitationRejections(t *testing.T) {
 		_, rawToken := createInvitation(t, invitationUsecase, "race@hasaki.vn")
 		invitationRepository.forceMarkAcceptedNop = true
 
-		err := invitationUsecase.Accept(context.Background(), models.AcceptRequest{Token: rawToken, Name: "Race", Password: "s3cret-pass"})
+		err := invitationUsecase.Accept(context.Background(), models.AcceptRequest{Token: rawToken, Name: "Race", Password: fixturePassword})
 		if err == nil || !strings.Contains(err.Error(), "already used") {
 			t.Fatalf("expected already-used rejection, got: %v", err)
 		}
@@ -732,7 +732,7 @@ func TestAcceptInvitationRejections(t *testing.T) {
 		_, rawToken := createInvitation(t, invitationUsecase, "claimed@hasaki.vn")
 		userRepository.userByEmail = userEntity.User{ID: "user-9", Email: "claimed@hasaki.vn"}
 
-		err := invitationUsecase.Accept(context.Background(), models.AcceptRequest{Token: rawToken, Name: "Late", Password: "s3cret-pass"})
+		err := invitationUsecase.Accept(context.Background(), models.AcceptRequest{Token: rawToken, Name: "Late", Password: fixturePassword})
 		if err == nil || !strings.Contains(err.Error(), "already exists") {
 			t.Fatalf("expected email-exists rejection, got: %v", err)
 		}
@@ -743,7 +743,7 @@ func TestAcceptInvitationRejections(t *testing.T) {
 		invitationID, rawToken := createInvitation(t, invitationUsecase, "fail@hasaki.vn")
 		userRepository.createErr = errors.New("database unavailable")
 
-		err := invitationUsecase.Accept(context.Background(), models.AcceptRequest{Token: rawToken, Name: "Fail", Password: "s3cret-pass"})
+		err := invitationUsecase.Accept(context.Background(), models.AcceptRequest{Token: rawToken, Name: "Fail", Password: fixturePassword})
 		if err == nil {
 			t.Fatal("expected accept to fail when user creation fails")
 		}
@@ -775,7 +775,7 @@ func TestRevokeInvitationTransitions(t *testing.T) {
 
 	// accepted → already used
 	acceptedID, rawToken := createInvitation(t, invitationUsecase, "used@hasaki.vn")
-	if err := invitationUsecase.Accept(context.Background(), models.AcceptRequest{Token: rawToken, Name: "Used", Password: "s3cret-pass"}); err != nil {
+	if err := invitationUsecase.Accept(context.Background(), models.AcceptRequest{Token: rawToken, Name: "Used", Password: fixturePassword}); err != nil {
 		t.Fatalf("accept failed: %v", err)
 	}
 	err = invitationUsecase.Revoke(context.Background(), acceptedID)
@@ -878,7 +878,7 @@ func TestGetInvitationByToken(t *testing.T) {
 	t.Run("accepted token resolves with accepted display status", func(t *testing.T) {
 		_, _, _, invitationUsecase := newTestFixture()
 		_, rawToken := createInvitation(t, invitationUsecase, "acc@hasaki.vn")
-		if err := invitationUsecase.Accept(context.Background(), models.AcceptRequest{Token: rawToken, Name: "Acc", Password: "s3cret-pass"}); err != nil {
+		if err := invitationUsecase.Accept(context.Background(), models.AcceptRequest{Token: rawToken, Name: "Acc", Password: fixturePassword}); err != nil {
 			t.Fatalf("accept failed: %v", err)
 		}
 

@@ -6,6 +6,23 @@ import (
 	activityModels "github.com/vukyn/isme/internal/domains/activity/models"
 )
 
+// Fixture credentials — named constants, never inline literals.
+//
+// Two reasons, both learned the hard way in gardener: a secret scanner
+// (GitGuardian) flags password-shaped literals appearing in a diff, so a file that
+// repeats one makes every future change to it trip the scanner; and a value asserted
+// in many places has to agree with the hash built from it, which only stays true if
+// there is one declaration rather than a dozen retypings.
+//
+// The values are deliberately self-describing rather than realistic — neither a
+// scanner nor a reader should be able to mistake them for a real credential.
+const (
+	fixturePassword      = "fixture-value-not-a-credential"
+	fixtureWrongPassword = "fixture-value-not-a-credential-mismatch"
+	fixtureOldPassword   = "fixture-value-not-a-credential-old"
+	fixtureNewPassword   = "fixture-value-not-a-credential-rotated"
+)
+
 // fakeActivityUsecase is a test double for the activity recorder. It records each
 // Record* call so tests can assert the right event was emitted, and can be made
 // to "fail" (recordErr) to prove the audited action still succeeds when the

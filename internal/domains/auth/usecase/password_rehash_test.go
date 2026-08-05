@@ -293,7 +293,7 @@ func TestLoginRehashesBcryptPassword(t *testing.T) {
 		user: userEntity.User{
 			ID:         "user-1",
 			Email:      "user@example.com",
-			Password:   cryp.HashBcrypt("s3cret-password", 4),
+			Password:   cryp.HashBcrypt(fixturePassword, 4),
 			Status:     userConstants.UserStatusActive,
 			IsVerified: true,
 		},
@@ -302,7 +302,7 @@ func TestLoginRehashesBcryptPassword(t *testing.T) {
 
 	res, err := authUsecase.Login(context.Background(), models.LoginRequest{
 		Email:    "user@example.com",
-		Password: "s3cret-password",
+		Password: fixturePassword,
 	})
 	if err != nil {
 		t.Fatalf("expected login to succeed, got error: %v", err)
@@ -315,7 +315,7 @@ func TestLoginRehashesBcryptPassword(t *testing.T) {
 		t.Fatalf("expected 1 SetPassword call (rehash), got %d", len(userRepository.setPasswordCalls))
 	}
 	call := userRepository.setPasswordCalls[0]
-	if call.id != "user-1" || call.password != "s3cret-password" {
+	if call.id != "user-1" || call.password != fixturePassword {
 		t.Errorf("unexpected SetPassword call: %+v", call)
 	}
 }
@@ -325,7 +325,7 @@ func TestLoginArgon2idPasswordNoRehash(t *testing.T) {
 		user: userEntity.User{
 			ID:         "user-1",
 			Email:      "user@example.com",
-			Password:   cryp.HashArgon2id("s3cret-password"),
+			Password:   cryp.HashArgon2id(fixturePassword),
 			Status:     userConstants.UserStatusActive,
 			IsVerified: true,
 		},
@@ -334,7 +334,7 @@ func TestLoginArgon2idPasswordNoRehash(t *testing.T) {
 
 	_, err := authUsecase.Login(context.Background(), models.LoginRequest{
 		Email:    "user@example.com",
-		Password: "s3cret-password",
+		Password: fixturePassword,
 	})
 	if err != nil {
 		t.Fatalf("expected login to succeed, got error: %v", err)
@@ -350,7 +350,7 @@ func TestLoginRehashFailureDoesNotFailLogin(t *testing.T) {
 		user: userEntity.User{
 			ID:         "user-1",
 			Email:      "user@example.com",
-			Password:   cryp.HashBcrypt("s3cret-password", 4),
+			Password:   cryp.HashBcrypt(fixturePassword, 4),
 			Status:     userConstants.UserStatusActive,
 			IsVerified: true,
 		},
@@ -360,7 +360,7 @@ func TestLoginRehashFailureDoesNotFailLogin(t *testing.T) {
 
 	res, err := authUsecase.Login(context.Background(), models.LoginRequest{
 		Email:    "user@example.com",
-		Password: "s3cret-password",
+		Password: fixturePassword,
 	})
 	if err != nil {
 		t.Fatalf("expected login to succeed despite rehash failure, got error: %v", err)
@@ -375,7 +375,7 @@ func TestLoginWrongPassword(t *testing.T) {
 		user: userEntity.User{
 			ID:         "user-1",
 			Email:      "user@example.com",
-			Password:   cryp.HashBcrypt("s3cret-password", 4),
+			Password:   cryp.HashBcrypt(fixturePassword, 4),
 			Status:     userConstants.UserStatusActive,
 			IsVerified: true,
 		},
@@ -384,7 +384,7 @@ func TestLoginWrongPassword(t *testing.T) {
 
 	_, err := authUsecase.Login(context.Background(), models.LoginRequest{
 		Email:    "user@example.com",
-		Password: "wrong-password",
+		Password: fixtureWrongPassword,
 	})
 	if err == nil {
 		t.Fatal("expected login to fail with wrong password")
@@ -405,7 +405,7 @@ func TestLoginEmitsSignIn(t *testing.T) {
 		user: userEntity.User{
 			ID:         "user-1",
 			Email:      "user@example.com",
-			Password:   cryp.HashArgon2id("s3cret-password"),
+			Password:   cryp.HashArgon2id(fixturePassword),
 			Status:     userConstants.UserStatusActive,
 			IsVerified: true,
 		},
@@ -414,7 +414,7 @@ func TestLoginEmitsSignIn(t *testing.T) {
 
 	_, err := authUsecase.Login(context.Background(), models.LoginRequest{
 		Email:    "user@example.com",
-		Password: "s3cret-password",
+		Password: fixturePassword,
 	})
 	if err != nil {
 		t.Fatalf("expected login to succeed, got error: %v", err)
@@ -435,7 +435,7 @@ func TestLoginRecorderErrorDoesNotFailLogin(t *testing.T) {
 		user: userEntity.User{
 			ID:         "user-1",
 			Email:      "user@example.com",
-			Password:   cryp.HashArgon2id("s3cret-password"),
+			Password:   cryp.HashArgon2id(fixturePassword),
 			Status:     userConstants.UserStatusActive,
 			IsVerified: true,
 		},
@@ -445,7 +445,7 @@ func TestLoginRecorderErrorDoesNotFailLogin(t *testing.T) {
 
 	res, err := authUsecase.Login(context.Background(), models.LoginRequest{
 		Email:    "user@example.com",
-		Password: "s3cret-password",
+		Password: fixturePassword,
 	})
 	if err != nil {
 		t.Fatalf("expected login to succeed despite recorder failure, got error: %v", err)
@@ -482,7 +482,7 @@ func TestChangePasswordEmitsPasswordChanged(t *testing.T) {
 		user: userEntity.User{
 			ID:       "user-1",
 			Email:    "user@example.com",
-			Password: cryp.HashArgon2id("old-password"),
+			Password: cryp.HashArgon2id(fixtureOldPassword),
 			Status:   userConstants.UserStatusActive,
 		},
 	}
@@ -490,8 +490,8 @@ func TestChangePasswordEmitsPasswordChanged(t *testing.T) {
 	uc := NewUsecase(newTestConfig(t), nil, userRepository, &fakeUserSessionRepository{}, nil, &fakeRoleRepository{}, activity)
 
 	err := uc.ChangePassword(ctxWithUser("user-1", "token-1"), models.ChangePasswordRequest{
-		OldPassword: "old-password",
-		NewPassword: "new-password-123",
+		OldPassword: fixtureOldPassword,
+		NewPassword: fixtureNewPassword,
 	})
 	if err != nil {
 		t.Fatalf("expected change password to succeed, got %v", err)
@@ -507,7 +507,7 @@ func TestLoginBlockedWhenUnverified(t *testing.T) {
 		user: userEntity.User{
 			ID:         "user-1",
 			Email:      "user@example.com",
-			Password:   cryp.HashArgon2id("s3cret-password"),
+			Password:   cryp.HashArgon2id(fixturePassword),
 			Status:     userConstants.UserStatusActive,
 			IsVerified: false,
 		},
@@ -517,7 +517,7 @@ func TestLoginBlockedWhenUnverified(t *testing.T) {
 	// correct password → the verification block surfaces
 	res, err := authUsecase.Login(context.Background(), models.LoginRequest{
 		Email:    "user@example.com",
-		Password: "s3cret-password",
+		Password: fixturePassword,
 	})
 	if err == nil {
 		t.Fatal("expected login to fail for unverified account")
@@ -532,7 +532,7 @@ func TestLoginBlockedWhenUnverified(t *testing.T) {
 	// wrong password → generic error, never leaks the verification state
 	_, err = authUsecase.Login(context.Background(), models.LoginRequest{
 		Email:    "user@example.com",
-		Password: "wrong-password",
+		Password: fixtureWrongPassword,
 	})
 	if err == nil {
 		t.Fatal("expected login to fail with wrong password")

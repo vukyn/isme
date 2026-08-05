@@ -19,7 +19,7 @@ func TestFirstPartyLoginAccessTokenCarriesResourceAccess(t *testing.T) {
 		user: userEntity.User{
 			ID:         "user-member",
 			Email:      "member@example.com",
-			Password:   cryp.HashArgon2id("s3cret-password"),
+			Password:   cryp.HashArgon2id(fixturePassword),
 			Status:     userConstants.UserStatusActive,
 			IsVerified: true,
 		},
@@ -34,7 +34,7 @@ func TestFirstPartyLoginAccessTokenCarriesResourceAccess(t *testing.T) {
 
 	res, err := authUsecase.Login(context.Background(), models.LoginRequest{
 		Email:    "member@example.com",
-		Password: "s3cret-password",
+		Password: fixturePassword,
 	})
 	if err != nil {
 		t.Fatalf("expected login to succeed, got error: %v", err)
@@ -62,7 +62,7 @@ func TestFirstPartyLoginIncludesAllAppsInAudience(t *testing.T) {
 		user: userEntity.User{
 			ID:         "user-multi",
 			Email:      "multi@example.com",
-			Password:   cryp.HashArgon2id("s3cret-password"),
+			Password:   cryp.HashArgon2id(fixturePassword),
 			Status:     userConstants.UserStatusActive,
 			IsVerified: true,
 		},
@@ -78,7 +78,7 @@ func TestFirstPartyLoginIncludesAllAppsInAudience(t *testing.T) {
 
 	res, err := authUsecase.Login(context.Background(), models.LoginRequest{
 		Email:    "multi@example.com",
-		Password: "s3cret-password",
+		Password: fixturePassword,
 	})
 	if err != nil {
 		t.Fatalf("expected login to succeed, got error: %v", err)
