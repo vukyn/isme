@@ -25,6 +25,16 @@ func MapMediaError(err error) error {
 		// membership — a server config problem, not a client one.
 		return pkgErr.Forward(pkgBase.Response{Code: 502, Message: "media service rejected the key"})
 	case errors.Is(err, medioa.ErrTooLarge):
+		// Forward medioa's wording. It reads "file size too large (max: NMB)", and
+		// that cap is medioa's own UPLOAD_MAX_FILE_SIZE_MB — a value isme holds no
+		// copy of, so replacing the text left the user with no way to tell how large
+		// an avatar is allowed to be. It exposes no server detail worth hiding: no
+		// key, no bucket, no path. Falls back to isme's own wording when medioa
+		// answers a bare 413 with no envelope message.
+		var tooLargeErr *medioa.APIError
+		if errors.As(err, &tooLargeErr) && tooLargeErr.Message != "" {
+			return pkgErr.Forward(pkgBase.Response{Code: 413, Message: tooLargeErr.Message})
+		}
 		return pkgErr.Forward(pkgBase.Response{Code: 413, Message: "uploaded file is too large"})
 	case errors.Is(err, medioa.ErrNotFound):
 		return pkgErr.NotFound("media object not found")
