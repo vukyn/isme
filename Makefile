@@ -69,3 +69,8 @@ v-tag-latest:
 tag:
 	git tag -a v$(VERSION) -m "Release version $(VERSION)"
 	git push origin v$(VERSION)
+
+# Repo-local process runner (mprocs.yaml in this directory).
+.PHONY: mprocs
+mprocs:
+	mprocs
