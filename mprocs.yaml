@@ -1,0 +1,25 @@
+# isme — repo-local mprocs. Run `mprocs` (or `make mprocs`) from repo root.
+# Procs run in the repo root, so no `cwd:` is needed.
+# Browser host sso.isme.local; server-to-server calls use 127.0.0.1:<port>
+# (*.local stalls ~5s on mDNS).
+# Rarely-used targets stay in the Makefile: db-up/down/logs/reset,
+# migrate-down/reset/baseline, gen-key-rsa256, v-tag, tag.
+procs:
+  run:
+    shell: make run
+    autostart: false
+  build-run:
+    # build-web (ui/ → internal/web/dist, go:embed) then run.
+    shell: make build-web && make run
+    autostart: false
+  web:
+    # Vite dev server (HMR) in ui/.
+    shell: make web
+    autostart: false
+  migrate-up:
+    # DB_DRIVER=sqlite by default; use DB=postgres for the Postgres block.
+    shell: make migrate-up DB=sqlite
+    autostart: false
+  test:
+    shell: go test ./...
+    autostart: false
