@@ -63,7 +63,7 @@ func (s *service) GetMe(ctx context.Context, req *models.GetMeRequest) (*models.
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		logResponseError("get me", resp)
+		logResponseError(operationGetMe, resp)
 		return nil, handleResponseError(resp, resp.StatusCode())
 	}
 
@@ -91,7 +91,7 @@ func (s *service) RequestLogin(ctx context.Context, req *models.RequestLoginRequ
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		logResponseError("request login", resp)
+		logResponseError(operationRequestLogin, resp)
 		return nil, handleResponseError(resp, resp.StatusCode())
 	}
 
@@ -119,7 +119,7 @@ func (s *service) RefreshToken(ctx context.Context, req *models.RefreshTokenRequ
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		logResponseError("refresh token", resp)
+		logResponseError(operationRefreshToken, resp)
 		return nil, handleResponseError(resp, resp.StatusCode())
 	}
 
@@ -147,7 +147,7 @@ func (s *service) ExchangeCode(ctx context.Context, req *models.ExchangeCodeRequ
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		logResponseError("exchange code", resp)
+		logResponseError(operationExchangeCode, resp)
 		return nil, handleResponseError(resp, resp.StatusCode())
 	}
 
@@ -175,7 +175,7 @@ func (s *service) Logout(ctx context.Context, req *models.LogoutRequest) (*model
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		logResponseError("logout", resp)
+		logResponseError(operationLogout, resp)
 		return nil, handleResponseError(resp, resp.StatusCode())
 	}
 
@@ -196,6 +196,21 @@ func handleResponseError(resp *resty.Response, statusCode int) error {
 	return pkgErr.Forward(baseErr)
 }
 
+// authOperation names the isme call being made. It is a distinct type, and the
+// call sites pass these constants rather than bare strings, because
+// isExpectedRejection now branches on WHICH operation was attempted — a typo in
+// a literal there would silently reclassify a log level instead of failing to
+// compile.
+type authOperation string
+
+const (
+	operationGetMe        authOperation = "get me"
+	operationRequestLogin authOperation = "request login"
+	operationRefreshToken authOperation = "refresh token"
+	operationExchangeCode authOperation = "exchange code"
+	operationLogout       authOperation = "logout"
+)
+
 // logResponseError records a non-2xx from isme at a level that matches whose
 // fault it is.
 //
@@ -208,9 +223,9 @@ func handleResponseError(resp *resty.Response, statusCode int) error {
 //
 // The message deliberately drops the "Error" prefix on the warn path so existing
 // error-grepping alerts stop matching it, and carries the status code either way.
-func logResponseError(operation string, resp *resty.Response) {
+func logResponseError(operation authOperation, resp *resty.Response) {
 	status := resp.StatusCode()
-	if isExpectedRejection(status) {
+	if isExpectedRejection(operation, status) {
 		log.New().Warnf("Rejected %s from external auth (%d): %v", operation, status, resp.String())
 		return
 	}
@@ -220,6 +235,16 @@ func logResponseError(operation string, resp *resty.Response) {
 // isExpectedRejection reports whether a status is isme correctly refusing a
 // caller's credentials, as opposed to something being broken. Split out from the
 // logging so the decision is testable without capturing log output.
-func isExpectedRejection(status int) bool {
-	return status == http.StatusUnauthorized || status == http.StatusForbidden
+//
+// The refresh endpoint is the exception to the 401/403 rule: isme answers an
+// expired, rotated or unknown refresh token with 400 and `invalid refresh token`,
+// not 401. That is the ordinary end of a session — the caller's next move is to
+// send the user back through login — so on THAT operation a 400 is a rejection,
+// not a fault. It stays an error everywhere else, where a 400 means this client
+// built a malformed request and someone should look at it.
+func isExpectedRejection(operation authOperation, status int) bool {
+	if status == http.StatusUnauthorized || status == http.StatusForbidden {
+		return true
+	}
+	return status == http.StatusBadRequest && operation == operationRefreshToken
 }
