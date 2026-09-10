@@ -34,12 +34,111 @@ func (s *service) rest(_ context.Context, retry int, retryInterval, timeout time
 		SetBaseURL(s.endpoint)
 }
 
-//lint:ignore U1000 For debugging purpose
+// redactedValue replaces anything the debug log must not carry.
+const redactedValue = "[REDACTED]"
+
+// sensitiveHeaders are dropped wholesale from a debug dump. Authorization
+// carries the bearer token; the Cookie headers carry the session.
+var sensitiveHeaders = []string{"Authorization", "Cookie", "Set-Cookie"}
+
+// sensitiveBodyFields are the JSON keys whose values are credentials in their
+// own right — each is enough to impersonate the user if it reaches a log file
+// or a log aggregator. They cover both directions: app_secret /
+// authorization_code / refresh_token go UP in a request body, access_token and
+// refresh_token come back DOWN in a response body.
+var sensitiveBodyFields = map[string]struct{}{
+	"app_secret":         {},
+	"authorization_code": {},
+	"refresh_token":      {},
+	"access_token":       {},
+}
+
+// restWithDebug returns a client that dumps requests and responses, with every
+// credential masked first.
+//
+// ⚠️ EnableGenerateCurlOnDebug is deliberately NOT set, and must not be added
+// back. resty builds the curl string separately and writes it into the log
+// BEFORE the OnRequestLog callback's redaction is applied to the headers and
+// body (see requestLogger in resty's middleware.go) — so the curl line would
+// carry the raw Authorization header and a replayable command no hook can
+// scrub. There is no way to redact it; the only fix is not to generate it.
 func (s *service) restWithDebug(ctx context.Context, retry int, retryInterval, timeout time.Duration) *resty.Client {
 	return s.rest(ctx, retry, retryInterval, timeout).
 		SetDebug(true).
 		SetLogger(log.New()).
-		EnableGenerateCurlOnDebug() // Enable this to generate curl command on debug
+		OnRequestLog(func(rl *resty.RequestLog) error {
+			redactHeaders(rl.Header)
+			rl.Body = redactBody(rl.Body)
+			return nil
+		}).
+		OnResponseLog(func(rl *resty.ResponseLog) error {
+			redactHeaders(rl.Header)
+			rl.Body = redactBody(rl.Body)
+			return nil
+		})
+}
+
+// redactHeaders masks the sensitive headers in place. resty hands the callback a
+// COPY of the header map, so this never touches the request actually sent.
+func redactHeaders(header http.Header) {
+	for _, name := range sensitiveHeaders {
+		if len(header.Values(name)) > 0 {
+			header.Set(name, redactedValue)
+		}
+	}
+}
+
+// redactBody masks every sensitive field in a JSON body, at any depth, and
+// returns the re-encoded result.
+//
+// A body that does not parse as JSON is replaced wholesale rather than passed
+// through. That is the deliberate choice: these endpoints only ever exchange
+// JSON, so a non-JSON body means something unexpected, and guessing at its
+// shape in order to preserve debug value would be exactly the case where a
+// credential slips out. Failing closed costs a little diagnostic detail on a
+// path that is off by default anyway.
+func redactBody(body string) string {
+	if body == "" {
+		return body
+	}
+
+	var parsed any
+	if err := json.Unmarshal([]byte(body), &parsed); err != nil {
+		return redactedValue
+	}
+
+	redacted := redactValue(parsed)
+
+	encoded, err := json.Marshal(redacted)
+	if err != nil {
+		return redactedValue
+	}
+	return string(encoded)
+}
+
+// redactValue walks a decoded JSON value and replaces the value of any key in
+// sensitiveBodyFields. It recurses through nested objects and arrays because the
+// tokens live one level down, inside the "data" object of a login or refresh
+// response.
+func redactValue(value any) any {
+	switch typed := value.(type) {
+	case map[string]any:
+		for key, nested := range typed {
+			if _, sensitive := sensitiveBodyFields[key]; sensitive {
+				typed[key] = redactedValue
+				continue
+			}
+			typed[key] = redactValue(nested)
+		}
+		return typed
+	case []any:
+		for index, nested := range typed {
+			typed[index] = redactValue(nested)
+		}
+		return typed
+	default:
+		return value
+	}
 }
 
 func (s *service) GetMe(ctx context.Context, req *models.GetMeRequest) (*models.GetMeResponse, error) {
