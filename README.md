@@ -4,7 +4,7 @@ This is a Go project generated using gobuild CLI tool.
 
 ## Prerequisites
 
-- Go 1.24 or higher
+- Go 1.27.1 or higher
 - Make (optional, for using Makefile commands)
 
 ## Installation

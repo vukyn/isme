@@ -3,7 +3,7 @@
 # be built and placed there BEFORE `go build` — mirrors `make build-web`.
 
 # ---- Stage 1: build the React/Vite UI ----
-FROM node:20-alpine AS ui
+FROM node:22-alpine AS ui
 WORKDIR /app/ui
 # Cache deps on package manifests
 COPY ui/package*.json ./
@@ -12,7 +12,10 @@ COPY ui/ ./
 RUN npm run build            # outputs ui/dist
 
 # ---- Stage 2: build the Go binary (with embedded UI) ----
-FROM golang:1.26.4 AS builder
+FROM golang:1.27.1-alpine AS builder
+# git for module fetch; ca-certificates + tzdata so the scratch runtime can copy
+# /etc/ssl/certs/ca-certificates.crt and /usr/share/zoneinfo (alpine ships neither).
+RUN apk add --no-cache git ca-certificates tzdata
 WORKDIR /app
 # Cache modules on go.mod/go.sum
 COPY go.mod go.sum ./
