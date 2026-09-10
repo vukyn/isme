@@ -212,7 +212,10 @@ func newDatabaseBackupRun(
 
 		dbDir := filepath.Dir(constants.DB_FILE_PATH)
 		backupDir := filepath.Join(dbDir, "backups")
-		if err := os.MkdirAll(backupDir, 0o755); err != nil {
+		// 0o700, not 0o755: a backup here is a byte-for-byte copy of the SQLite
+		// file, which holds app_service secrets and session tokens. World-readable
+		// is world-readable to every other local user on a shared host.
+		if err := os.MkdirAll(backupDir, 0o700); err != nil {
 			log.New().Errorf("Scheduler: create backup dir failed: %v", err)
 			return nil
 		}
@@ -226,6 +229,14 @@ func newDatabaseBackupRun(
 				log.New().Errorf("Scheduler: database backup (VACUUM INTO) failed: %v", err)
 				return nil
 			}
+		}
+
+		// VACUUM INTO creates the file itself, at 0644 — the directory mode above
+		// does not constrain it. Tighten it to owner-only before anything else can
+		// read it. A failure here is worth logging but not worth discarding a
+		// backup that was written successfully.
+		if err := os.Chmod(target, 0o600); err != nil {
+			log.New().Warnf("Scheduler: chmod backup file failed: %v", err)
 		}
 
 		var bytes int64
