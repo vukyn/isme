@@ -5,7 +5,7 @@ go 1.27.1
 require (
 	github.com/go-resty/resty/v2 v2.17.0
 	github.com/gofiber/contrib/fiberzerolog v1.0.3
-	github.com/gofiber/fiber/v2 v2.52.13
+	github.com/gofiber/fiber/v2 v2.52.14
 	github.com/gofiber/template/html/v2 v2.1.3
 	github.com/joho/godotenv v1.5.1
 	github.com/kelseyhightower/envconfig v1.4.0
@@ -13,7 +13,7 @@ require (
 	github.com/uptrace/bun v1.2.16
 	github.com/uptrace/bun/dialect/sqlitedialect v1.2.16
 	github.com/uptrace/bun/driver/sqliteshim v1.2.16
-	github.com/vukyn/kuery v1.59.0
+	github.com/vukyn/kuery v1.60.0
 )
 
 require (
