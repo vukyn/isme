@@ -22,6 +22,8 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
 	"github.com/gofiber/template/html/v2"
+	pkgFiber "github.com/vukyn/kuery/http/fiber"
+	pkgHealth "github.com/vukyn/kuery/http/health"
 	"github.com/vukyn/kuery/log"
 
 	pkgRecover "github.com/vukyn/kuery/recover"
@@ -84,6 +86,20 @@ func (s *Server) Start() {
 
 	// api/v1
 	apiV1 := s.app.Group("/api/v1")
+
+	// Deployment verification. Unauthenticated and deliberately I/O-free: it
+	// reports the module versions the running binary was BUILT with, read from
+	// the embedded build info, so "which build is live?" is one curl rather
+	// than a guess from an incidental clue in the logs.
+	//
+	// It touches no database on purpose. This app is scale-to-zero over a
+	// suspending Postgres, so a health check that pinged the DB would wake it
+	// on every call — and "the process is up" is a different question from
+	// "its database is reachable".
+	apiV1.Get("/__version", pkgFiber.Health(pkgHealth.New(
+		"github.com/vukyn/kuery",
+		"github.com/gofiber/fiber/v2",
+	)))
 	authHandlers.SetupAuthRoutes(apiV1)
 	appServiceHandlers.SetupAppServiceRoutes(apiV1)
 	// before user routes so /users/invites is matched ahead of /users/:userID
