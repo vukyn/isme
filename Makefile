@@ -47,15 +47,15 @@ gen-key-rsa256:
 	openssl rsa -pubout -in certs/private.pem -out certs/public.pem
 
 init-ui:
-	npm create vite@latest ui
-	cd ui && npm i @chakra-ui/react @emotion/react
-	cd ui && npx @chakra-ui/cli snippet add
+	pnpm create vite@latest ui
+	cd ui && pnpm add @chakra-ui/react @emotion/react
+	cd ui && pnpm dlx @chakra-ui/cli snippet add
 
 web:
-	cd ui && npm run dev
+	cd ui && pnpm run dev
 
 build-web:
-	cd ui && npm install && npm run build
+	cd ui && pnpm install && pnpm run build
 	rm -rf ./internal/web/dist
 	mv ./ui/dist ./internal/web/dist
 	touch ./internal/web/dist/.gitkeep
