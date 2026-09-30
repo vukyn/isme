@@ -31,7 +31,7 @@ make migrate-reset DB=sqlite # reset
 make gen-key-rsa256         # generate certs/private.pem + public.pem (RSA 2048)
 
 # UI (Vite + React + Chakra)
-make web                    # cd ui && npm run dev
+make web                    # cd ui && pnpm run dev
 make build-web              # builds ui/dist into internal/ui (embedded by Go)
 
 # Release

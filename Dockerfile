@@ -5,11 +5,13 @@
 # ---- Stage 1: build the React/Vite UI ----
 FROM node:22-alpine AS ui
 WORKDIR /app/ui
-# Cache deps on package manifests
-COPY ui/package*.json ./
-RUN npm install
+# pnpm via corepack (version pinned by "packageManager" in ui/package.json)
+RUN corepack enable
+# Cache deps on package manifest + lockfile
+COPY ui/package.json ui/pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
 COPY ui/ ./
-RUN npm run build            # outputs ui/dist
+RUN pnpm run build           # outputs ui/dist
 
 # ---- Stage 2: build the Go binary (with embedded UI) ----
 FROM golang:1.27.1-alpine AS builder
