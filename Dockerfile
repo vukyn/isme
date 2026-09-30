@@ -8,7 +8,7 @@ WORKDIR /app/ui
 # pnpm via corepack (version pinned by "packageManager" in ui/package.json)
 RUN corepack enable
 # Cache deps on package manifest + lockfile
-COPY ui/package.json ui/pnpm-lock.yaml ./
+COPY ui/package.json ui/pnpm-lock.yaml ui/pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY ui/ ./
 RUN pnpm run build           # outputs ui/dist
