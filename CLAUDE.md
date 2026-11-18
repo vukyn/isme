@@ -34,7 +34,7 @@ make gen-key-rsa256         # generate certs/private.pem + public.pem (RSA 2048)
 
 # UI (Vite + React + Chakra)
 make web                    # cd ui && pnpm run dev
-make build-web              # builds ui/dist into internal/ui (embedded by Go)
+make build-web              # builds ui/dist into internal/web/dist (embedded by Go)
 
 # Release
 make tag VERSION=x.y.z      # creates + pushes git tag
@@ -45,7 +45,7 @@ then `make db-up` → `make migrate-up` → `make run`.
 
 ## Architecture
 
-Clean architecture, domain-driven layout, Fiber HTTP, Bun ORM (Postgres), `sarulabs/di/v2` container.
+Clean architecture, domain-driven layout, Fiber **v3** HTTP, Bun ORM (Postgres), `sarulabs/di/v2` container. See "Fiber v3 notes" below before touching a handler or middleware.
 
 Entry: `cmd/main.go` → `internal/app` → `internal/server` (Fiber) + DI build.
 
@@ -187,17 +187,25 @@ the migrations themselves on empty databases (`pgtest.EmptyDB`).
 
 ### UI
 
-Vite + React + Chakra UI in `ui/`. `make build-web` compiles and moves `ui/dist` → `internal/ui` for Go embedding (Fiber serves the SPA + assets). `internal/ui/assets` is build output — do not hand-edit.
+Vite + React + Chakra UI in `ui/`. `make build-web` compiles and moves `ui/dist` → `internal/web/dist`, embedded by `//go:embed all:dist` (`internal/web/web.go`). `internal/web/dist` is build output — do not hand-edit.
+
+`internal/server/server.go` `mountWeb` serves it, after every API route: the Fiber `html` engine renders `index.html` (injecting `VITE_API_BASE_URL` as `{{.APIBaseURL}}`, read by `ui/src/utils/config.ts`), `/assets` comes from the embedded `assets/` subtree via `fiber/v3/middleware/static`, `/favicon.svg` has its own route read from the FS, and `/*` renders the SPA. ⚠️ v3's `static` falls through to the next route on a miss, i.e. the SPA catch-all, so a missing `/assets/*` file would answer `index.html` at **200**; `NotFoundHandler` makes it a plain 404. A new root-level file needs its own route ahead of the catch-all, read with `fs.ReadFile` rather than `c.SendFile`. `internal/server/web_test.go` pins all of it.
 
 ### Shared packages (`github.com/vukyn/kuery`)
 
 The old local `pkg/` directory was consolidated into the `github.com/vukyn/kuery` module (≥ v1.12.0):
 - `kuery/jwt` — token gen/validate (HS256 + RS256)
 - `kuery/claims` — JWT claim shape
-- `kuery/ctx` — typed context keys + helpers (e.g. user_id from claims)
-- `kuery/http/fiber` — standardized JSON responses + error mapping
+- `kuery/ctxv3` — typed context keys + helpers (e.g. user_id from claims)
+- `kuery/http/fiberv3` — standardized JSON responses + error mapping (+ `Health`)
+- `kuery/http/errors` — `InvalidRequest` & co., mapped by `fiberv3.Err`
+- `kuery/rbacv3` — `RequirePermission` route guards
 - `kuery/graceful` — shutdown coordinator
-- `kuery/recover` — panic recovery middleware
+- `kuery/recoverv3` — panic recovery middleware
+
+⚠️ Only the **v3 twins** (`ctxv3`, `http/fiberv3`, `rbacv3`, `recoverv3`). Their v2 originals
+(`kuery/ctx`, `kuery/http/fiber`, `kuery/rbac`, `kuery/recover`, plus `kuery/auth`,
+`kuery/apikey`, `kuery/http/ratelimit`) are Fiber v2 — see "Fiber v3 notes".
 - `kuery/bun/{hooks,query}` — ORM helpers
 - `kuery/cryp` — crypto helpers
 
@@ -208,10 +216,49 @@ The old local `pkg/` directory was consolidated into the `github.com/vukyn/kuery
 - Constants: `UPPER_SNAKE_CASE`.
 - Use early returns; keep functions small.
 - Bun tags style: `bun:"id,pk,autoincrement"`. JSON tags on response models.
-- Errors: domain exceptions in `exceptions/`, mapped by handler via `kuery/http/fiber`. Don't return raw `error` to clients.
-- Logging: structured via zerolog (Fiber middleware `fiberzerolog`).
+- Errors: domain exceptions in `exceptions/`, mapped by handler via `kuery/http/fiberv3`. Don't return raw `error` to clients.
+- Logging: structured via zerolog (`fiber/v3/middleware/logger` with a `LoggerFunc`, `logRequest` in `server.go`).
 - Imports grouped: stdlib, third-party, internal.
 - Frontend: `docs/frontend-structure.md` (ui/src layout) + `docs/chakra-v3.md` (Chakra v3 only, never v2 syntax).
+
+## Fiber v3 notes
+
+isme moved from Fiber v2 to **v3** (`fiber/v3 v3.5.0`, `template/html/v3 v3.0.8`) on
+2026-11-18, the same pins as bistro, kiokku, cookbook and gobuild's `platform-service-v3`
+preset. The differences that matter, and why:
+
+- **`fiber.Ctx` is an interface** — handlers are `func(c fiber.Ctx) error`, not
+  `func(c *fiber.Ctx) error`.
+- **Body/query decoding moved to `Bind()`** — `c.Bind().Body(&req)` / `c.Bind().Query(&req)`
+  replace `BodyParser` / `QueryParser`, and `c.QueryInt` is `fiber.Query[int](c, key, def)`.
+  A bind error is the client's fault: wrap it,
+  `return pkgHttp.Err(c, pkgErr.InvalidRequest(err.Error()))` (400). A bare
+  `pkgHttp.Err(c, err)` answers **500**. ⚠️ Never call `.WithAutoHandling()` — it sets a
+  status behind the handler's back.
+- **kuery's v3 twins only.** ⚠️ `kuery/ctx` and `kuery/ctxv3` each declare their **own**
+  `type ContextKey string`, so a value stored under one is invisible to the other even though
+  the key strings are identical. A usecase or repository that only calls
+  `pkgCtx.GetUserID(ctx)` compiles against either and, on the wrong one, reads an **empty**
+  user id: empty `created_by`/`updated_by`, broken ownership checks, no error anywhere. Only
+  reading the column after a real write catches it at runtime.
+- **The guard:** `internal/middlewares/fiber_v3_guard_test.go` parses the import list of
+  every `.go` file in the module (tests included) and fails on any Fiber v2 path or kuery v2
+  helper, and fails on a `Bind()` error returned unwrapped. Both checks are mutation-proved.
+- **`go.mod` carries no `fiber/v2` at all.** A `github.com/gofiber/fiber/v2 // indirect` line
+  turning up after `go mod tidy` is a **tripwire**: something imports a kuery v2 package
+  again — find the import, do not "fix" the `go.mod` line.
+- **`fiberzerolog` has no v3** (gofiber/contrib never published one), so request logging is
+  `fiber/v3/middleware/logger` with a `LoggerFunc` into kuery's zerolog — one line per
+  request: Error ≥ 500, Warn ≥ 400, Info otherwise. `logger.Data` has no status field; read
+  `c.Response().StatusCode()`. The logger runs the app error handler before its `LoggerFunc`.
+- **`middleware/filesystem` is gone** — `fiber/v3/middleware/static` (see UI above).
+- **Unchanged on purpose (parity, not endorsement):** CORS is still a bare `cors.New()`
+  (allow-all), and there is no `ProxyHeader`/`TrustProxy`, so `c.IP()` behind fly is the
+  proxy's address. On v3 `ProxyHeader` alone is a no-op — it needs `TrustProxy` plus a
+  `TrustProxyConfig` rule. Both are open follow-ups.
+- **Request strings alias fasthttp's buffer** (`Immutable` is off, as on v2). kuery's
+  `ctxv3` clones the UA and IP it stores; anything else kept past the request needs
+  `strings.Clone`.
 
 ## Key References
 

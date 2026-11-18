@@ -4,14 +4,14 @@ import (
 	idi "github.com/vukyn/isme/internal/di"
 	"github.com/vukyn/isme/internal/domains/settings/models"
 
-	pkgCtx "github.com/vukyn/kuery/ctx"
+	pkgCtx "github.com/vukyn/kuery/ctxv3"
 	pkgErr "github.com/vukyn/kuery/http/errors"
-	pkgHttp "github.com/vukyn/kuery/http/fiber"
+	pkgHttp "github.com/vukyn/kuery/http/fiberv3"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
-func GetSessionRevokeConfig(c *fiber.Ctx) error {
+func GetSessionRevokeConfig(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetSettingsUsecase(ctn)
@@ -27,7 +27,7 @@ func GetSessionRevokeConfig(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, getResponse)
 }
 
-func UpdateSessionRevokeConfig(c *fiber.Ctx) error {
+func UpdateSessionRevokeConfig(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetSettingsUsecase(ctn)
@@ -36,8 +36,8 @@ func UpdateSessionRevokeConfig(c *fiber.Ctx) error {
 	}
 
 	updateRequest := models.UpdateRequest{}
-	if err := c.BodyParser(&updateRequest); err != nil {
-		return pkgHttp.Err(c, err)
+	if err := c.Bind().Body(&updateRequest); err != nil {
+		return pkgHttp.Err(c, pkgErr.InvalidRequest(err.Error()))
 	}
 
 	if err := uc.Update(pkgCtx.NewContextFromFiberCtx(c), updateRequest); err != nil {
@@ -47,7 +47,7 @@ func UpdateSessionRevokeConfig(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, nil)
 }
 
-func GetRotationCleanupConfig(c *fiber.Ctx) error {
+func GetRotationCleanupConfig(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetSettingsUsecase(ctn)
@@ -63,7 +63,7 @@ func GetRotationCleanupConfig(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, getResponse)
 }
 
-func UpdateRotationCleanupConfig(c *fiber.Ctx) error {
+func UpdateRotationCleanupConfig(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetSettingsUsecase(ctn)
@@ -72,8 +72,8 @@ func UpdateRotationCleanupConfig(c *fiber.Ctx) error {
 	}
 
 	updateRequest := models.RotationCleanupUpdateRequest{}
-	if err := c.BodyParser(&updateRequest); err != nil {
-		return pkgHttp.Err(c, err)
+	if err := c.Bind().Body(&updateRequest); err != nil {
+		return pkgHttp.Err(c, pkgErr.InvalidRequest(err.Error()))
 	}
 
 	if err := uc.UpdateRotationCleanup(pkgCtx.NewContextFromFiberCtx(c), updateRequest); err != nil {
@@ -83,7 +83,7 @@ func UpdateRotationCleanupConfig(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, nil)
 }
 
-func GetActivityCleanupConfig(c *fiber.Ctx) error {
+func GetActivityCleanupConfig(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetSettingsUsecase(ctn)
@@ -99,7 +99,7 @@ func GetActivityCleanupConfig(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, getResponse)
 }
 
-func UpdateActivityCleanupConfig(c *fiber.Ctx) error {
+func UpdateActivityCleanupConfig(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetSettingsUsecase(ctn)
@@ -108,8 +108,8 @@ func UpdateActivityCleanupConfig(c *fiber.Ctx) error {
 	}
 
 	updateRequest := models.ActivityCleanupUpdateRequest{}
-	if err := c.BodyParser(&updateRequest); err != nil {
-		return pkgHttp.Err(c, err)
+	if err := c.Bind().Body(&updateRequest); err != nil {
+		return pkgHttp.Err(c, pkgErr.InvalidRequest(err.Error()))
 	}
 
 	if err := uc.UpdateActivityCleanup(pkgCtx.NewContextFromFiberCtx(c), updateRequest); err != nil {
@@ -119,7 +119,7 @@ func UpdateActivityCleanupConfig(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, nil)
 }
 
-func GetInvitationCleanupConfig(c *fiber.Ctx) error {
+func GetInvitationCleanupConfig(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetSettingsUsecase(ctn)
@@ -135,7 +135,7 @@ func GetInvitationCleanupConfig(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, getResponse)
 }
 
-func UpdateInvitationCleanupConfig(c *fiber.Ctx) error {
+func UpdateInvitationCleanupConfig(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetSettingsUsecase(ctn)
@@ -144,7 +144,7 @@ func UpdateInvitationCleanupConfig(c *fiber.Ctx) error {
 	}
 
 	updateRequest := models.InvitationCleanupUpdateRequest{}
-	if err := c.BodyParser(&updateRequest); err != nil {
+	if err := c.Bind().Body(&updateRequest); err != nil {
 		// a malformed body is the client's fault, not a server error
 		return pkgHttp.Err(c, pkgErr.InvalidRequest(err.Error()))
 	}
@@ -156,7 +156,7 @@ func UpdateInvitationCleanupConfig(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, nil)
 }
 
-func GetUnverifiedUserCleanupConfig(c *fiber.Ctx) error {
+func GetUnverifiedUserCleanupConfig(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetSettingsUsecase(ctn)
@@ -172,7 +172,7 @@ func GetUnverifiedUserCleanupConfig(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, getResponse)
 }
 
-func UpdateUnverifiedUserCleanupConfig(c *fiber.Ctx) error {
+func UpdateUnverifiedUserCleanupConfig(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetSettingsUsecase(ctn)
@@ -181,7 +181,7 @@ func UpdateUnverifiedUserCleanupConfig(c *fiber.Ctx) error {
 	}
 
 	updateRequest := models.UnverifiedUserCleanupUpdateRequest{}
-	if err := c.BodyParser(&updateRequest); err != nil {
+	if err := c.Bind().Body(&updateRequest); err != nil {
 		// a malformed body is the client's fault, not a server error
 		return pkgHttp.Err(c, pkgErr.InvalidRequest(err.Error()))
 	}

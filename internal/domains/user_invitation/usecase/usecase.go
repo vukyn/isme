@@ -16,7 +16,7 @@ import (
 	"github.com/vukyn/isme/internal/domains/user_invitation/models"
 	invitationRepo "github.com/vukyn/isme/internal/domains/user_invitation/repository"
 
-	pkgCtx "github.com/vukyn/kuery/ctx"
+	pkgCtx "github.com/vukyn/kuery/ctxv3"
 	pkgErr "github.com/vukyn/kuery/http/errors"
 
 	"github.com/vukyn/kuery/cryp"

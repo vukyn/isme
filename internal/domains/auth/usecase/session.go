@@ -8,7 +8,7 @@ import (
 	appServiceEntity "github.com/vukyn/isme/internal/domains/app_service/entity"
 	"github.com/vukyn/isme/internal/domains/auth/models"
 	userSessionEntity "github.com/vukyn/isme/internal/domains/user_session/entity"
-	pkgCtx "github.com/vukyn/kuery/ctx"
+	pkgCtx "github.com/vukyn/kuery/ctxv3"
 	pkgErr "github.com/vukyn/kuery/http/errors"
 )
 

@@ -9,7 +9,7 @@ import (
 	userRepo "github.com/vukyn/isme/internal/domains/user/repository"
 	userSessionRepo "github.com/vukyn/isme/internal/domains/user_session/repository"
 
-	pkgCtx "github.com/vukyn/kuery/ctx"
+	pkgCtx "github.com/vukyn/kuery/ctxv3"
 	pkgErr "github.com/vukyn/kuery/http/errors"
 )
 

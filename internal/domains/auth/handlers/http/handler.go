@@ -3,13 +3,14 @@ package handlers
 import (
 	idi "github.com/vukyn/isme/internal/di"
 	"github.com/vukyn/isme/internal/domains/auth/models"
-	pkgCtx "github.com/vukyn/kuery/ctx"
-	pkgHttp "github.com/vukyn/kuery/http/fiber"
+	pkgCtx "github.com/vukyn/kuery/ctxv3"
+	pkgErr "github.com/vukyn/kuery/http/errors"
+	pkgHttp "github.com/vukyn/kuery/http/fiberv3"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
-func Login(c *fiber.Ctx) error {
+func Login(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetAuthUsecase(ctn)
@@ -18,8 +19,8 @@ func Login(c *fiber.Ctx) error {
 	}
 
 	loginRequest := models.LoginRequest{}
-	if err := c.BodyParser(&loginRequest); err != nil {
-		return pkgHttp.Err(c, err)
+	if err := c.Bind().Body(&loginRequest); err != nil {
+		return pkgHttp.Err(c, pkgErr.InvalidRequest(err.Error()))
 	}
 
 	loginResponse, err := uc.Login(pkgCtx.NewContextFromFiberCtx(c), loginRequest)
@@ -30,7 +31,7 @@ func Login(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, loginResponse)
 }
 
-func GetMe(c *fiber.Ctx) error {
+func GetMe(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetAuthUsecase(ctn)
@@ -46,7 +47,7 @@ func GetMe(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, getMeResponse)
 }
 
-func UpdateMe(c *fiber.Ctx) error {
+func UpdateMe(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetAuthUsecase(ctn)
@@ -55,8 +56,8 @@ func UpdateMe(c *fiber.Ctx) error {
 	}
 
 	updateMeRequest := models.UpdateMeRequest{}
-	if err := c.BodyParser(&updateMeRequest); err != nil {
-		return pkgHttp.Err(c, err)
+	if err := c.Bind().Body(&updateMeRequest); err != nil {
+		return pkgHttp.Err(c, pkgErr.InvalidRequest(err.Error()))
 	}
 
 	getMeResponse, err := uc.UpdateMe(pkgCtx.NewContextFromFiberCtx(c), updateMeRequest)
@@ -67,7 +68,7 @@ func UpdateMe(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, getMeResponse)
 }
 
-func RefreshToken(c *fiber.Ctx) error {
+func RefreshToken(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetAuthUsecase(ctn)
@@ -76,8 +77,8 @@ func RefreshToken(c *fiber.Ctx) error {
 	}
 
 	refreshTokenRequest := models.RefreshTokenRequest{}
-	if err := c.BodyParser(&refreshTokenRequest); err != nil {
-		return pkgHttp.Err(c, err)
+	if err := c.Bind().Body(&refreshTokenRequest); err != nil {
+		return pkgHttp.Err(c, pkgErr.InvalidRequest(err.Error()))
 	}
 
 	refreshTokenResponse, err := uc.RefreshToken(pkgCtx.NewContextFromFiberCtx(c), refreshTokenRequest)
@@ -88,7 +89,7 @@ func RefreshToken(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, refreshTokenResponse)
 }
 
-func ChangePassword(c *fiber.Ctx) error {
+func ChangePassword(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetAuthUsecase(ctn)
@@ -97,8 +98,8 @@ func ChangePassword(c *fiber.Ctx) error {
 	}
 
 	changePasswordRequest := models.ChangePasswordRequest{}
-	if err := c.BodyParser(&changePasswordRequest); err != nil {
-		return pkgHttp.Err(c, err)
+	if err := c.Bind().Body(&changePasswordRequest); err != nil {
+		return pkgHttp.Err(c, pkgErr.InvalidRequest(err.Error()))
 	}
 
 	err = uc.ChangePassword(pkgCtx.NewContextFromFiberCtx(c), changePasswordRequest)
@@ -109,7 +110,7 @@ func ChangePassword(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, map[string]string{"message": "Password changed successfully. Please login again!"})
 }
 
-func Logout(c *fiber.Ctx) error {
+func Logout(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetAuthUsecase(ctn)
@@ -125,7 +126,7 @@ func Logout(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, map[string]string{"message": "Logged out successfully"})
 }
 
-func RequestLogin(c *fiber.Ctx) error {
+func RequestLogin(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetAuthUsecase(ctn)
@@ -134,8 +135,8 @@ func RequestLogin(c *fiber.Ctx) error {
 	}
 
 	requestLoginRequest := models.RequestLoginRequest{}
-	if err := c.BodyParser(&requestLoginRequest); err != nil {
-		return pkgHttp.Err(c, err)
+	if err := c.Bind().Body(&requestLoginRequest); err != nil {
+		return pkgHttp.Err(c, pkgErr.InvalidRequest(err.Error()))
 	}
 
 	requestLoginResponse, err := uc.RequestLogin(pkgCtx.NewContextFromFiberCtx(c), requestLoginRequest)
@@ -146,7 +147,7 @@ func RequestLogin(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, requestLoginResponse)
 }
 
-func ExchangeCode(c *fiber.Ctx) error {
+func ExchangeCode(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetAuthUsecase(ctn)
@@ -155,8 +156,8 @@ func ExchangeCode(c *fiber.Ctx) error {
 	}
 
 	exchangeCodeRequest := models.ExchangeCodeRequest{}
-	if err := c.BodyParser(&exchangeCodeRequest); err != nil {
-		return pkgHttp.Err(c, err)
+	if err := c.Bind().Body(&exchangeCodeRequest); err != nil {
+		return pkgHttp.Err(c, pkgErr.InvalidRequest(err.Error()))
 	}
 
 	exchangeCodeResponse, err := uc.ExchangeCode(pkgCtx.NewContextFromFiberCtx(c), exchangeCodeRequest)
@@ -167,7 +168,7 @@ func ExchangeCode(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, exchangeCodeResponse)
 }
 
-func SSOCheck(c *fiber.Ctx) error {
+func SSOCheck(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetAuthUsecase(ctn)
@@ -176,8 +177,8 @@ func SSOCheck(c *fiber.Ctx) error {
 	}
 
 	ssoCheckRequest := models.SSOCheckRequest{}
-	if err := c.BodyParser(&ssoCheckRequest); err != nil {
-		return pkgHttp.Err(c, err)
+	if err := c.Bind().Body(&ssoCheckRequest); err != nil {
+		return pkgHttp.Err(c, pkgErr.InvalidRequest(err.Error()))
 	}
 
 	ssoCheckResponse, err := uc.SSOCheck(pkgCtx.NewContextFromFiberCtx(c), ssoCheckRequest)
@@ -188,7 +189,7 @@ func SSOCheck(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, ssoCheckResponse)
 }
 
-func ListMySessions(c *fiber.Ctx) error {
+func ListMySessions(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetAuthUsecase(ctn)
@@ -204,7 +205,7 @@ func ListMySessions(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, sessions)
 }
 
-func CountMySessions(c *fiber.Ctx) error {
+func CountMySessions(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetAuthUsecase(ctn)
@@ -220,7 +221,7 @@ func CountMySessions(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, count)
 }
 
-func RevokeMySession(c *fiber.Ctx) error {
+func RevokeMySession(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetAuthUsecase(ctn)
@@ -236,7 +237,7 @@ func RevokeMySession(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, map[string]string{"message": "Session revoked successfully"})
 }
 
-func RevokeMyOtherSessions(c *fiber.Ctx) error {
+func RevokeMyOtherSessions(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetAuthUsecase(ctn)
@@ -252,7 +253,7 @@ func RevokeMyOtherSessions(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, map[string]string{"message": "Other sessions revoked successfully"})
 }
 
-func GetMyActivity(c *fiber.Ctx) error {
+func GetMyActivity(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetAuthUsecase(ctn)
@@ -260,7 +261,7 @@ func GetMyActivity(c *fiber.Ctx) error {
 		return pkgHttp.Err(c, err)
 	}
 
-	activity, err := uc.GetMyActivity(pkgCtx.NewContextFromFiberCtx(c), c.QueryInt("limit", 0))
+	activity, err := uc.GetMyActivity(pkgCtx.NewContextFromFiberCtx(c), fiber.Query[int](c, "limit", 0))
 	if err != nil {
 		return pkgHttp.Err(c, err)
 	}
@@ -268,7 +269,7 @@ func GetMyActivity(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, activity)
 }
 
-func SSOConsent(c *fiber.Ctx) error {
+func SSOConsent(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetAuthUsecase(ctn)
@@ -277,8 +278,8 @@ func SSOConsent(c *fiber.Ctx) error {
 	}
 
 	ssoConsentRequest := models.SSOConsentRequest{}
-	if err := c.BodyParser(&ssoConsentRequest); err != nil {
-		return pkgHttp.Err(c, err)
+	if err := c.Bind().Body(&ssoConsentRequest); err != nil {
+		return pkgHttp.Err(c, pkgErr.InvalidRequest(err.Error()))
 	}
 
 	ssoConsentResponse, err := uc.SSOConsent(pkgCtx.NewContextFromFiberCtx(c), ssoConsentRequest)

@@ -20,7 +20,7 @@ import (
 	pkgCache "github.com/vukyn/kuery/cache"
 	pkgClaims "github.com/vukyn/kuery/claims"
 	"github.com/vukyn/kuery/cryp/aes"
-	pkgCtx "github.com/vukyn/kuery/ctx"
+	pkgCtx "github.com/vukyn/kuery/ctxv3"
 	pkgErr "github.com/vukyn/kuery/http/errors"
 	"github.com/vukyn/kuery/jwt"
 

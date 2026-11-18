@@ -13,7 +13,7 @@ import (
 	userSessionModels "github.com/vukyn/isme/internal/domains/user_session/models"
 	pkgClaims "github.com/vukyn/kuery/claims"
 	"github.com/vukyn/kuery/cryp"
-	pkgCtx "github.com/vukyn/kuery/ctx"
+	pkgCtx "github.com/vukyn/kuery/ctxv3"
 	"github.com/vukyn/kuery/jwt"
 )
 

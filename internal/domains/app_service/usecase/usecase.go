@@ -13,7 +13,7 @@ import (
 	roleUsecase "github.com/vukyn/isme/internal/domains/role/usecase"
 	userRepo "github.com/vukyn/isme/internal/domains/user/repository"
 	"github.com/vukyn/kuery/cryp/aes"
-	pkgCtx "github.com/vukyn/kuery/ctx"
+	pkgCtx "github.com/vukyn/kuery/ctxv3"
 	pkgErr "github.com/vukyn/kuery/http/errors"
 )
 

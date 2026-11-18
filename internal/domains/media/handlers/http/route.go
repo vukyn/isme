@@ -5,7 +5,7 @@ import (
 	"github.com/vukyn/isme/internal/constants"
 	idi "github.com/vukyn/isme/internal/di"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 func SetupMediaRoutes(router fiber.Router) {
