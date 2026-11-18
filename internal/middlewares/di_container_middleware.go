@@ -1,10 +1,10 @@
 package middlewares
 
 import (
-	pkgCtx "github.com/vukyn/kuery/ctx"
+	pkgCtx "github.com/vukyn/kuery/ctxv3"
 	"github.com/vukyn/kuery/log"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/sarulabs/di/v2"
 )
 
@@ -37,7 +37,7 @@ import (
 // from a request container — the scheduler builds its repositories straight off the
 // App-scoped DB for exactly that reason.
 func DiContainerMiddleware(app di.Container) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		request, err := app.SubContainer()
 		if err != nil {
 			return err

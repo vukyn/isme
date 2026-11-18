@@ -4,13 +4,14 @@ import (
 	idi "github.com/vukyn/isme/internal/di"
 	"github.com/vukyn/isme/internal/domains/user/models"
 
-	pkgCtx "github.com/vukyn/kuery/ctx"
-	pkgHttp "github.com/vukyn/kuery/http/fiber"
+	pkgCtx "github.com/vukyn/kuery/ctxv3"
+	pkgErr "github.com/vukyn/kuery/http/errors"
+	pkgHttp "github.com/vukyn/kuery/http/fiberv3"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
-func ListUsers(c *fiber.Ctx) error {
+func ListUsers(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetUserUsecase(ctn)
@@ -19,8 +20,8 @@ func ListUsers(c *fiber.Ctx) error {
 	}
 
 	listRequest := models.ListRequest{}
-	if err := c.QueryParser(&listRequest); err != nil {
-		return pkgHttp.Err(c, err)
+	if err := c.Bind().Query(&listRequest); err != nil {
+		return pkgHttp.Err(c, pkgErr.InvalidRequest(err.Error()))
 	}
 
 	listResponse, err := uc.List(pkgCtx.NewContextFromFiberCtx(c), listRequest)
@@ -31,7 +32,7 @@ func ListUsers(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, listResponse)
 }
 
-func UpdateUserStatus(c *fiber.Ctx) error {
+func UpdateUserStatus(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetUserUsecase(ctn)
@@ -40,8 +41,8 @@ func UpdateUserStatus(c *fiber.Ctx) error {
 	}
 
 	updateStatusRequest := models.UpdateStatusRequest{}
-	if err := c.BodyParser(&updateStatusRequest); err != nil {
-		return pkgHttp.Err(c, err)
+	if err := c.Bind().Body(&updateStatusRequest); err != nil {
+		return pkgHttp.Err(c, pkgErr.InvalidRequest(err.Error()))
 	}
 
 	if err := uc.UpdateStatus(pkgCtx.NewContextFromFiberCtx(c), c.Params("userID"), updateStatusRequest); err != nil {
@@ -51,7 +52,7 @@ func UpdateUserStatus(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, nil)
 }
 
-func VerifyUser(c *fiber.Ctx) error {
+func VerifyUser(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetUserUsecase(ctn)
@@ -66,7 +67,7 @@ func VerifyUser(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, nil)
 }
 
-func DeleteUser(c *fiber.Ctx) error {
+func DeleteUser(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetUserUsecase(ctn)
@@ -81,7 +82,7 @@ func DeleteUser(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, nil)
 }
 
-func ListUserSessions(c *fiber.Ctx) error {
+func ListUserSessions(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetUserUsecase(ctn)
@@ -97,7 +98,7 @@ func ListUserSessions(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, sessions)
 }
 
-func RevokeUserSession(c *fiber.Ctx) error {
+func RevokeUserSession(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetUserUsecase(ctn)

@@ -7,17 +7,17 @@ import (
 	idi "github.com/vukyn/isme/internal/di"
 	"github.com/vukyn/isme/internal/domains/media/models"
 
-	pkgCtx "github.com/vukyn/kuery/ctx"
+	pkgCtx "github.com/vukyn/kuery/ctxv3"
 	pkgErr "github.com/vukyn/kuery/http/errors"
-	pkgHttp "github.com/vukyn/kuery/http/fiber"
+	pkgHttp "github.com/vukyn/kuery/http/fiberv3"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 // Upload proxies a multipart avatar upload (form field: file) to medioa using
 // isme's server-side API key and returns { url, file_id }. The browser never
 // sees the key — it only ever talks to this isme endpoint.
-func Upload(c *fiber.Ctx) error {
+func Upload(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetMediaUsecase(ctn)

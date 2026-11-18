@@ -8,7 +8,7 @@ import (
 	"github.com/vukyn/isme/internal/domains/settings/models"
 	settingsRepo "github.com/vukyn/isme/internal/domains/settings/repository"
 
-	pkgCtx "github.com/vukyn/kuery/ctx"
+	pkgCtx "github.com/vukyn/kuery/ctxv3"
 	pkgErr "github.com/vukyn/kuery/http/errors"
 	pkgScheduler "github.com/vukyn/kuery/scheduler"
 )

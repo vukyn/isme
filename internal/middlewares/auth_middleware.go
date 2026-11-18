@@ -8,13 +8,13 @@ import (
 
 	"github.com/vukyn/kuery/log"
 
-	pkgCtx "github.com/vukyn/kuery/ctx"
-	pkgHttp "github.com/vukyn/kuery/http/fiber"
+	pkgCtx "github.com/vukyn/kuery/ctxv3"
+	pkgHttp "github.com/vukyn/kuery/http/fiberv3"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
-func (m *Middleware) AuthMiddleware(c *fiber.Ctx) error {
+func (m *Middleware) AuthMiddleware(c fiber.Ctx) error {
 	authorization := c.Get("Authorization")
 	if authorization == "" {
 		return pkgHttp.Unauthorized(c)

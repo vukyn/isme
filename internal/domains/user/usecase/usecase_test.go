@@ -16,7 +16,7 @@ import (
 	userSessionModels "github.com/vukyn/isme/internal/domains/user_session/models"
 	userSessionRepo "github.com/vukyn/isme/internal/domains/user_session/repository"
 
-	pkgCtx "github.com/vukyn/kuery/ctx"
+	pkgCtx "github.com/vukyn/kuery/ctxv3"
 )
 
 // === Fakes ===

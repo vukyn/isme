@@ -18,17 +18,15 @@ import (
 	"github.com/vukyn/isme/internal/middlewares"
 	"github.com/vukyn/isme/internal/web"
 
-	"github.com/gofiber/contrib/fiberzerolog"
-	"github.com/gofiber/fiber/v2/middleware/cors"
-	"github.com/gofiber/fiber/v2/middleware/filesystem"
-	"github.com/gofiber/template/html/v2"
-	pkgFiber "github.com/vukyn/kuery/http/fiber"
+	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/cors"
+	fiberLogger "github.com/gofiber/fiber/v3/middleware/logger"
+	"github.com/gofiber/fiber/v3/middleware/static"
+	"github.com/gofiber/template/html/v3"
+	pkgFiber "github.com/vukyn/kuery/http/fiberv3"
 	pkgHealth "github.com/vukyn/kuery/http/health"
 	"github.com/vukyn/kuery/log"
-
-	pkgRecover "github.com/vukyn/kuery/recover"
-
-	"github.com/gofiber/fiber/v2"
+	pkgRecover "github.com/vukyn/kuery/recoverv3"
 )
 
 type Server struct {
@@ -57,10 +55,21 @@ func (s *Server) Start() {
 	})
 
 	// Middlewares
+	//
+	// CORS stays allow-all on purpose: it is what the service ran with on Fiber v2
+	// (a bare cors.New()), and this migration changes no policy. Tightening it to
+	// an explicit origin list is an open question, not an oversight. Note that on
+	// v3 an EMPTY AllowOrigins slice is also allow-all, so a future allow-list
+	// must never be allowed to resolve to zero entries.
 	s.app.Use(cors.New())
-	zerologLogger := log.New().Zerolog()
-	s.app.Use(fiberzerolog.New(fiberzerolog.Config{
-		Logger: &zerologLogger,
+
+	// Request logging. Fiber v3 has no fiberzerolog equivalent (gofiber/contrib
+	// never published a v3 module of it — its whole API is *fiber.Ctx), so the
+	// built-in logger middleware is pointed at kuery's zerolog through a
+	// LoggerFunc. The logger runs the app's error handler itself before calling
+	// LoggerFunc, so the status read off the response is the final one.
+	s.app.Use(fiberLogger.New(fiberLogger.Config{
+		LoggerFunc: logRequest,
 	}))
 
 	// Inject the request-scoped di container into the fiber ctx — and release it
@@ -72,17 +81,6 @@ func (s *Server) Start() {
 
 	// recover from panic
 	s.app.Use(pkgRecover.NewFiberRecover())
-
-	// Static files - serve from root paths to match HTML references. Assets live
-	// under the embedded FS's assets/ subtree.
-	assetsFS, err := fs.Sub(uiFS, "assets")
-	if err != nil {
-		log.New().Errorf("Failed to open embedded assets: %v", err)
-		os.Exit(1)
-	}
-	s.app.Use("/assets", filesystem.New(filesystem.Config{
-		Root: http.FS(assetsFS),
-	}))
 
 	// api/v1
 	apiV1 := s.app.Group("/api/v1")
@@ -98,7 +96,7 @@ func (s *Server) Start() {
 	// "its database is reachable".
 	apiV1.Get("/__version", pkgFiber.Health(pkgHealth.New(
 		"github.com/vukyn/kuery",
-		"github.com/gofiber/fiber/v2",
+		"github.com/gofiber/fiber/v3",
 	)))
 	authHandlers.SetupAuthRoutes(apiV1)
 	appServiceHandlers.SetupAppServiceRoutes(apiV1)
@@ -109,8 +107,11 @@ func (s *Server) Start() {
 	settingsHandlers.SetupSettingsRoutes(apiV1)
 	mediaHandlers.SetupMediaRoutes(apiV1)
 
-	// web routes
-	s.webRoutes(s.app, uiFS)
+	// web routes: /assets, root files and the SPA catch-all
+	if err := mountWeb(s.app, uiFS, s.renderHomePage); err != nil {
+		log.New().Errorf("Failed to open embedded assets: %v", err)
+		os.Exit(1)
+	}
 
 	// start server
 	go func() {
@@ -126,24 +127,92 @@ func (s *Server) Stop() error {
 	return s.app.Shutdown()
 }
 
-func (s *Server) webRoutes(app *fiber.App, uiFS fs.FS) {
-	renderHomePage := func(c *fiber.Ctx) error {
-		apiBaseURL := s.cfg.Vite.BaseURL
-		if apiBaseURL == "" {
-			apiBaseURL = s.cfg.Vite.BaseURL
-		}
-		return c.Render("index", fiber.Map{
-			"APIBaseURL": apiBaseURL,
-		})
+// logRequest writes one structured line per request to kuery's zerolog: Error
+// for a 5xx, Warn for a 4xx, Info otherwise.
+func logRequest(c fiber.Ctx, data *fiberLogger.Data, _ *fiberLogger.Config) error {
+	logger := log.New().Zerolog()
+	// logger.Data carries no status — read it off the response.
+	status := c.Response().StatusCode()
+	event := logger.Info()
+	switch {
+	case status >= fiber.StatusInternalServerError:
+		event = logger.Error()
+	case status >= fiber.StatusBadRequest:
+		event = logger.Warn()
 	}
+	if data.ChainErr != nil {
+		event = event.Err(data.ChainErr)
+	}
+	event.
+		Str("method", c.Method()).
+		Str("path", c.Path()).
+		Int("status", status).
+		Dur("latency", data.Stop.Sub(data.Start)).
+		Str("ip", c.IP()).
+		Msg("request")
+	return nil
+}
+
+func (s *Server) renderHomePage(c fiber.Ctx) error {
+	apiBaseURL := s.cfg.Vite.BaseURL
+	if apiBaseURL == "" {
+		apiBaseURL = s.cfg.Vite.BaseURL
+	}
+	return c.Render("index", fiber.Map{
+		"APIBaseURL": apiBaseURL,
+	})
+}
+
+// mountWeb registers the embedded UI: the hashed bundle under /assets, the
+// root-level files index.html references directly, and the SPA catch-all. It
+// must be called after every API route, since the catch-all matches anything.
+// Split out of Start so tests can mount exactly these routes over a fake FS.
+func mountWeb(app *fiber.App, uiFS fs.FS, renderHomePage fiber.Handler) error {
+	// Static files - serve from root paths to match HTML references. Assets live
+	// under the embedded FS's assets/ subtree. Fiber v3 replaced
+	// middleware/filesystem with middleware/static, whose Config.FS takes an
+	// fs.FS directly.
+	assetsFS, err := fs.Sub(uiFS, "assets")
+	if err != nil {
+		return err
+	}
+	app.Use("/assets", func(c fiber.Ctx) error {
+		// The embed FS has a zero modtime. Older fasthttp releases stamped it as
+		// `Last-Modified: Mon, 01 Jan 0001` and answered ANY If-Modified-Since
+		// with 304 (the one in go.mod today skips a zero modtime, but nothing pins
+		// that). A date validator against a zero modtime means nothing, so it is
+		// dropped on the way in and stripped on the way out; a stale validator
+		// can never pin an old file.
+		c.Request().Header.Del(fiber.HeaderIfModifiedSince)
+		return c.Next()
+	}, static.New("", static.Config{
+		FS: assetsFS,
+		ModifyResponse: func(c fiber.Ctx) error {
+			c.Response().Header.Del(fiber.HeaderLastModified)
+			return nil
+		},
+		// v3's static middleware falls through to the next route on a miss,
+		// which here is the SPA catch-all: a missing chunk would come back as
+		// index.html at 200. A missing asset is a plain 404 instead.
+		NotFoundHandler: func(c fiber.Ctx) error {
+			return c.SendStatus(fiber.StatusNotFound)
+		},
+	}))
 
 	// Root-level static assets that index.html references directly (outside
 	// /assets). Without this, the SPA catch-all below renders index.html for
 	// /favicon.svg, so the browser gets HTML instead of the icon and falls back
-	// to its generic globe. SendFile sets content-type from the .svg extension.
-	app.Get("/favicon.svg", func(c *fiber.Ctx) error {
-		return filesystem.SendFile(c, http.FS(uiFS), "favicon.svg")
+	// to its generic globe. Read from the FS rather than sent with SendFile,
+	// which can stamp the embed's zero modtime as Last-Modified (see above).
+	app.Get("/favicon.svg", func(c fiber.Ctx) error {
+		favicon, err := fs.ReadFile(uiFS, "favicon.svg")
+		if err != nil {
+			return c.SendStatus(fiber.StatusNotFound)
+		}
+		c.Type("svg")
+		return c.Send(favicon)
 	})
 
 	app.Get("/*", renderHomePage)
+	return nil
 }

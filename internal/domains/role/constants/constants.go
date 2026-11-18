@@ -1,7 +1,7 @@
 package constants
 
 import (
-	"github.com/vukyn/kuery/rbac"
+	rbac "github.com/vukyn/kuery/rbacv3"
 )
 
 // Permission codes (must match the catalog seeded by 010_seed_rbac + 012_add_user_verification + 022_create_session_revoke_config — 21 permissions)

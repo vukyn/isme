@@ -9,7 +9,7 @@ import (
 	"github.com/vukyn/isme/internal/domains/app_service/models"
 
 	pkgBunQuery "github.com/vukyn/kuery/bun/query"
-	pkgCtx "github.com/vukyn/kuery/ctx"
+	pkgCtx "github.com/vukyn/kuery/ctxv3"
 	pkgErr "github.com/vukyn/kuery/http/errors"
 
 	"github.com/uptrace/bun"

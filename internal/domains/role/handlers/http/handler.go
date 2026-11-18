@@ -6,14 +6,14 @@ import (
 	idi "github.com/vukyn/isme/internal/di"
 	"github.com/vukyn/isme/internal/domains/role/models"
 
-	pkgCtx "github.com/vukyn/kuery/ctx"
+	pkgCtx "github.com/vukyn/kuery/ctxv3"
 	pkgErr "github.com/vukyn/kuery/http/errors"
-	pkgHttp "github.com/vukyn/kuery/http/fiber"
+	pkgHttp "github.com/vukyn/kuery/http/fiberv3"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
-func ListRoles(c *fiber.Ctx) error {
+func ListRoles(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetRoleUsecase(ctn)
@@ -22,8 +22,8 @@ func ListRoles(c *fiber.Ctx) error {
 	}
 
 	listRequest := models.ListRequest{}
-	if err := c.QueryParser(&listRequest); err != nil {
-		return pkgHttp.Err(c, err)
+	if err := c.Bind().Query(&listRequest); err != nil {
+		return pkgHttp.Err(c, pkgErr.InvalidRequest(err.Error()))
 	}
 
 	roles, err := uc.List(pkgCtx.NewContextFromFiberCtx(c), listRequest)
@@ -34,7 +34,7 @@ func ListRoles(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, roles)
 }
 
-func CreateRole(c *fiber.Ctx) error {
+func CreateRole(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetRoleUsecase(ctn)
@@ -43,8 +43,8 @@ func CreateRole(c *fiber.Ctx) error {
 	}
 
 	createRequest := models.CreateRequest{}
-	if err := c.BodyParser(&createRequest); err != nil {
-		return pkgHttp.Err(c, err)
+	if err := c.Bind().Body(&createRequest); err != nil {
+		return pkgHttp.Err(c, pkgErr.InvalidRequest(err.Error()))
 	}
 
 	createResponse, err := uc.Create(pkgCtx.NewContextFromFiberCtx(c), createRequest)
@@ -55,7 +55,7 @@ func CreateRole(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, createResponse)
 }
 
-func GetRoleDetail(c *fiber.Ctx) error {
+func GetRoleDetail(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetRoleUsecase(ctn)
@@ -71,7 +71,7 @@ func GetRoleDetail(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, detailResponse)
 }
 
-func UpdateRole(c *fiber.Ctx) error {
+func UpdateRole(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetRoleUsecase(ctn)
@@ -80,8 +80,8 @@ func UpdateRole(c *fiber.Ctx) error {
 	}
 
 	updateRequest := models.UpdateRequest{}
-	if err := c.BodyParser(&updateRequest); err != nil {
-		return pkgHttp.Err(c, err)
+	if err := c.Bind().Body(&updateRequest); err != nil {
+		return pkgHttp.Err(c, pkgErr.InvalidRequest(err.Error()))
 	}
 
 	if err := uc.Update(pkgCtx.NewContextFromFiberCtx(c), c.Params("roleID"), updateRequest); err != nil {
@@ -91,7 +91,7 @@ func UpdateRole(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, nil)
 }
 
-func DeleteRole(c *fiber.Ctx) error {
+func DeleteRole(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetRoleUsecase(ctn)
@@ -106,7 +106,7 @@ func DeleteRole(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, nil)
 }
 
-func SetRolePermissions(c *fiber.Ctx) error {
+func SetRolePermissions(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetRoleUsecase(ctn)
@@ -115,8 +115,8 @@ func SetRolePermissions(c *fiber.Ctx) error {
 	}
 
 	setPermissionsRequest := models.SetPermissionsRequest{}
-	if err := c.BodyParser(&setPermissionsRequest); err != nil {
-		return pkgHttp.Err(c, err)
+	if err := c.Bind().Body(&setPermissionsRequest); err != nil {
+		return pkgHttp.Err(c, pkgErr.InvalidRequest(err.Error()))
 	}
 
 	if err := uc.SetPermissions(pkgCtx.NewContextFromFiberCtx(c), c.Params("roleID"), setPermissionsRequest); err != nil {
@@ -126,7 +126,7 @@ func SetRolePermissions(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, nil)
 }
 
-func ListRoleMembers(c *fiber.Ctx) error {
+func ListRoleMembers(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetRoleUsecase(ctn)
@@ -135,8 +135,8 @@ func ListRoleMembers(c *fiber.Ctx) error {
 	}
 
 	listMembersRequest := models.ListMembersRequest{}
-	if err := c.QueryParser(&listMembersRequest); err != nil {
-		return pkgHttp.Err(c, err)
+	if err := c.Bind().Query(&listMembersRequest); err != nil {
+		return pkgHttp.Err(c, pkgErr.InvalidRequest(err.Error()))
 	}
 
 	listMembersResponse, err := uc.ListMembers(pkgCtx.NewContextFromFiberCtx(c), c.Params("roleID"), listMembersRequest)
@@ -147,7 +147,7 @@ func ListRoleMembers(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, listMembersResponse)
 }
 
-func AddRoleMembers(c *fiber.Ctx) error {
+func AddRoleMembers(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetRoleUsecase(ctn)
@@ -156,8 +156,8 @@ func AddRoleMembers(c *fiber.Ctx) error {
 	}
 
 	addMembersRequest := models.AddMembersRequest{}
-	if err := c.BodyParser(&addMembersRequest); err != nil {
-		return pkgHttp.Err(c, err)
+	if err := c.Bind().Body(&addMembersRequest); err != nil {
+		return pkgHttp.Err(c, pkgErr.InvalidRequest(err.Error()))
 	}
 
 	if err := uc.AddMembers(pkgCtx.NewContextFromFiberCtx(c), c.Params("roleID"), addMembersRequest); err != nil {
@@ -167,7 +167,7 @@ func AddRoleMembers(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, nil)
 }
 
-func RemoveRoleMember(c *fiber.Ctx) error {
+func RemoveRoleMember(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetRoleUsecase(ctn)
@@ -187,7 +187,7 @@ func RemoveRoleMember(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, nil)
 }
 
-func ListPermissions(c *fiber.Ctx) error {
+func ListPermissions(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetRoleUsecase(ctn)
@@ -196,8 +196,8 @@ func ListPermissions(c *fiber.Ctx) error {
 	}
 
 	listPermissionsRequest := models.ListPermissionsRequest{}
-	if err := c.QueryParser(&listPermissionsRequest); err != nil {
-		return pkgHttp.Err(c, err)
+	if err := c.Bind().Query(&listPermissionsRequest); err != nil {
+		return pkgHttp.Err(c, pkgErr.InvalidRequest(err.Error()))
 	}
 
 	permissions, err := uc.ListPermissions(pkgCtx.NewContextFromFiberCtx(c), listPermissionsRequest)
@@ -208,7 +208,7 @@ func ListPermissions(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, permissions)
 }
 
-func CreatePermissions(c *fiber.Ctx) error {
+func CreatePermissions(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetRoleUsecase(ctn)
@@ -217,8 +217,8 @@ func CreatePermissions(c *fiber.Ctx) error {
 	}
 
 	createPermissionsRequest := models.CreatePermissionsRequest{}
-	if err := c.BodyParser(&createPermissionsRequest); err != nil {
-		return pkgHttp.Err(c, err)
+	if err := c.Bind().Body(&createPermissionsRequest); err != nil {
+		return pkgHttp.Err(c, pkgErr.InvalidRequest(err.Error()))
 	}
 
 	permissions, err := uc.CreatePermissions(pkgCtx.NewContextFromFiberCtx(c), createPermissionsRequest)
@@ -229,7 +229,7 @@ func CreatePermissions(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, permissions)
 }
 
-func UpdatePermissionAppearance(c *fiber.Ctx) error {
+func UpdatePermissionAppearance(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetRoleUsecase(ctn)
@@ -238,8 +238,8 @@ func UpdatePermissionAppearance(c *fiber.Ctx) error {
 	}
 
 	updateAppearanceRequest := models.UpdatePermissionAppearanceRequest{}
-	if err := c.BodyParser(&updateAppearanceRequest); err != nil {
-		return pkgHttp.Err(c, err)
+	if err := c.Bind().Body(&updateAppearanceRequest); err != nil {
+		return pkgHttp.Err(c, pkgErr.InvalidRequest(err.Error()))
 	}
 
 	if err := uc.UpdatePermissionAppearance(pkgCtx.NewContextFromFiberCtx(c), updateAppearanceRequest); err != nil {
@@ -249,7 +249,7 @@ func UpdatePermissionAppearance(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, nil)
 }
 
-func DeletePermission(c *fiber.Ctx) error {
+func DeletePermission(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetRoleUsecase(ctn)

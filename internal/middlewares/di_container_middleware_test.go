@@ -10,11 +10,11 @@ import (
 	"github.com/vukyn/isme/internal/config"
 	roleConstants "github.com/vukyn/isme/internal/domains/role/constants"
 
-	pkgCtx "github.com/vukyn/kuery/ctx"
-	"github.com/vukyn/kuery/rbac"
-	pkgRecover "github.com/vukyn/kuery/recover"
+	pkgCtx "github.com/vukyn/kuery/ctxv3"
+	rbac "github.com/vukyn/kuery/rbacv3"
+	pkgRecover "github.com/vukyn/kuery/recoverv3"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/sarulabs/di/v2"
 )
 
@@ -95,7 +95,7 @@ func newReleaseHarness(t *testing.T, options releaseHarnessOptions) *releaseHarn
 	// defer runs on the way out either way.
 	app.Use(DiContainerMiddleware(harness.appContainer))
 	app.Use(pkgRecover.NewFiberRecover())
-	app.Use(func(c *fiber.Ctx) error {
+	app.Use(func(c fiber.Ctx) error {
 		container := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 		harness.mutex.Lock()
 		harness.containers = append(harness.containers, container)
@@ -112,19 +112,19 @@ func newReleaseHarness(t *testing.T, options releaseHarnessOptions) *releaseHarn
 
 	// One route per ending. Registration order is match order in Fiber, so the SPA
 	// catch-all stays last.
-	app.Get("/ok", func(c *fiber.Ctx) error { return c.SendStatus(http.StatusOK) })
-	app.Get("/error", func(c *fiber.Ctx) error { return fiber.NewError(http.StatusTeapot, "handler failed") })
-	app.Get("/panic", func(c *fiber.Ctx) error { panic("handler exploded") })
+	app.Get("/ok", func(c fiber.Ctx) error { return c.SendStatus(http.StatusOK) })
+	app.Get("/error", func(c fiber.Ctx) error { return fiber.NewError(http.StatusTeapot, "handler failed") })
+	app.Get("/panic", func(c fiber.Ctx) error { panic("handler exploded") })
 	// The real middlewares, not stubs: a tokenless request is a 401 straight out of
 	// AuthMiddleware, and rbac.RequirePermission 403s a caller with no perms in its
 	// context — the gate every isme management route is mounted behind.
-	app.Get("/protected", middleware.AuthMiddleware, func(c *fiber.Ctx) error {
+	app.Get("/protected", middleware.AuthMiddleware, func(c fiber.Ctx) error {
 		return c.SendStatus(http.StatusOK)
 	})
-	app.Get("/permission-gated", rbac.RequirePermission(roleConstants.PERM_USER_READ), func(c *fiber.Ctx) error {
+	app.Get("/permission-gated", rbac.RequirePermission(roleConstants.PERM_USER_READ), func(c fiber.Ctx) error {
 		return c.SendStatus(http.StatusOK)
 	})
-	app.Get("/*", func(c *fiber.Ctx) error { return c.SendString("spa") })
+	app.Get("/*", func(c fiber.Ctx) error { return c.SendString("spa") })
 
 	harness.app = app
 	return harness

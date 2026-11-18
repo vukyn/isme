@@ -6,9 +6,9 @@ import (
 	idi "github.com/vukyn/isme/internal/di"
 	roleConstants "github.com/vukyn/isme/internal/domains/role/constants"
 
-	"github.com/vukyn/kuery/rbac"
+	rbac "github.com/vukyn/kuery/rbacv3"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 func SetupUserRoutes(router fiber.Router) {

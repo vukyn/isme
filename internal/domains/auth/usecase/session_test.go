@@ -9,7 +9,7 @@ import (
 	userSessionConstants "github.com/vukyn/isme/internal/domains/user_session/constants"
 	userSessionEntity "github.com/vukyn/isme/internal/domains/user_session/entity"
 
-	pkgCtx "github.com/vukyn/kuery/ctx"
+	pkgCtx "github.com/vukyn/kuery/ctxv3"
 )
 
 // newSessionFixture wires a usecase exercising the self-service session manager.

@@ -21,14 +21,21 @@ Related: [[demo-mock-source-of-truth]]
 
 ## isme-ui-static-serving
 
-isme `internal/server/server.go` serves the embedded SPA (`internal/ui/`, via `html.New` template engine + `filesystem.New` mounted at `/assets` only). The web catch-all is `app.Get("/*", renderHomePage)` which renders `index.html` for ANY unmatched path.
+isme `internal/server/server.go` serves the embedded SPA (`internal/web` go:embed of the built `ui/dist`; Fiber v3 `html` template engine for index.html + `fiber/v3/middleware/static` mounted at `/assets` only), all registered by `mountWeb` after every API route. The web catch-all is `app.Get("/*", renderHomePage)` which renders `index.html` for ANY unmatched path.
 
-Consequence: root-level static files referenced by index.html (e.g. `/favicon.svg`, living at `internal/ui/favicon.svg`) are NOT under `/assets`, so the catch-all returns HTML for them → browser gets `text/html` instead of the asset → favicon falls back to the generic globe.
+Consequence: root-level static files referenced by index.html (e.g. `/favicon.svg`) are NOT under `/assets`, so the catch-all returns HTML for them → browser gets `text/html` instead of the asset → favicon falls back to the generic globe.
 
 **Why:** `/assets` static mount doesn't cover root paths; the SPA fallback masks the 404 with index.html.
 
-**How to apply:** any root static file index.html references needs an explicit Fiber route BEFORE `app.Get("/*", ...)`. Fixed for favicon (PR #53, 2026-06-11):
+**How to apply:** any root static file index.html references needs an explicit Fiber route BEFORE `app.Get("/*", ...)`. Since Fiber v3 (PR3, 2026-11-18) the favicon is read from the embed FS, not `SendFile`, so no zero-modtime `Last-Modified` can leak:
 ```go
-app.Get("/favicon.svg", func(c *fiber.Ctx) error { return c.SendFile("internal/ui/favicon.svg") })
+app.Get("/favicon.svg", func(c fiber.Ctx) error {
+	favicon, err := fs.ReadFile(uiFS, "favicon.svg")
+	if err != nil {
+		return c.SendStatus(fiber.StatusNotFound)
+	}
+	c.Type("svg")
+	return c.Send(favicon)
+})
 ```
-`SendFile` sets content-type from extension. Paths are cwd-relative (server run from repo root, same as `html.New("internal/ui", ...)`). The isme brand logo = the favicon i/person monogram — see [[demo-mock-source-of-truth]]. UI changes need build-web + restart to show ([[isme-ui-serving]]).
+⚠️ v3's `static` middleware falls through to the next route on a miss — the SPA catch-all — so a missing `/assets/*` chunk would answer index.html at 200. `NotFoundHandler` makes it a plain 404; `internal/server/web_test.go` pins it (mutation-proved). The isme brand logo = the favicon i/person monogram — see [[demo-mock-source-of-truth]]. UI changes need build-web + restart to show ([[isme-ui-serving]]).

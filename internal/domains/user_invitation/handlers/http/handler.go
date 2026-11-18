@@ -4,13 +4,14 @@ import (
 	idi "github.com/vukyn/isme/internal/di"
 	"github.com/vukyn/isme/internal/domains/user_invitation/models"
 
-	pkgCtx "github.com/vukyn/kuery/ctx"
-	pkgHttp "github.com/vukyn/kuery/http/fiber"
+	pkgCtx "github.com/vukyn/kuery/ctxv3"
+	pkgErr "github.com/vukyn/kuery/http/errors"
+	pkgHttp "github.com/vukyn/kuery/http/fiberv3"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
-func CreateInvitation(c *fiber.Ctx) error {
+func CreateInvitation(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetUserInvitationUsecase(ctn)
@@ -19,8 +20,8 @@ func CreateInvitation(c *fiber.Ctx) error {
 	}
 
 	createRequest := models.CreateRequest{}
-	if err := c.BodyParser(&createRequest); err != nil {
-		return pkgHttp.Err(c, err)
+	if err := c.Bind().Body(&createRequest); err != nil {
+		return pkgHttp.Err(c, pkgErr.InvalidRequest(err.Error()))
 	}
 
 	createResponse, err := uc.Create(pkgCtx.NewContextFromFiberCtx(c), createRequest)
@@ -31,7 +32,7 @@ func CreateInvitation(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, createResponse)
 }
 
-func ListInvitations(c *fiber.Ctx) error {
+func ListInvitations(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetUserInvitationUsecase(ctn)
@@ -47,7 +48,7 @@ func ListInvitations(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, listResponse)
 }
 
-func RevokeInvitation(c *fiber.Ctx) error {
+func RevokeInvitation(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetUserInvitationUsecase(ctn)
@@ -62,7 +63,7 @@ func RevokeInvitation(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, nil)
 }
 
-func GetInvitationByToken(c *fiber.Ctx) error {
+func GetInvitationByToken(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetUserInvitationUsecase(ctn)
@@ -78,7 +79,7 @@ func GetInvitationByToken(c *fiber.Ctx) error {
 	return pkgHttp.OK(c, detailResponse)
 }
 
-func AcceptInvitation(c *fiber.Ctx) error {
+func AcceptInvitation(c fiber.Ctx) error {
 	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
 
 	uc, err := idi.GetUserInvitationUsecase(ctn)
@@ -87,8 +88,8 @@ func AcceptInvitation(c *fiber.Ctx) error {
 	}
 
 	acceptRequest := models.AcceptRequest{}
-	if err := c.BodyParser(&acceptRequest); err != nil {
-		return pkgHttp.Err(c, err)
+	if err := c.Bind().Body(&acceptRequest); err != nil {
+		return pkgHttp.Err(c, pkgErr.InvalidRequest(err.Error()))
 	}
 
 	if err := uc.Accept(pkgCtx.NewContextFromFiberCtx(c), acceptRequest); err != nil {
