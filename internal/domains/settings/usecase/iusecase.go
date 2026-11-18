@@ -26,4 +26,14 @@ type IUseCase interface {
 	// UpdateDatabaseBackup validates and persists the backup schedule + retain
 	// count, then live-reloads the scheduler.
 	UpdateDatabaseBackup(ctx context.Context, req models.DatabaseBackupUpdateRequest) error
+	// GetInvitationCleanup returns the current invitation-cleanup configuration.
+	GetInvitationCleanup(ctx context.Context) (models.InvitationCleanupGetResponse, error)
+	// UpdateInvitationCleanup validates and persists the cleanup schedule, then
+	// live-reloads the scheduler.
+	UpdateInvitationCleanup(ctx context.Context, req models.InvitationCleanupUpdateRequest) error
+	// GetUnverifiedUserCleanup returns the current unverified-user-cleanup configuration.
+	GetUnverifiedUserCleanup(ctx context.Context) (models.UnverifiedUserCleanupGetResponse, error)
+	// UpdateUnverifiedUserCleanup validates and persists the cleanup schedule +
+	// minimum account age (in days), then live-reloads the scheduler.
+	UpdateUnverifiedUserCleanup(ctx context.Context, req models.UnverifiedUserCleanupUpdateRequest) error
 }

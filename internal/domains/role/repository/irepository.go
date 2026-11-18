@@ -47,6 +47,8 @@ type IRepository interface {
 	AddMembers(ctx context.Context, roleID string, userIDs []string, appServiceID *string) error
 	// Remove a member from a role; nil appServiceID targets the global assignment
 	RemoveMember(ctx context.Context, roleID string, userID string, appServiceID *string) error
+	// Hard-delete every role membership held by the given users (all apps)
+	RemoveAllMembershipsByUserIDs(ctx context.Context, userIDs []string) error
 	// Get permission codes for a user scoped to a concrete app_id (matched against
 	// the owning role's app_id); empty appID resolves assignments across all apps
 	GetPermissionCodesByUserID(ctx context.Context, userID string, appID string) ([]string, error)

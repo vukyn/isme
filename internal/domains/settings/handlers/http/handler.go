@@ -5,6 +5,7 @@ import (
 	"github.com/vukyn/isme/internal/domains/settings/models"
 
 	pkgCtx "github.com/vukyn/kuery/ctx"
+	pkgErr "github.com/vukyn/kuery/http/errors"
 	pkgHttp "github.com/vukyn/kuery/http/fiber"
 
 	"github.com/gofiber/fiber/v2"
@@ -148,6 +149,80 @@ func UpdateDatabaseBackupConfig(c *fiber.Ctx) error {
 	}
 
 	if err := uc.UpdateDatabaseBackup(pkgCtx.NewContextFromFiberCtx(c), updateRequest); err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	return pkgHttp.OK(c, nil)
+}
+
+func GetInvitationCleanupConfig(c *fiber.Ctx) error {
+	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
+
+	uc, err := idi.GetSettingsUsecase(ctn)
+	if err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	getResponse, err := uc.GetInvitationCleanup(pkgCtx.NewContextFromFiberCtx(c))
+	if err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	return pkgHttp.OK(c, getResponse)
+}
+
+func UpdateInvitationCleanupConfig(c *fiber.Ctx) error {
+	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
+
+	uc, err := idi.GetSettingsUsecase(ctn)
+	if err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	updateRequest := models.InvitationCleanupUpdateRequest{}
+	if err := c.BodyParser(&updateRequest); err != nil {
+		// a malformed body is the client's fault, not a server error
+		return pkgHttp.Err(c, pkgErr.InvalidRequest(err.Error()))
+	}
+
+	if err := uc.UpdateInvitationCleanup(pkgCtx.NewContextFromFiberCtx(c), updateRequest); err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	return pkgHttp.OK(c, nil)
+}
+
+func GetUnverifiedUserCleanupConfig(c *fiber.Ctx) error {
+	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
+
+	uc, err := idi.GetSettingsUsecase(ctn)
+	if err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	getResponse, err := uc.GetUnverifiedUserCleanup(pkgCtx.NewContextFromFiberCtx(c))
+	if err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	return pkgHttp.OK(c, getResponse)
+}
+
+func UpdateUnverifiedUserCleanupConfig(c *fiber.Ctx) error {
+	ctn := pkgCtx.GetDiContainerRequestFromFiberCtx(c)
+
+	uc, err := idi.GetSettingsUsecase(ctn)
+	if err != nil {
+		return pkgHttp.Err(c, err)
+	}
+
+	updateRequest := models.UnverifiedUserCleanupUpdateRequest{}
+	if err := c.BodyParser(&updateRequest); err != nil {
+		// a malformed body is the client's fault, not a server error
+		return pkgHttp.Err(c, pkgErr.InvalidRequest(err.Error()))
+	}
+
+	if err := uc.UpdateUnverifiedUserCleanup(pkgCtx.NewContextFromFiberCtx(c), updateRequest); err != nil {
 		return pkgHttp.Err(c, err)
 	}
 

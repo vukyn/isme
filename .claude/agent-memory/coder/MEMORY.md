@@ -1,5 +1,6 @@
 # Memory Index
 
+- [isme migrate/seed env override](project_isme_migrate_env_override.md) — env beats .env; scratch DB + docker PG recipe; seed PG roles bug
 - [isme UI lint baseline](project_isme-ui-lint-baseline.md) — baseline now 0 errors (legacy 13 fixed); set-state-in-effect rule gotcha
 
 ## Moved in from the platform-level store (2026-09-05)

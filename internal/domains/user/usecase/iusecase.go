@@ -20,3 +20,10 @@ type IUseCase interface {
 	// Revoke a specific session of a user
 	RevokeSession(ctx context.Context, userID string, sessionID string) error
 }
+
+// TxRunner runs fn inside ONE database transaction that every repository call
+// made with fn's context joins (kuery/bun/tx). It carries no bun type, so the
+// usecase layer states "these writes are atomic" without holding a handle.
+type TxRunner interface {
+	RunInTx(ctx context.Context, fn func(ctx context.Context) error) error
+}

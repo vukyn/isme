@@ -3,8 +3,10 @@
 import { Box, Center, Heading, Spinner, Stack, Text } from "@chakra-ui/react";
 import { ActivityCleanupCard } from "@/components/ActivityCleanupCard";
 import { DatabaseBackupCard } from "@/components/DatabaseBackupCard";
+import { InvitationCleanupCard } from "@/components/InvitationCleanupCard";
 import { RotationCleanupCard } from "@/components/RotationCleanupCard";
 import { SessionAutoRevokeCard } from "@/components/SessionAutoRevokeCard";
+import { UnverifiedUserCleanupCard } from "@/components/UnverifiedUserCleanupCard";
 import { AppShell } from "@/layouts/AppShell";
 import { useUser } from "@/hooks/useUser";
 
@@ -35,6 +37,8 @@ export const Settings = () => {
 						<RotationCleanupCard />
 						<ActivityCleanupCard />
 						<DatabaseBackupCard />
+						<InvitationCleanupCard />
+						<UnverifiedUserCleanupCard />
 					</Stack>
 				</Stack>
 			)}

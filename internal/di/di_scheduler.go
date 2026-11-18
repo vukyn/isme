@@ -3,12 +3,16 @@ package di
 import (
 	"github.com/vukyn/isme/internal/constants"
 	activityRepo "github.com/vukyn/isme/internal/domains/activity/repository"
+	roleRepo "github.com/vukyn/isme/internal/domains/role/repository"
 	settingsEntity "github.com/vukyn/isme/internal/domains/settings/entity"
 	settingsRepo "github.com/vukyn/isme/internal/domains/settings/repository"
+	userRepo "github.com/vukyn/isme/internal/domains/user/repository"
+	userInvitationRepo "github.com/vukyn/isme/internal/domains/user_invitation/repository"
 	userSessionRepo "github.com/vukyn/isme/internal/domains/user_session/repository"
 
 	"github.com/sarulabs/di/v2"
 	"github.com/uptrace/bun"
+	pkgTx "github.com/vukyn/kuery/bun/tx"
 	pkgScheduler "github.com/vukyn/kuery/scheduler"
 
 	"github.com/vukyn/kuery/log"
@@ -16,8 +20,8 @@ import (
 
 // defineScheduler builds the app-scoped scheduler engine singleton. It is
 // constructed once during the DI build from the App-scoped DB: it registers the
-// four isme jobs (session-revoke, rotation-cleanup, activity-cleanup,
-// database-backup) with their job bodies as closures over freshly built
+// six isme jobs (session-revoke, rotation-cleanup, activity-cleanup,
+// database-backup, invitation-cleanup, unverified-user-cleanup) with their job bodies as closures over freshly built
 // repositories. No WithLocation option
 // is passed, so the engine evaluates schedules in the process's local time —
 // matching the pre-migration engine exactly (parity).
@@ -34,6 +38,10 @@ func defineScheduler() *di.Def {
 			userSessionRepository := userSessionRepo.NewRepository(db)
 			settingsRepository := settingsRepo.NewRepository(db)
 			activityRepository := activityRepo.NewRepository(db)
+			invitationRepository := userInvitationRepo.NewRepository(db)
+			userRepository := userRepo.NewRepository(db)
+			roleRepository := roleRepo.NewRepository(db)
+			transactions := pkgTx.NewRunner(db)
 
 			// NO WithLocation — gocron defaults to local time, matching the original engine.
 			engine, err := pkgScheduler.New(cfg.Scheduler.Enabled)
@@ -56,6 +64,14 @@ func defineScheduler() *di.Def {
 			engine.Register(pkgScheduler.Job{
 				Key: pkgScheduler.JobKey(settingsEntity.JobKeyDatabaseBackup),
 				Run: newDatabaseBackupRun(db, settingsRepository),
+			})
+			engine.Register(pkgScheduler.Job{
+				Key: pkgScheduler.JobKey(settingsEntity.JobKeyInvitationCleanup),
+				Run: newInvitationCleanupRun(invitationRepository, settingsRepository),
+			})
+			engine.Register(pkgScheduler.Job{
+				Key: pkgScheduler.JobKey(settingsEntity.JobKeyUnverifiedUserCleanup),
+				Run: newUnverifiedUserCleanupRun(userRepository, userSessionRepository, roleRepository, transactions, settingsRepository),
 			})
 
 			log.New().Debug("Scheduler initialized")

@@ -6,3 +6,4 @@ export * from "./jwt";
 export * from "./clipboard";
 export * from "./cronPreset";
 export * from "./avatar";
+export * from "./requestFailure";

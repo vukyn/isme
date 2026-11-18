@@ -54,6 +54,21 @@ type databaseBackupResult struct {
 	Bytes      int64  `json:"bytes"`
 }
 
+// invitationCleanupResult mirrors the last_result JSON of the invitation-cleanup job.
+type invitationCleanupResult struct {
+	Expired int64 `json:"expired"`
+}
+
+// unverifiedUserCleanupParams mirrors the params JSON of the unverified-user-cleanup job.
+type unverifiedUserCleanupParams struct {
+	MinAgeDays int64 `json:"min_age_days"`
+}
+
+// unverifiedUserCleanupResult mirrors the last_result JSON of the unverified-user-cleanup job.
+type unverifiedUserCleanupResult struct {
+	Deleted int64 `json:"deleted"`
+}
+
 type usecase struct {
 	settingsRepo settingsRepo.IRepository
 	reloader     pkgScheduler.IReloader
@@ -267,4 +282,95 @@ func (u *usecase) UpdateDatabaseBackup(ctx context.Context, req models.DatabaseB
 	// A retain-only change still reloads here, but retain_count is read fresh on
 	// each run regardless, so it would also take effect on the next run.
 	return u.reloader.Reload(ctx, pkgScheduler.JobKey(entity.JobKeyDatabaseBackup), req.Enabled, pkgScheduler.Cron(req.Cron))
+}
+
+func (u *usecase) GetInvitationCleanup(ctx context.Context) (models.InvitationCleanupGetResponse, error) {
+	config, err := u.settingsRepo.GetSchedule(ctx, entity.JobKeyInvitationCleanup)
+	if err != nil {
+		return models.InvitationCleanupGetResponse{}, err
+	}
+
+	response := models.InvitationCleanupGetResponse{
+		Enabled: config.Enabled,
+		Cron:    config.Cron,
+	}
+	if config.LastRunAt != nil {
+		lastRun := config.LastRunAt.Unix()
+		response.LastRunAt = &lastRun
+	}
+	if config.LastResult != nil {
+		result := invitationCleanupResult{}
+		if err := json.Unmarshal([]byte(*config.LastResult), &result); err != nil {
+			return models.InvitationCleanupGetResponse{}, pkgErr.InternalServerError(err.Error())
+		}
+		expired := result.Expired
+		response.LastExpiredCount = &expired
+	}
+	return response, nil
+}
+
+func (u *usecase) UpdateInvitationCleanup(ctx context.Context, req models.InvitationCleanupUpdateRequest) error {
+	if err := req.Validate(); err != nil {
+		return pkgErr.InvalidRequest(err.Error())
+	}
+
+	updatedBy := pkgCtx.GetUserID(ctx)
+	if err := u.settingsRepo.UpdateSchedule(ctx, entity.JobKeyInvitationCleanup, req.Enabled, req.Cron, emptyParams, updatedBy); err != nil {
+		return err
+	}
+
+	// live-reload the scheduler so the change takes effect without a restart
+	return u.reloader.Reload(ctx, pkgScheduler.JobKey(entity.JobKeyInvitationCleanup), req.Enabled, pkgScheduler.Cron(req.Cron))
+}
+
+func (u *usecase) GetUnverifiedUserCleanup(ctx context.Context) (models.UnverifiedUserCleanupGetResponse, error) {
+	config, err := u.settingsRepo.GetSchedule(ctx, entity.JobKeyUnverifiedUserCleanup)
+	if err != nil {
+		return models.UnverifiedUserCleanupGetResponse{}, err
+	}
+
+	response := models.UnverifiedUserCleanupGetResponse{
+		Enabled: config.Enabled,
+		Cron:    config.Cron,
+	}
+	if config.Params != "" {
+		params := unverifiedUserCleanupParams{}
+		if err := json.Unmarshal([]byte(config.Params), &params); err != nil {
+			return models.UnverifiedUserCleanupGetResponse{}, pkgErr.InternalServerError(err.Error())
+		}
+		response.MinAgeDays = params.MinAgeDays
+	}
+	if config.LastRunAt != nil {
+		lastRun := config.LastRunAt.Unix()
+		response.LastRunAt = &lastRun
+	}
+	if config.LastResult != nil {
+		result := unverifiedUserCleanupResult{}
+		if err := json.Unmarshal([]byte(*config.LastResult), &result); err != nil {
+			return models.UnverifiedUserCleanupGetResponse{}, pkgErr.InternalServerError(err.Error())
+		}
+		deleted := result.Deleted
+		response.LastDeletedCount = &deleted
+	}
+	return response, nil
+}
+
+func (u *usecase) UpdateUnverifiedUserCleanup(ctx context.Context, req models.UnverifiedUserCleanupUpdateRequest) error {
+	if err := req.Validate(); err != nil {
+		return pkgErr.InvalidRequest(err.Error())
+	}
+
+	params, err := json.Marshal(unverifiedUserCleanupParams{MinAgeDays: req.MinAgeDays})
+	if err != nil {
+		return pkgErr.InternalServerError(err.Error())
+	}
+
+	updatedBy := pkgCtx.GetUserID(ctx)
+	if err := u.settingsRepo.UpdateSchedule(ctx, entity.JobKeyUnverifiedUserCleanup, req.Enabled, req.Cron, string(params), updatedBy); err != nil {
+		return err
+	}
+
+	// live-reload the scheduler so the change takes effect without a restart.
+	// The minimum age is read fresh on each run regardless.
+	return u.reloader.Reload(ctx, pkgScheduler.JobKey(entity.JobKeyUnverifiedUserCleanup), req.Enabled, pkgScheduler.Cron(req.Cron))
 }

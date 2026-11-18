@@ -14,3 +14,32 @@ export const AURORA_CTA_STYLE = {
 	backgroundRepeat: "no-repeat",
 	backgroundPosition: "0% 0%",
 } as const;
+
+const DIALOG_BUTTON_BASE = {
+	h: "11",
+	px: "4.5",
+	borderRadius: "glassSm",
+	fontSize: "sm",
+	fontWeight: "semibold",
+	variant: "outline",
+} as const;
+
+/** Mock .btn-ghost — Cancel / Close. */
+export const GHOST_DIALOG_BUTTON_PROPS = {
+	...DIALOG_BUTTON_BASE,
+	borderColor: "border.strong",
+	bg: "bg.glass",
+	color: "fg",
+	_hover: { bg: "bg.glassHi", borderColor: "rgba(255,255,255,0.28)" },
+	_focusVisible: { outline: "none", boxShadow: "0 0 0 3px rgba(139,92,246,0.55)", borderColor: "aurora.violet" },
+} as const;
+
+/** Mock .btn-danger — the footer's destructive primary action. */
+export const DANGER_DIALOG_BUTTON_PROPS = {
+	...DIALOG_BUTTON_BASE,
+	borderColor: "rgba(236,72,153,0.55)",
+	bg: "rgba(236,72,153,0.16)",
+	color: "#FFD3E8",
+	_hover: { bg: "rgba(236,72,153,0.26)", borderColor: "rgba(236,72,153,0.75)" },
+	_focusVisible: { outline: "none", boxShadow: "0 0 0 3px rgba(236,72,153,0.45)" },
+} as const;

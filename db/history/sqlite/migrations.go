@@ -38,4 +38,7 @@ var Migrations = []pkgMigrate.Migration{
 	m029SeedDatabaseBackupSchedule,
 	m030FixBoolColumnsPg,
 	m031AddRedirectURLsToAppServices,
+	m032UsersEmailUniqueLiveOnly,
+	m033SeedInvitationCleanupSchedule,
+	m034SeedUnverifiedUserCleanupSchedule,
 }

@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	appServiceEntity "github.com/vukyn/isme/internal/domains/app_service/entity"
 	appServiceModels "github.com/vukyn/isme/internal/domains/app_service/models"
@@ -837,4 +838,16 @@ func TestCreateCodeSlugValidation(t *testing.T) {
 			}
 		})
 	}
+}
+
+func (f *fakeUserRepository) ListUnverifiedCreatedBefore(ctx context.Context, before time.Time) ([]string, error) {
+	return []string{}, nil
+}
+
+func (f *fakeUserRepository) SoftDeleteByIDs(ctx context.Context, ids []string, deletedBy string) (int64, error) {
+	return int64(len(ids)), nil
+}
+
+func (f *fakeRoleRepository) RemoveAllMembershipsByUserIDs(ctx context.Context, userIDs []string) error {
+	return nil
 }

@@ -13,6 +13,7 @@ import (
 	userInvitationUsecase "github.com/vukyn/isme/internal/domains/user_invitation/usecase"
 
 	"github.com/sarulabs/di/v2"
+	pkgTx "github.com/vukyn/kuery/bun/tx"
 	"github.com/vukyn/kuery/log"
 	pkgScheduler "github.com/vukyn/kuery/scheduler"
 )
@@ -159,7 +160,7 @@ func defineUserUsecase() *di.Def {
 				return nil, err
 			}
 			log.New().Debug("User usecase initialized")
-			return userUsecase.NewUsecase(userRepo, userSessionRepo, roleRepo), nil
+			return userUsecase.NewUsecase(userRepo, userSessionRepo, roleRepo, pkgTx.NewRunner(GetDB(ctn))), nil
 		},
 		Close: func(obj any) error {
 			log.New().Debug("User usecase destroyed")
@@ -240,7 +241,7 @@ func defineUserInvitationUsecase() *di.Def {
 				return nil, err
 			}
 			log.New().Debug("User invitation usecase initialized")
-			return userInvitationUsecase.NewUsecase(cfg, userInvitationRepo, userRepo, roleRepo, appServiceRepo, activityUsecase), nil
+			return userInvitationUsecase.NewUsecase(cfg, userInvitationRepo, userRepo, roleRepo, appServiceRepo, activityUsecase, pkgTx.NewRunner(GetDB(ctn))), nil
 		},
 		Close: func(obj any) error {
 			log.New().Debug("User invitation usecase destroyed")

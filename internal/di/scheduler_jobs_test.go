@@ -161,12 +161,12 @@ func newTestDB(t *testing.T) *bun.DB {
 	return db
 }
 
-// The migration must seed exactly the four job rows the scheduler reads, so a
+// The migration must seed exactly the six job rows the scheduler reads, so a
 // Reload/Get can never silently target a non-existent row. The job-key strings
 // are a single source of truth (settings entity consts).
 func TestJobKeysAreConsistentWithMigration(t *testing.T) {
 	db := newTestDB(t)
-	for _, jobKey := range []string{settingsEntity.JobKeySessionRevoke, settingsEntity.JobKeyRotationCleanup, settingsEntity.JobKeyActivityCleanup, settingsEntity.JobKeyDatabaseBackup} {
+	for _, jobKey := range []string{settingsEntity.JobKeySessionRevoke, settingsEntity.JobKeyRotationCleanup, settingsEntity.JobKeyActivityCleanup, settingsEntity.JobKeyDatabaseBackup, settingsEntity.JobKeyInvitationCleanup, settingsEntity.JobKeyUnverifiedUserCleanup} {
 		var count int
 		row := db.QueryRow("SELECT COUNT(*) FROM schedule_config WHERE job_key = ?", jobKey)
 		if err := row.Scan(&count); err != nil {
@@ -190,6 +190,8 @@ func TestScheduleProviderReportsSeededJobsDisabled(t *testing.T) {
 		pkgScheduler.JobKey(settingsEntity.JobKeyRotationCleanup),
 		pkgScheduler.JobKey(settingsEntity.JobKeyActivityCleanup),
 		pkgScheduler.JobKey(settingsEntity.JobKeyDatabaseBackup),
+		pkgScheduler.JobKey(settingsEntity.JobKeyInvitationCleanup),
+		pkgScheduler.JobKey(settingsEntity.JobKeyUnverifiedUserCleanup),
 	} {
 		enabled, _, err := provider.Load(context.Background(), jobKey)
 		if err != nil {

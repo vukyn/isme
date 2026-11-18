@@ -135,3 +135,103 @@ func TestPendingEmailPartialUniqueIndex(t *testing.T) {
 		t.Fatalf("expected re-issue after revoke to succeed, got: %v", err)
 	}
 }
+
+func TestMarkExpiredOnlyFlipsPendingPastExpiry(t *testing.T) {
+	db := newTestDB(t)
+	ctx := context.Background()
+	invitationRepository := NewRepository(db)
+
+	live, err := invitationRepository.Create(ctx, newInvitation("live@example.com"), memberAssignments())
+	if err != nil {
+		t.Fatalf("create live invitation: %v", err)
+	}
+	pastInvitation := newInvitation("past@example.com")
+	pastInvitation.ExpiresAt = time.Now().UTC().Add(-time.Hour)
+	past, err := invitationRepository.Create(ctx, pastInvitation, memberAssignments())
+	if err != nil {
+		t.Fatalf("create past invitation: %v", err)
+	}
+
+	expired, err := invitationRepository.MarkExpired(ctx, live)
+	if err != nil || expired {
+		t.Fatalf("expected a live pending invitation not to expire, got expired=%v err=%v", expired, err)
+	}
+
+	expired, err = invitationRepository.MarkExpired(ctx, past)
+	if err != nil || !expired {
+		t.Fatalf("expected a pending invitation past expiry to expire, got expired=%v err=%v", expired, err)
+	}
+	stored, err := invitationRepository.GetByID(ctx, past)
+	if err != nil {
+		t.Fatalf("get past invitation: %v", err)
+	}
+	if stored.Status != int32(constants.InvitationStatusExpired) {
+		t.Errorf("expected status %d, got %d", constants.InvitationStatusExpired, stored.Status)
+	}
+
+	// a second call finds nothing pending
+	expired, err = invitationRepository.MarkExpired(ctx, past)
+	if err != nil || expired {
+		t.Fatalf("expected an already-expired invitation not to flip again, got expired=%v err=%v", expired, err)
+	}
+}
+
+func TestExpirePendingBeforeFreesTheEmail(t *testing.T) {
+	db := newTestDB(t)
+	ctx := context.Background()
+	invitationRepository := NewRepository(db)
+
+	pastOne := newInvitation("again@example.com")
+	pastOne.ExpiresAt = time.Now().UTC().Add(-2 * time.Hour)
+	pastOneID, err := invitationRepository.Create(ctx, pastOne, memberAssignments())
+	if err != nil {
+		t.Fatalf("create past invitation: %v", err)
+	}
+	pastTwo := newInvitation("other@example.com")
+	pastTwo.ExpiresAt = time.Now().UTC().Add(-time.Minute)
+	if _, err := invitationRepository.Create(ctx, pastTwo, memberAssignments()); err != nil {
+		t.Fatalf("create second past invitation: %v", err)
+	}
+	liveID, err := invitationRepository.Create(ctx, newInvitation("live@example.com"), memberAssignments())
+	if err != nil {
+		t.Fatalf("create live invitation: %v", err)
+	}
+	revokedPast := newInvitation("revoked@example.com")
+	revokedPast.ExpiresAt = time.Now().UTC().Add(-time.Hour)
+	revokedID, err := invitationRepository.Create(ctx, revokedPast, memberAssignments())
+	if err != nil {
+		t.Fatalf("create revoked invitation: %v", err)
+	}
+	if _, err := invitationRepository.MarkRevoked(ctx, revokedID); err != nil {
+		t.Fatalf("revoke: %v", err)
+	}
+
+	count, err := invitationRepository.ExpirePendingBefore(ctx, time.Now().UTC())
+	if err != nil {
+		t.Fatalf("expire pending: %v", err)
+	}
+	if count != 2 {
+		t.Errorf("expected 2 invitations expired, got %d", count)
+	}
+
+	for id, want := range map[string]int32{
+		pastOneID: int32(constants.InvitationStatusExpired),
+		liveID:    int32(constants.InvitationStatusPending),
+		revokedID: int32(constants.InvitationStatusRevoked),
+	} {
+		stored, err := invitationRepository.GetByID(ctx, id)
+		if err != nil {
+			t.Fatalf("get %s: %v", id, err)
+		}
+		if stored.Status != want {
+			t.Errorf("invitation %s: expected status %d, got %d", id, want, stored.Status)
+		}
+	}
+
+	// the partial pending-email index no longer holds the expired row
+	fresh := newInvitation("again@example.com")
+	fresh.TokenHash = "hash-again-fresh"
+	if _, err := invitationRepository.Create(ctx, fresh, memberAssignments()); err != nil {
+		t.Errorf("expected a new pending invitation for the expired email, got %v", err)
+	}
+}

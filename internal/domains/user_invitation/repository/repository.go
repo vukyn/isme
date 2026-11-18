@@ -13,6 +13,7 @@ import (
 	pkgErr "github.com/vukyn/kuery/http/errors"
 
 	"github.com/uptrace/bun"
+	pkgTx "github.com/vukyn/kuery/bun/tx"
 	"github.com/vukyn/kuery/cryp"
 )
 
@@ -229,7 +230,8 @@ func (r *repository) MarkAccepted(ctx context.Context, id string) (bool, error) 
 	}
 
 	now := time.Now().UTC()
-	result, err := r.db.NewUpdate().
+	// reads its handle through Conn so it joins a caller-owned transaction
+	result, err := pkgTx.Conn(ctx, r.db).NewUpdate().
 		Model((*entity.UserInvitation)(nil)).
 		Set("status = ?", constants.InvitationStatusAccepted).
 		Set("accepted_at = ?", now).
@@ -270,21 +272,50 @@ func (r *repository) MarkRevoked(ctx context.Context, id string) (bool, error) {
 	return rowsAffected > 0, nil
 }
 
-func (r *repository) RevertToPending(ctx context.Context, id string) error {
+func (r *repository) MarkExpired(ctx context.Context, id string) (bool, error) {
 	if id == "" {
-		return pkgErr.InvalidRequest("id is required")
+		return false, pkgErr.InvalidRequest("id is required")
 	}
 
 	now := time.Now().UTC()
-	_, err := r.db.NewUpdate().
+	// reads its handle through Conn so it joins a caller-owned transaction
+	result, err := pkgTx.Conn(ctx, r.db).NewUpdate().
 		Model((*entity.UserInvitation)(nil)).
-		Set("status = ?", constants.InvitationStatusPending).
-		Set("accepted_at = NULL").
+		Set("status = ?", constants.InvitationStatusExpired).
 		Set("updated_at = ?", now).
 		Where("id = ?", id).
+		Where("status = ?", constants.InvitationStatusPending).
+		Where("expires_at < ?", now).
 		Exec(ctx)
 	if err != nil {
-		return pkgErr.DatabaseError(err.Error())
+		return false, pkgErr.DatabaseError(err.Error())
 	}
-	return nil
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return false, pkgErr.DatabaseError(err.Error())
+	}
+	return rowsAffected > 0, nil
+}
+
+func (r *repository) ExpirePendingBefore(ctx context.Context, now time.Time) (int64, error) {
+	if now.IsZero() {
+		return 0, pkgErr.InvalidRequest("now is required")
+	}
+
+	// reads its handle through Conn so it joins a caller-owned transaction
+	result, err := pkgTx.Conn(ctx, r.db).NewUpdate().
+		Model((*entity.UserInvitation)(nil)).
+		Set("status = ?", constants.InvitationStatusExpired).
+		Set("updated_at = ?", now.UTC()).
+		Where("status = ?", constants.InvitationStatusPending).
+		Where("expires_at < ?", now.UTC()).
+		Exec(ctx)
+	if err != nil {
+		return 0, pkgErr.DatabaseError(err.Error())
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return 0, pkgErr.DatabaseError(err.Error())
+	}
+	return rowsAffected, nil
 }

@@ -634,3 +634,11 @@ func TestPlatformAppReadOnly(t *testing.T) {
 		}
 	})
 }
+
+func (f *fakeUserRepository) ListUnverifiedCreatedBefore(ctx context.Context, before time.Time) ([]string, error) {
+	return []string{}, nil
+}
+
+func (f *fakeUserRepository) SoftDeleteByIDs(ctx context.Context, ids []string, deletedBy string) (int64, error) {
+	return int64(len(ids)), nil
+}

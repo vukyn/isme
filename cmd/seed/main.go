@@ -371,19 +371,21 @@ func medioaPerms() []permission {
 	return perms
 }
 
-// upsertUser creates the user (verified + active) or, if the email exists,
-// resets its password/status so re-running the seed restores a known login.
+// upsertUser creates the user (verified + active) or, if a live user holds the
+// email, resets its password/status so re-running the seed restores a known
+// login. The conflict target carries the predicate of the partial unique
+// index on email, which both dialects require to match it.
 func upsertUser(ctx context.Context, db *bun.DB, id, name, email, password string) (string, error) {
 	if id == "" {
 		id = cryp.ULID()
 	}
 	_, err := db.ExecContext(ctx, `
 		INSERT INTO users (id, name, email, password, status, is_verified, created_by, updated_by)
-		VALUES (?, ?, ?, ?, ?, 1, ?, ?)
-		ON CONFLICT(email) DO UPDATE SET
+		VALUES (?, ?, ?, ?, ?, TRUE, ?, ?)
+		ON CONFLICT (email) WHERE deleted_at IS NULL DO UPDATE SET
 			password = excluded.password,
 			status = excluded.status,
-			is_verified = 1,
+			is_verified = TRUE,
 			updated_at = current_timestamp,
 			updated_by = excluded.updated_by
 	`, id, name, email, cryp.HashArgon2id(password), statusActive, seedActor, seedActor)
@@ -391,7 +393,7 @@ func upsertUser(ctx context.Context, db *bun.DB, id, name, email, password strin
 		return "", err
 	}
 	var storedID string
-	if err := db.QueryRowContext(ctx, `SELECT id FROM users WHERE email = ?`, email).Scan(&storedID); err != nil {
+	if err := db.QueryRowContext(ctx, `SELECT id FROM users WHERE email = ? AND deleted_at IS NULL`, email).Scan(&storedID); err != nil {
 		return "", err
 	}
 	return storedID, nil

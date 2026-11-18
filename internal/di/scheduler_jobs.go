@@ -10,8 +10,12 @@ import (
 
 	"github.com/vukyn/isme/internal/constants"
 	activityRepo "github.com/vukyn/isme/internal/domains/activity/repository"
+	roleRepo "github.com/vukyn/isme/internal/domains/role/repository"
 	settingsEntity "github.com/vukyn/isme/internal/domains/settings/entity"
+	settingsModels "github.com/vukyn/isme/internal/domains/settings/models"
 	settingsRepo "github.com/vukyn/isme/internal/domains/settings/repository"
+	userRepo "github.com/vukyn/isme/internal/domains/user/repository"
+	userInvitationRepo "github.com/vukyn/isme/internal/domains/user_invitation/repository"
 	userSessionRepo "github.com/vukyn/isme/internal/domains/user_session/repository"
 
 	"github.com/uptrace/bun"
@@ -37,6 +41,22 @@ type activityCleanupParams struct {
 // deletes the oldest files past that count.
 type databaseBackupParams struct {
 	RetainCount int64 `json:"retain_count"`
+}
+
+// unverifiedUserCleanupParams mirrors the params JSON of the
+// unverified-user-cleanup job. The minimum age is in DAYS.
+type unverifiedUserCleanupParams struct {
+	MinAgeDays int64 `json:"min_age_days"`
+}
+
+// unverifiedUserCleanupActor is stamped as deleted_by on accounts the
+// unverified-user-cleanup job removes.
+const unverifiedUserCleanupActor = "system:unverified_user_cleanup"
+
+// transactionRunner runs fn inside one database transaction that every
+// repository call made with fn's context joins (kuery/bun/tx).
+type transactionRunner interface {
+	RunInTx(ctx context.Context, fn func(ctx context.Context) error) error
 }
 
 // defaultBackupRetainCount is the fallback number of backup files to keep when
@@ -178,6 +198,110 @@ func newActivityCleanupRun(
 			// the prune still happened — fall through to log it
 		}
 		log.New().Infof("Activity cleanup run complete: %d activity event(s) pruned", pruned)
+		return nil
+	}
+}
+
+// newInvitationCleanupRun returns the invitation-cleanup job body: mark every
+// pending invitation past its expiry as expired and record the run. Errors are
+// logged, never panicked.
+func newInvitationCleanupRun(
+	invitationRepository userInvitationRepo.IRepository,
+	settingsRepository settingsRepo.IRepository,
+) func(ctx context.Context) error {
+	return func(ctx context.Context) error {
+		now := time.Now().UTC()
+		expired, err := invitationRepository.ExpirePendingBefore(ctx, now)
+		if err != nil {
+			log.New().Errorf("Scheduler: expire pending invitations failed: %v", err)
+			return nil
+		}
+		result, err := json.Marshal(map[string]int64{"expired": expired})
+		if err != nil {
+			log.New().Errorf("Scheduler: marshal invitation-cleanup result failed: %v", err)
+			return nil
+		}
+		if err := settingsRepository.RecordScheduleRun(ctx, settingsEntity.JobKeyInvitationCleanup, now, string(result)); err != nil {
+			log.New().Errorf("Scheduler: record invitation-cleanup run failed: %v", err)
+			// the expiry still happened — fall through to log it
+		}
+		log.New().Infof("Invitation cleanup run complete: %d invitation(s) expired", expired)
+		return nil
+	}
+}
+
+// newUnverifiedUserCleanupRun returns the unverified-user-cleanup job body:
+// soft-delete live accounts that never finished sign-up and are older than the
+// configured minimum age, revoke their sessions and drop their role
+// memberships, all in one transaction, then record the run. The minimum age is
+// read FRESH on each run; a value below the floor skips the run rather than
+// widening the deletion. Errors are logged, never panicked.
+func newUnverifiedUserCleanupRun(
+	userRepository userRepo.IRepository,
+	userSessionRepository userSessionRepo.IRepository,
+	roleRepository roleRepo.IRepository,
+	transactions transactionRunner,
+	settingsRepository settingsRepo.IRepository,
+) func(ctx context.Context) error {
+	return func(ctx context.Context) error {
+		now := time.Now().UTC()
+		config, err := settingsRepository.GetSchedule(ctx, settingsEntity.JobKeyUnverifiedUserCleanup)
+		if err != nil {
+			log.New().Errorf("Scheduler: load unverified-user-cleanup config failed: %v", err)
+			return nil
+		}
+		params := unverifiedUserCleanupParams{}
+		if config.Params != "" {
+			if err := json.Unmarshal([]byte(config.Params), &params); err != nil {
+				log.New().Errorf("Scheduler: parse unverified-user-cleanup params failed: %v", err)
+				return nil
+			}
+		}
+		if params.MinAgeDays < settingsModels.UnverifiedUserMinAgeFloorDays {
+			log.New().Errorf("Scheduler: unverified-user-cleanup min_age_days %d is below the floor, run skipped", params.MinAgeDays)
+			return nil
+		}
+
+		userIDs, err := userRepository.ListUnverifiedCreatedBefore(ctx, activityCutoff(now, params.MinAgeDays))
+		if err != nil {
+			log.New().Errorf("Scheduler: list unverified users failed: %v", err)
+			return nil
+		}
+
+		var deleted int64
+		if len(userIDs) > 0 {
+			err = transactions.RunInTx(ctx, func(ctx context.Context) error {
+				count, err := userRepository.SoftDeleteByIDs(ctx, userIDs, unverifiedUserCleanupActor)
+				if err != nil {
+					return err
+				}
+				for _, userID := range userIDs {
+					if err := userSessionRepository.InactiveAllUserSession(ctx, userID); err != nil {
+						return err
+					}
+				}
+				if err := roleRepository.RemoveAllMembershipsByUserIDs(ctx, userIDs); err != nil {
+					return err
+				}
+				deleted = count
+				return nil
+			})
+			if err != nil {
+				log.New().Errorf("Scheduler: delete unverified users failed: %v", err)
+				return nil
+			}
+		}
+
+		result, err := json.Marshal(map[string]int64{"deleted": deleted})
+		if err != nil {
+			log.New().Errorf("Scheduler: marshal unverified-user-cleanup result failed: %v", err)
+			return nil
+		}
+		if err := settingsRepository.RecordScheduleRun(ctx, settingsEntity.JobKeyUnverifiedUserCleanup, now, string(result)); err != nil {
+			log.New().Errorf("Scheduler: record unverified-user-cleanup run failed: %v", err)
+			// the deletion still happened — fall through to log it
+		}
+		log.New().Infof("Unverified user cleanup run complete: %d account(s) deleted %v", deleted, userIDs)
 		return nil
 	}
 }

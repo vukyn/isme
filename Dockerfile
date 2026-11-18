@@ -14,7 +14,7 @@ COPY ui/ ./
 RUN pnpm run build           # outputs ui/dist
 
 # ---- Stage 2: build the Go binary (with embedded UI) ----
-FROM golang:1.27.1-alpine AS builder
+FROM golang:1.27.4-alpine AS builder
 # git for module fetch; ca-certificates + tzdata so the scratch runtime can copy
 # /etc/ssl/certs/ca-certificates.crt and /usr/share/zoneinfo (alpine ships neither).
 RUN apk add --no-cache git ca-certificates tzdata

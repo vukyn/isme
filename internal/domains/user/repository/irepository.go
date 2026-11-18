@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"github.com/vukyn/isme/internal/domains/user/entity"
 	"github.com/vukyn/isme/internal/domains/user/models"
@@ -28,4 +29,8 @@ type IRepository interface {
 	UpdateStatus(ctx context.Context, id string, status int32) error
 	// Soft delete a user
 	SoftDelete(ctx context.Context, id string) error
+	// List ids of live users that never finished sign-up and were created before the cutoff
+	ListUnverifiedCreatedBefore(ctx context.Context, before time.Time) ([]string, error)
+	// Soft delete several users at once, stamping who deleted them; returns rows affected
+	SoftDeleteByIDs(ctx context.Context, ids []string, deletedBy string) (int64, error)
 }
