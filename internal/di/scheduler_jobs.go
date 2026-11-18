@@ -3,12 +3,8 @@ package di
 import (
 	"context"
 	"encoding/json"
-	"os"
-	"path/filepath"
-	"sort"
 	"time"
 
-	"github.com/vukyn/isme/internal/constants"
 	activityRepo "github.com/vukyn/isme/internal/domains/activity/repository"
 	roleRepo "github.com/vukyn/isme/internal/domains/role/repository"
 	settingsEntity "github.com/vukyn/isme/internal/domains/settings/entity"
@@ -18,7 +14,6 @@ import (
 	userInvitationRepo "github.com/vukyn/isme/internal/domains/user_invitation/repository"
 	userSessionRepo "github.com/vukyn/isme/internal/domains/user_session/repository"
 
-	"github.com/uptrace/bun"
 	pkgScheduler "github.com/vukyn/kuery/scheduler"
 
 	"github.com/vukyn/kuery/log"
@@ -36,13 +31,6 @@ type activityCleanupParams struct {
 	RetentionDays int64 `json:"retention_days"`
 }
 
-// databaseBackupParams mirrors the params JSON of the database-backup job.
-// Retention is a COUNT of backup files to keep (not a time window), so pruning
-// deletes the oldest files past that count.
-type databaseBackupParams struct {
-	RetainCount int64 `json:"retain_count"`
-}
-
 // unverifiedUserCleanupParams mirrors the params JSON of the
 // unverified-user-cleanup job. The minimum age is in DAYS.
 type unverifiedUserCleanupParams struct {
@@ -58,10 +46,6 @@ const unverifiedUserCleanupActor = "system:unverified_user_cleanup"
 type transactionRunner interface {
 	RunInTx(ctx context.Context, fn func(ctx context.Context) error) error
 }
-
-// defaultBackupRetainCount is the fallback number of backup files to keep when
-// the params blob carries a zero/missing retain_count.
-const defaultBackupRetainCount int64 = 10
 
 // scheduleProvider adapts the settings repository to the kuery scheduler's
 // ScheduleProvider seam: at Start the engine asks it for each registered job's
@@ -304,131 +288,6 @@ func newUnverifiedUserCleanupRun(
 		log.New().Infof("Unverified user cleanup run complete: %d account(s) deleted %v", deleted, userIDs)
 		return nil
 	}
-}
-
-// newDatabaseBackupRun returns the database-backup job body: snapshot the
-// file-based SQLite database via VACUUM INTO into db/backups/, then prune the
-// oldest backups beyond the configured retain count and record the run. The
-// retain count is read FRESH on each run. ALL errors are logged, never
-// panicked, so a failed backup does not crash the process or kill the schedule.
-func newDatabaseBackupRun(
-	db *bun.DB,
-	settingsRepository settingsRepo.IRepository,
-) func(ctx context.Context) error {
-	return func(ctx context.Context) error {
-		now := time.Now().UTC()
-
-		config, err := settingsRepository.GetSchedule(ctx, settingsEntity.JobKeyDatabaseBackup)
-		if err != nil {
-			log.New().Errorf("Scheduler: load database-backup config failed: %v", err)
-			return nil
-		}
-		params := databaseBackupParams{}
-		if config.Params != "" {
-			if err := json.Unmarshal([]byte(config.Params), &params); err != nil {
-				log.New().Errorf("Scheduler: parse database-backup params failed: %v", err)
-				return nil
-			}
-		}
-		if params.RetainCount <= 0 {
-			params.RetainCount = defaultBackupRetainCount
-		}
-
-		dbDir := filepath.Dir(constants.DB_FILE_PATH)
-		backupDir := filepath.Join(dbDir, "backups")
-		// 0o700, not 0o755: a backup here is a byte-for-byte copy of the SQLite
-		// file, which holds app_service secrets and session tokens. World-readable
-		// is world-readable to every other local user on a shared host.
-		if err := os.MkdirAll(backupDir, 0o700); err != nil {
-			log.New().Errorf("Scheduler: create backup dir failed: %v", err)
-			return nil
-		}
-
-		target := filepath.Join(backupDir, "app-"+now.Format("20060102-150405")+".db")
-		// Try the bound-param form first. The path is a server-generated
-		// timestamp (not user input), so inlining it into the SQL string on
-		// fallback is injection-safe.
-		if _, err := db.ExecContext(ctx, "VACUUM INTO ?", target); err != nil {
-			if _, err := db.ExecContext(ctx, "VACUUM INTO '"+target+"'"); err != nil {
-				log.New().Errorf("Scheduler: database backup (VACUUM INTO) failed: %v", err)
-				return nil
-			}
-		}
-
-		// VACUUM INTO creates the file itself, at 0644 — the directory mode above
-		// does not constrain it. Tighten it to owner-only before anything else can
-		// read it. A failure here is worth logging but not worth discarding a
-		// backup that was written successfully.
-		if err := os.Chmod(target, 0o600); err != nil {
-			log.New().Warnf("Scheduler: chmod backup file failed: %v", err)
-		}
-
-		var bytes int64
-		if info, err := os.Stat(target); err == nil {
-			bytes = info.Size()
-		}
-
-		deleted, kept, err := pruneBackups(backupDir, int(params.RetainCount))
-		if err != nil {
-			log.New().Errorf("Scheduler: prune backups failed: %v", err)
-			return nil
-		}
-
-		result, err := json.Marshal(map[string]any{
-			"backup_path": target,
-			"kept":        kept,
-			"deleted":     deleted,
-			"bytes":       bytes,
-		})
-		if err != nil {
-			log.New().Errorf("Scheduler: marshal database-backup result failed: %v", err)
-			return nil
-		}
-		if err := settingsRepository.RecordScheduleRun(ctx, settingsEntity.JobKeyDatabaseBackup, now, string(result)); err != nil {
-			log.New().Errorf("Scheduler: record database-backup run failed: %v", err)
-			// the backup still happened — fall through to log it
-		}
-		log.New().Infof("Database backup run complete: %s (kept %d, pruned %d)", target, kept, deleted)
-		return nil
-	}
-}
-
-// pruneBackups deletes the oldest backup files in backupDir, keeping at most
-// retainCount of the newest. Backups are named app-<timestamp>.db, so a
-// descending name sort orders them newest-first; everything past retainCount is
-// deleted. Returns the count deleted and the count kept.
-func pruneBackups(backupDir string, retainCount int) (deleted int, kept int, err error) {
-	entries, err := os.ReadDir(backupDir)
-	if err != nil {
-		return 0, 0, err
-	}
-	names := make([]string, 0, len(entries))
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-		name := entry.Name()
-		if matched, _ := filepath.Match("app-*.db", name); matched {
-			names = append(names, name)
-		}
-	}
-	// Descending: timestamp names sort lexicographically by recency, so the
-	// newest backups come first and stale ones fall to the tail.
-	sort.Sort(sort.Reverse(sort.StringSlice(names)))
-
-	if retainCount < 0 {
-		retainCount = 0
-	}
-	if retainCount >= len(names) {
-		return 0, len(names), nil
-	}
-	for _, name := range names[retainCount:] {
-		if removeErr := os.Remove(filepath.Join(backupDir, name)); removeErr != nil {
-			return deleted, retainCount, removeErr
-		}
-		deleted++
-	}
-	return deleted, retainCount, nil
 }
 
 // rotationCutoff is the pure cutoff calculation: events with rotated_at before

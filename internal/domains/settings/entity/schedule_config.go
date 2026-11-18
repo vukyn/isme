@@ -15,7 +15,6 @@ const (
 	JobKeySessionRevoke   = "session_revoke"
 	JobKeyRotationCleanup = "rotation_cleanup"
 	JobKeyActivityCleanup = "activity_cleanup"
-	JobKeyDatabaseBackup  = "database_backup"
 	// pending invitations past expiry are marked expired
 	JobKeyInvitationCleanup = "invitation_cleanup"
 	// accounts that never finished sign-up are soft-deleted after a minimum age

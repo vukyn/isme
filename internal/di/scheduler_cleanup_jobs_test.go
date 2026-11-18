@@ -3,11 +3,9 @@ package di
 import (
 	"context"
 	"encoding/json"
-	"path/filepath"
 	"testing"
 	"time"
 
-	sqliteHistory "github.com/vukyn/isme/db/history/sqlite"
 	roleRepo "github.com/vukyn/isme/internal/domains/role/repository"
 	settingsEntity "github.com/vukyn/isme/internal/domains/settings/entity"
 	settingsRepo "github.com/vukyn/isme/internal/domains/settings/repository"
@@ -19,32 +17,11 @@ import (
 	userSessionConstants "github.com/vukyn/isme/internal/domains/user_session/constants"
 	userSessionModels "github.com/vukyn/isme/internal/domains/user_session/models"
 	userSessionRepo "github.com/vukyn/isme/internal/domains/user_session/repository"
+	"github.com/vukyn/isme/internal/testdb"
 
 	"github.com/uptrace/bun"
-	kueryDb "github.com/vukyn/kuery/bun/db"
 	pkgTx "github.com/vukyn/kuery/bun/tx"
 )
-
-// newFileTestDB opens a file SQLite database with the service's pool settings,
-// so a write that escapes a transaction fails instead of hanging on a single
-// shared connection.
-func newFileTestDB(t *testing.T) *bun.DB {
-	t.Helper()
-	db, err := kueryDb.Open(kueryDb.Config{
-		Driver:     kueryDb.DriverSQLite,
-		SQLitePath: filepath.Join(t.TempDir(), "jobs.db"),
-	})
-	if err != nil {
-		t.Fatalf("open sqlite: %v", err)
-	}
-	t.Cleanup(func() { db.Close() })
-	for _, migration := range sqliteHistory.Migrations {
-		if err := migration.Up(db); err != nil {
-			t.Fatalf("migration %s failed: %v", migration.Name, err)
-		}
-	}
-	return db
-}
 
 func lastResult(t *testing.T, settingsRepository settingsRepo.IRepository, jobKey string) map[string]int64 {
 	t.Helper()
@@ -63,7 +40,7 @@ func lastResult(t *testing.T, settingsRepository settingsRepo.IRepository, jobKe
 }
 
 func TestInvitationCleanupRunExpiresOnlyPendingPastExpiry(t *testing.T) {
-	db := newTestDB(t)
+	db := testdb.Open(t)
 	ctx := context.Background()
 	invitationRepository := userInvitationRepo.NewRepository(db)
 	settingsRepository := settingsRepo.NewRepository(db)
@@ -164,7 +141,7 @@ func (f cleanupFixture) state(t *testing.T, userID string) (live bool, activeSes
 }
 
 func newCleanupFixture(t *testing.T) cleanupFixture {
-	db := newFileTestDB(t)
+	db := testdb.Open(t)
 	return cleanupFixture{
 		db:                    db,
 		userRepository:        userRepo.NewRepository(db),

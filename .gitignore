@@ -35,9 +35,8 @@ certs/
 internal/web/dist/*
 !internal/web/dist/.gitkeep
 
-# Local SQLite DB — runtime data, holds secrets (app_service secrets, session
-# tokens). Schema is created by db/migrate.go; never commit the binary.
+# legacy SQLite files — isme no longer uses them; never commit. They hold
+# secrets (app_service secrets, session tokens). The db/*.db glob does not match
+# the backups subdir, hence the second line.
 db/*.db
-# Scheduled DB backups (VACUUM INTO snapshots) — runtime data, never commit.
-# The db/*.db glob above does not match this subdir.
 db/backups/

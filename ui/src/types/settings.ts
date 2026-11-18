@@ -68,33 +68,6 @@ export interface UpdateActivityCleanupConfigRequest {
 }
 
 /**
- * Database-backup configuration — the typed config that drives the backend
- * cronjob snapshotting the SQLite database (VACUUM INTO) and keeping the N most
- * recent backup files. Retention here is a COUNT of files (not a time window).
- * Persisted as { enabled, cron, retainCount } on the SSO service; last_run_at /
- * last_backup_path / last_kept_count are read-only run history.
- */
-export interface DatabaseBackupConfig {
-	enabled: boolean;
-	/** 5-field standard cron expression (minute hour day month weekday). */
-	cron: string;
-	/** Number of backup files to keep; older ones are pruned (1–90). */
-	retainCount: number;
-	/** Unix seconds of the last scheduler run, or null if it never ran. */
-	lastRunAt: number | null;
-	/** Path of the most recent backup file, or null if it never ran. */
-	lastBackupPath: string | null;
-	/** Backup files kept after the last run, or null if it never ran. */
-	lastKeptCount: number | null;
-}
-
-export interface UpdateDatabaseBackupConfigRequest {
-	enabled: boolean;
-	cron: string;
-	retainCount: number;
-}
-
-/**
  * Invitation-cleanup configuration — the typed config that drives the backend
  * cronjob marking pending invitations past their expiry as expired. Persisted
  * as { enabled, cron } on the SSO service; last_run_at / last_expired_count are

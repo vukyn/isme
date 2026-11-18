@@ -17,12 +17,8 @@ func defineDB() *di.Def {
 		Build: func(ctn di.Container) (any, error) {
 			cfg := GetConfig(ctn)
 
-			// Build the dialect-aware connection config from cfg.DB. SQLite stays
-			// the default; Postgres is selected via DB_DRIVER=postgres. The pragma
-			// is left empty so kuery applies the shared default isme pragma.
 			db, err := kueryDb.Open(kueryDb.Config{
-				Driver:      kueryDb.Driver(cfg.DB.Driver),
-				SQLitePath:  cfg.DB.SQLitePath,
+				Driver:      kueryDb.DriverPostgres,
 				PostgresDSN: cfg.DB.DSN,
 				Host:        cfg.DB.Host,
 				Port:        cfg.DB.Port,
@@ -35,11 +31,7 @@ func defineDB() *di.Def {
 				return nil, err
 			}
 
-			driver := cfg.DB.Driver
-			if driver == "" {
-				driver = string(kueryDb.DriverSQLite)
-			}
-			log.New().Infof("Database initialized with driver %q", driver)
+			log.New().Info("Database initialized (postgres)")
 
 			db.AddQueryHook(pkgBunHooks.NewQueryHook(log.New()))
 			return db, nil

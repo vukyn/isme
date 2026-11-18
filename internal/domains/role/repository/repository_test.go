@@ -2,41 +2,16 @@ package repository
 
 import (
 	"context"
-	"database/sql"
 	"slices"
 	"testing"
 
-	sqliteHistory "github.com/vukyn/isme/db/history/sqlite"
 	roleConstants "github.com/vukyn/isme/internal/domains/role/constants"
 	"github.com/vukyn/isme/internal/domains/role/models"
+	"github.com/vukyn/isme/internal/testdb"
 
 	"github.com/uptrace/bun"
-	"github.com/uptrace/bun/dialect/sqlitedialect"
-	"github.com/uptrace/bun/driver/sqliteshim"
 	"github.com/vukyn/kuery/cryp"
 )
-
-// newTestDB opens an in-memory SQLite database and applies every migration
-// from db/history/sqlite, including the RBAC seed and the app-owned migrations.
-func newTestDB(t *testing.T) *bun.DB {
-	t.Helper()
-
-	sqldb, err := sql.Open(sqliteshim.ShimName, ":memory:")
-	if err != nil {
-		t.Fatalf("open in-memory sqlite: %v", err)
-	}
-	// a single connection keeps every query on the same in-memory database
-	sqldb.SetMaxOpenConns(1)
-
-	db := bun.NewDB(sqldb, sqlitedialect.New())
-	for _, migration := range sqliteHistory.Migrations {
-		if err := migration.Up(db); err != nil {
-			t.Fatalf("migration %s failed: %v", migration.Name, err)
-		}
-	}
-	t.Cleanup(func() { db.Close() })
-	return db
-}
 
 func insertUser(t *testing.T, db *bun.DB, id string) {
 	t.Helper()
@@ -72,7 +47,7 @@ func insertApp(t *testing.T, db *bun.DB, appID, appCode string, resources []stri
 	}
 	roleID := "rol_" + appCode + "_admin"
 	if _, err := db.Exec(`
-		INSERT INTO roles (id, app_id, code, name, is_system) VALUES (?, ?, 'admin', 'Admin', 0)
+		INSERT INTO roles (id, app_id, code, name, is_system) VALUES (?, ?, 'admin', 'Admin', FALSE)
 	`, roleID, appID); err != nil {
 		t.Fatalf("insert app admin role: %v", err)
 	}
@@ -92,7 +67,7 @@ func insertApp(t *testing.T, db *bun.DB, appID, appCode string, resources []stri
 }
 
 func TestGetPermissionCodesByUserID(t *testing.T) {
-	db := newTestDB(t)
+	db := testdb.Open(t)
 	ctx := context.Background()
 	roleRepository := NewRepository(db)
 
@@ -106,7 +81,7 @@ func TestGetPermissionCodesByUserID(t *testing.T) {
 	// user with a custom role that gets soft-deleted
 	insertUser(t, db, "user-deleted-role")
 	if _, err := db.Exec(`
-		INSERT INTO roles (id, app_id, code, name, is_system) VALUES ('rol_custom', ?, 'custom', 'Custom', 0)
+		INSERT INTO roles (id, app_id, code, name, is_system) VALUES ('rol_custom', ?, 'custom', 'Custom', FALSE)
 	`, isme); err != nil {
 		t.Fatalf("insert custom role: %v", err)
 	}
@@ -185,7 +160,7 @@ func TestGetPermissionCodesByUserID(t *testing.T) {
 }
 
 func TestGetPermissionCodesGroupedByApp(t *testing.T) {
-	db := newTestDB(t)
+	db := testdb.Open(t)
 	ctx := context.Background()
 	roleRepository := NewRepository(db)
 
@@ -193,7 +168,7 @@ func TestGetPermissionCodesGroupedByApp(t *testing.T) {
 	insertApp(t, db, "app_medioa2", "medioa2", []string{"object", "bucket"})
 
 	insertUser(t, db, "user-multi")
-	assignRole(t, db, "user-multi", "rol_member", isme)            // isme: read perms
+	assignRole(t, db, "user-multi", "rol_member", isme)                 // isme: read perms
 	assignRole(t, db, "user-multi", "rol_medioa2_admin", "app_medioa2") // medioa2: object/bucket read
 
 	grouped, err := roleRepository.GetPermissionCodesGroupedByApp(ctx, "user-multi")
@@ -214,7 +189,7 @@ func TestGetPermissionCodesGroupedByApp(t *testing.T) {
 }
 
 func TestGetAppCodesByUserID(t *testing.T) {
-	db := newTestDB(t)
+	db := testdb.Open(t)
 	ctx := context.Background()
 	roleRepository := NewRepository(db)
 
@@ -240,7 +215,7 @@ func TestGetAppCodesByUserID(t *testing.T) {
 // later rows of the same resource (never overwriting), so a resource keeps one
 // consistent icon and ListPermissions reports it on every row.
 func TestCreatePermissionsIconPerResource(t *testing.T) {
-	db := newTestDB(t)
+	db := testdb.Open(t)
 	ctx := context.Background()
 	roleRepository := NewRepository(db)
 
@@ -280,7 +255,7 @@ func TestCreatePermissionsIconPerResource(t *testing.T) {
 // a resource keeps one consistent color and ListPermissions reports it on every
 // row.
 func TestCreatePermissionsColorPerResource(t *testing.T) {
-	db := newTestDB(t)
+	db := testdb.Open(t)
 	ctx := context.Background()
 	roleRepository := NewRepository(db)
 
@@ -319,7 +294,7 @@ func TestCreatePermissionsColorPerResource(t *testing.T) {
 // row of an (app_id, resource) in one statement, leaving other resources of the
 // same app untouched.
 func TestUpdatePermissionAppearance(t *testing.T) {
-	db := newTestDB(t)
+	db := testdb.Open(t)
 	ctx := context.Background()
 	roleRepository := NewRepository(db)
 
@@ -367,7 +342,7 @@ func TestUpdatePermissionAppearance(t *testing.T) {
 
 // Guard clauses reject empty app id / resource without touching the database.
 func TestUpdatePermissionAppearanceGuards(t *testing.T) {
-	db := newTestDB(t)
+	db := testdb.Open(t)
 	ctx := context.Background()
 	roleRepository := NewRepository(db)
 

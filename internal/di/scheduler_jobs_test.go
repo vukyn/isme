@@ -2,21 +2,19 @@ package di
 
 import (
 	"context"
-	"database/sql"
-	"os"
-	"path/filepath"
+	"slices"
 	"sort"
 	"testing"
 	"time"
 
-	sqliteHistory "github.com/vukyn/isme/db/history/sqlite"
+	"github.com/sarulabs/di/v2"
+	pkgScheduler "github.com/vukyn/kuery/scheduler"
+
+	"github.com/vukyn/isme/internal/config"
+	"github.com/vukyn/isme/internal/constants"
 	settingsEntity "github.com/vukyn/isme/internal/domains/settings/entity"
 	settingsRepo "github.com/vukyn/isme/internal/domains/settings/repository"
-
-	"github.com/uptrace/bun"
-	"github.com/uptrace/bun/dialect/sqlitedialect"
-	"github.com/uptrace/bun/driver/sqliteshim"
-	pkgScheduler "github.com/vukyn/kuery/scheduler"
+	"github.com/vukyn/isme/internal/testdb"
 )
 
 func TestRotationCutoff(t *testing.T) {
@@ -60,121 +58,52 @@ func TestActivityCutoff(t *testing.T) {
 	}
 }
 
-// makeBackups creates n dummy app-<timestamp>.db files in dir with ascending
-// timestamps, so a descending-name sort orders them newest-first. It returns
-// the sorted (newest-first) list of names it created.
-func makeBackups(t *testing.T, dir string, n int) []string {
-	t.Helper()
-	names := make([]string, 0, n)
-	base := time.Date(2026, 6, 17, 3, 0, 0, 0, time.UTC)
-	for i := 0; i < n; i++ {
-		name := "app-" + base.Add(time.Duration(i)*time.Minute).Format("20060102-150405") + ".db"
-		if err := os.WriteFile(filepath.Join(dir, name), []byte("x"), 0o644); err != nil {
-			t.Fatalf("write backup %s: %v", name, err)
-		}
-		names = append(names, name)
-	}
-	sort.Sort(sort.Reverse(sort.StringSlice(names)))
-	return names
+// recordingProvider records every job key the engine asks about at Start and
+// reports each one disabled, so nothing is installed.
+type recordingProvider struct {
+	keys []string
 }
 
-func TestPruneBackups(t *testing.T) {
-	cases := []struct {
-		name        string
-		fileCount   int
-		retain      int
-		wantDeleted int
-		wantKept    int
-	}{
-		{"empty dir", 0, 10, 0, 0},
-		{"fewer than retain", 3, 10, 0, 3},
-		{"equal to retain", 10, 10, 0, 10},
-		{"more than retain", 13, 10, 3, 10},
-		{"retain one", 5, 1, 4, 1},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			dir := t.TempDir()
-			created := makeBackups(t, dir, tc.fileCount)
-
-			deleted, kept, err := pruneBackups(dir, tc.retain)
-			if err != nil {
-				t.Fatalf("pruneBackups: %v", err)
-			}
-			if deleted != tc.wantDeleted {
-				t.Fatalf("deleted = %d, want %d", deleted, tc.wantDeleted)
-			}
-			if kept != tc.wantKept {
-				t.Fatalf("kept = %d, want %d", kept, tc.wantKept)
-			}
-
-			// the newest tc.wantKept files (created is newest-first) must survive.
-			for i, name := range created {
-				_, statErr := os.Stat(filepath.Join(dir, name))
-				if i < tc.wantKept {
-					if statErr != nil {
-						t.Fatalf("expected newest backup %s kept, got %v", name, statErr)
-					}
-				} else if !os.IsNotExist(statErr) {
-					t.Fatalf("expected stale backup %s deleted, stat err = %v", name, statErr)
-				}
-			}
-		})
-	}
+func (p *recordingProvider) Load(_ context.Context, key pkgScheduler.JobKey) (bool, pkgScheduler.Schedule, error) {
+	p.keys = append(p.keys, string(key))
+	return false, pkgScheduler.Schedule{}, nil
 }
 
-// pruneBackups must ignore non-backup files and never delete them.
-func TestPruneBackupsIgnoresNonBackupFiles(t *testing.T) {
-	dir := t.TempDir()
-	makeBackups(t, dir, 5)
-	if err := os.WriteFile(filepath.Join(dir, "README.txt"), []byte("keep me"), 0o644); err != nil {
-		t.Fatalf("write non-backup file: %v", err)
-	}
+// The seeded schedule_config rows and the jobs the scheduler registers must be
+// the SAME set: a row with no job is dead configuration the UI can still edit,
+// and a job with no row can never be enabled.
+func TestSeededJobsEqualRegisteredJobs(t *testing.T) {
+	db := testdb.Open(t)
 
-	deleted, kept, err := pruneBackups(dir, 2)
+	builder, err := di.NewBuilder()
 	if err != nil {
-		t.Fatalf("pruneBackups: %v", err)
+		t.Fatalf("new builder: %v", err)
 	}
-	if deleted != 3 || kept != 2 {
-		t.Fatalf("deleted/kept = %d/%d, want 3/2", deleted, kept)
+	cfg := &config.Config{}
+	cfg.Scheduler.Enabled = true
+	if err := builder.Add(
+		di.Def{Name: constants.CONTAINER_NAME_CONFIG, Scope: di.App, Build: func(di.Container) (any, error) { return cfg, nil }},
+		di.Def{Name: constants.CONTAINER_NAME_DB, Scope: di.App, Build: func(di.Container) (any, error) { return db, nil }},
+		*defineScheduler(),
+	); err != nil {
+		t.Fatalf("add definitions: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(dir, "README.txt")); err != nil {
-		t.Fatalf("non-backup file must survive prune, got %v", err)
-	}
-}
+	container := builder.Build()
+	t.Cleanup(func() { _ = container.DeleteWithSubContainers() })
 
-// newTestDB opens an in-memory SQLite database and applies every migration.
-func newTestDB(t *testing.T) *bun.DB {
-	t.Helper()
-	sqldb, err := sql.Open(sqliteshim.ShimName, ":memory:")
-	if err != nil {
-		t.Fatalf("open in-memory sqlite: %v", err)
-	}
-	sqldb.SetMaxOpenConns(1)
-	db := bun.NewDB(sqldb, sqlitedialect.New())
-	for _, migration := range sqliteHistory.Migrations {
-		if err := migration.Up(db); err != nil {
-			t.Fatalf("migration %s failed: %v", migration.Name, err)
-		}
-	}
-	t.Cleanup(func() { db.Close() })
-	return db
-}
+	engine := container.Get(constants.CONTAINER_NAME_SCHEDULER).(*pkgScheduler.Engine)
+	provider := &recordingProvider{}
+	engine.Start(context.Background(), provider)
+	registered := provider.keys
+	sort.Strings(registered)
 
-// The migration must seed exactly the six job rows the scheduler reads, so a
-// Reload/Get can never silently target a non-existent row. The job-key strings
-// are a single source of truth (settings entity consts).
-func TestJobKeysAreConsistentWithMigration(t *testing.T) {
-	db := newTestDB(t)
-	for _, jobKey := range []string{settingsEntity.JobKeySessionRevoke, settingsEntity.JobKeyRotationCleanup, settingsEntity.JobKeyActivityCleanup, settingsEntity.JobKeyDatabaseBackup, settingsEntity.JobKeyInvitationCleanup, settingsEntity.JobKeyUnverifiedUserCleanup} {
-		var count int
-		row := db.QueryRow("SELECT COUNT(*) FROM schedule_config WHERE job_key = ?", jobKey)
-		if err := row.Scan(&count); err != nil {
-			t.Fatalf("query schedule_config for %q: %v", jobKey, err)
-		}
-		if count != 1 {
-			t.Fatalf("expected exactly 1 schedule_config row for %q, got %d", jobKey, count)
-		}
+	var seeded []string
+	if err := db.NewSelect().Table("schedule_config").Column("job_key").Order("job_key").Scan(context.Background(), &seeded); err != nil {
+		t.Fatalf("read schedule_config: %v", err)
+	}
+
+	if !slices.Equal(seeded, registered) {
+		t.Fatalf("seeded job rows %v != registered jobs %v", seeded, registered)
 	}
 }
 
@@ -182,14 +111,13 @@ func TestJobKeysAreConsistentWithMigration(t *testing.T) {
 // provider reports every job as not-enabled, so the engine installs no job at
 // Start. This is the parity check for the old "both disabled => 0 jobs" test.
 func TestScheduleProviderReportsSeededJobsDisabled(t *testing.T) {
-	db := newTestDB(t)
+	db := testdb.Open(t)
 	provider := newScheduleProvider(settingsRepo.NewRepository(db))
 
 	for _, jobKey := range []pkgScheduler.JobKey{
 		pkgScheduler.JobKey(settingsEntity.JobKeySessionRevoke),
 		pkgScheduler.JobKey(settingsEntity.JobKeyRotationCleanup),
 		pkgScheduler.JobKey(settingsEntity.JobKeyActivityCleanup),
-		pkgScheduler.JobKey(settingsEntity.JobKeyDatabaseBackup),
 		pkgScheduler.JobKey(settingsEntity.JobKeyInvitationCleanup),
 		pkgScheduler.JobKey(settingsEntity.JobKeyUnverifiedUserCleanup),
 	} {

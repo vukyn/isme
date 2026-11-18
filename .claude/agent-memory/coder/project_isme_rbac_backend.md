@@ -7,7 +7,7 @@ metadata:
 
 RBAC backend for isme implemented 2026-06-06 (phases A–E): kuery gained `rbac` package + claims/ctx/jwt perms-roles-adm extensions (additive — medioa2/rainy verified compiling); isme gained `role` domain, user/user_session admin endpoints, migrations 006–011 (18-permission catalog, rol_admin/rol_member/rol_viewer system roles), and login/refresh now embed perms/roles/adm in the RS256 access token.
 
-**Why:** plan said the kuery release would be "v1.13.0" but that tag already existed (security fixes), so isme keeps `replace github.com/vukyn/kuery => ../kuery` in go.mod until the committer tags the NEXT version (v1.14.0+) and swaps the replace for a real require. Also: root CLAUDE.md says `make migrate-up DB=app` for isme but `db/migrate.go` only accepts `sqlite` — use `DB=sqlite`.
+**Why:** plan said the kuery release would be "v1.13.0" but that tag already existed (security fixes), so isme keeps `replace github.com/vukyn/kuery => ../kuery` in go.mod until the committer tags the NEXT version (v1.14.0+) and swaps the replace for a real require. (Migrations: isme is Postgres-only since 2026-11-18 — `make migrate-up`, no DB argument.)
 
 **How to apply:** deferred items if asked to extend: reset-password endpoint (needs email infra; `user:reset_password` perm row exists in catalog). The invite flow landed 2026-06-08 (see [[isme-invite-flow]]) and CLOSED the signup-role gap: public signup is removed entirely; invite-accept assigns the invited role via AddMembers. `[[isme-users-screen-stubbed]]` covers the pending UI wire-up.
 

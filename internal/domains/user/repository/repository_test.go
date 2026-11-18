@@ -2,43 +2,17 @@ package repository
 
 import (
 	"context"
-	"database/sql"
 	"slices"
 	"testing"
 
-	sqliteHistory "github.com/vukyn/isme/db/history/sqlite"
 	roleConstants "github.com/vukyn/isme/internal/domains/role/constants"
 	"github.com/vukyn/isme/internal/domains/user/entity"
 	"github.com/vukyn/isme/internal/domains/user/models"
+	"github.com/vukyn/isme/internal/testdb"
 
 	"github.com/uptrace/bun"
-	"github.com/uptrace/bun/dialect/sqlitedialect"
-	"github.com/uptrace/bun/driver/sqliteshim"
 	"github.com/vukyn/kuery/cryp"
 )
-
-// newTestDB opens an in-memory SQLite database and applies every migration
-// from db/history/sqlite, including the RBAC seed and the app-owned migrations
-// (which seed the isme app `app_isme` plus system roles rol_admin/rol_member/rol_viewer).
-func newTestDB(t *testing.T) *bun.DB {
-	t.Helper()
-
-	sqldb, err := sql.Open(sqliteshim.ShimName, ":memory:")
-	if err != nil {
-		t.Fatalf("open in-memory sqlite: %v", err)
-	}
-	// a single connection keeps every query on the same in-memory database
-	sqldb.SetMaxOpenConns(1)
-
-	db := bun.NewDB(sqldb, sqlitedialect.New())
-	for _, migration := range sqliteHistory.Migrations {
-		if err := migration.Up(db); err != nil {
-			t.Fatalf("migration %s failed: %v", migration.Name, err)
-		}
-	}
-	t.Cleanup(func() { db.Close() })
-	return db
-}
 
 func insertUser(t *testing.T, db *bun.DB, id string) {
 	t.Helper()
@@ -78,7 +52,7 @@ func insertApp(t *testing.T, db *bun.DB, appID, appCode string) {
 	}
 	roleID := "rol_" + appCode + "_admin"
 	if _, err := db.Exec(`
-		INSERT INTO roles (id, app_id, code, name, is_system) VALUES (?, ?, 'admin', 'Admin', 0)
+		INSERT INTO roles (id, app_id, code, name, is_system) VALUES (?, ?, 'admin', 'Admin', FALSE)
 	`, roleID, appID); err != nil {
 		t.Fatalf("insert app admin role: %v", err)
 	}
@@ -88,7 +62,7 @@ func insertApp(t *testing.T, db *bun.DB, appID, appCode string) {
 func insertRole(t *testing.T, db *bun.DB, roleID, appID, code string) {
 	t.Helper()
 	if _, err := db.Exec(`
-		INSERT INTO roles (id, app_id, code, name, is_system) VALUES (?, ?, ?, ?, 0)
+		INSERT INTO roles (id, app_id, code, name, is_system) VALUES (?, ?, ?, ?, FALSE)
 	`, roleID, appID, code, code); err != nil {
 		t.Fatalf("insert role %s: %v", roleID, err)
 	}
@@ -105,7 +79,7 @@ func userIDs(users []entity.User) []string {
 // TestList_AppRoleFilter exercises the app-scoped role filter that List applies
 // against the user_roles -> roles -> app_services chain.
 func TestList_AppRoleFilter(t *testing.T) {
-	db := newTestDB(t)
+	db := testdb.Open(t)
 	ctx := context.Background()
 	userRepository := NewRepository(db)
 

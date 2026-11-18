@@ -3,47 +3,28 @@ package usecase
 import (
 	"context"
 	"errors"
-	"path/filepath"
 	"testing"
 	"time"
 
-	sqliteHistory "github.com/vukyn/isme/db/history/sqlite"
 	roleRepo "github.com/vukyn/isme/internal/domains/role/repository"
 	"github.com/vukyn/isme/internal/domains/user/models"
 	userRepo "github.com/vukyn/isme/internal/domains/user/repository"
 	userSessionConstants "github.com/vukyn/isme/internal/domains/user_session/constants"
 	userSessionModels "github.com/vukyn/isme/internal/domains/user_session/models"
 	userSessionRepo "github.com/vukyn/isme/internal/domains/user_session/repository"
+	"github.com/vukyn/isme/internal/testdb"
 
 	"github.com/uptrace/bun"
-	kueryDb "github.com/vukyn/kuery/bun/db"
 	pkgTx "github.com/vukyn/kuery/bun/tx"
 )
 
-// These tests run SoftDelete against a real file-backed SQLite database opened
-// the way the service opens it, so a repository write that escapes the
-// transaction (by not reading its handle through pkgTx.Conn) is caught.
+// These tests run SoftDelete against a real Postgres database with a connection
+// pool, so a repository write that escapes the transaction (by not reading its
+// handle through pkgTx.Conn) is caught: it commits on its own connection and
+// survives the rollback, or blocks on a row lock the transaction holds and the
+// test times out.
 
 var errInjected = errors.New("injected failure")
-
-func newFileTestDB(t *testing.T) *bun.DB {
-	t.Helper()
-
-	db, err := kueryDb.Open(kueryDb.Config{
-		Driver:     kueryDb.DriverSQLite,
-		SQLitePath: filepath.Join(t.TempDir(), "soft_delete.db"),
-	})
-	if err != nil {
-		t.Fatalf("open sqlite: %v", err)
-	}
-	t.Cleanup(func() { db.Close() })
-	for _, migration := range sqliteHistory.Migrations {
-		if err := migration.Up(db); err != nil {
-			t.Fatalf("migration %s failed: %v", migration.Name, err)
-		}
-	}
-	return db
-}
 
 // failingSessionRepository runs the real revoke (when asked) and then fails,
 // so the rollback must undo both the user delete and any revoked session.
@@ -94,7 +75,7 @@ func TestSoftDeleteRollsBackOnRealDatabase(t *testing.T) {
 			name = "revoke fails after writing"
 		}
 		t.Run(name, func(t *testing.T) {
-			db := newFileTestDB(t)
+			db := testdb.Open(t)
 			ctx := context.Background()
 
 			userID, err := userRepo.NewRepository(db).Create(ctx, models.CreateRequest{Name: "Target", Email: "target@hasaki.vn"})
