@@ -2,41 +2,14 @@ package repository
 
 import (
 	"context"
-	"database/sql"
 	"strings"
 	"testing"
 	"time"
 
-	sqliteHistory "github.com/vukyn/isme/db/history/sqlite"
 	"github.com/vukyn/isme/internal/domains/user_invitation/constants"
 	"github.com/vukyn/isme/internal/domains/user_invitation/entity"
-
-	"github.com/uptrace/bun"
-	"github.com/uptrace/bun/dialect/sqlitedialect"
-	"github.com/uptrace/bun/driver/sqliteshim"
+	"github.com/vukyn/isme/internal/testdb"
 )
-
-// newTestDB opens an in-memory SQLite database and applies every migration
-// from db/history/sqlite.
-func newTestDB(t *testing.T) *bun.DB {
-	t.Helper()
-
-	sqldb, err := sql.Open(sqliteshim.ShimName, ":memory:")
-	if err != nil {
-		t.Fatalf("open in-memory sqlite: %v", err)
-	}
-	// a single connection keeps every query on the same in-memory database
-	sqldb.SetMaxOpenConns(1)
-
-	db := bun.NewDB(sqldb, sqlitedialect.New())
-	for _, migration := range sqliteHistory.Migrations {
-		if err := migration.Up(db); err != nil {
-			t.Fatalf("migration %s failed: %v", migration.Name, err)
-		}
-	}
-	t.Cleanup(func() { db.Close() })
-	return db
-}
 
 func newInvitation(email string) entity.UserInvitation {
 	return entity.UserInvitation{
@@ -53,7 +26,7 @@ func memberAssignments() []entity.UserInvitationRole {
 }
 
 func TestMarkAcceptedConditionalClaim(t *testing.T) {
-	db := newTestDB(t)
+	db := testdb.Open(t)
 	ctx := context.Background()
 	invitationRepository := NewRepository(db)
 
@@ -102,7 +75,7 @@ func TestMarkAcceptedConditionalClaim(t *testing.T) {
 }
 
 func TestPendingEmailPartialUniqueIndex(t *testing.T) {
-	db := newTestDB(t)
+	db := testdb.Open(t)
 	ctx := context.Background()
 	invitationRepository := NewRepository(db)
 
@@ -137,7 +110,7 @@ func TestPendingEmailPartialUniqueIndex(t *testing.T) {
 }
 
 func TestMarkExpiredOnlyFlipsPendingPastExpiry(t *testing.T) {
-	db := newTestDB(t)
+	db := testdb.Open(t)
 	ctx := context.Background()
 	invitationRepository := NewRepository(db)
 
@@ -177,7 +150,7 @@ func TestMarkExpiredOnlyFlipsPendingPastExpiry(t *testing.T) {
 }
 
 func TestExpirePendingBeforeFreesTheEmail(t *testing.T) {
-	db := newTestDB(t)
+	db := testdb.Open(t)
 	ctx := context.Background()
 	invitationRepository := NewRepository(db)
 

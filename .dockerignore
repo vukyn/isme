@@ -15,10 +15,11 @@ Dockerfile
 ui/node_modules
 ui/dist
 internal/web/dist
-# local SQLite dev DB + backups (Postgres in prod)
+# legacy SQLite files — isme no longer uses them; never commit (or ship) them
 db/app.db
 db/app.db-*
 db/*.bak-*
+db/backups/
 # local infra + graph cache
 docker-compose.yml
 .code-review-graph

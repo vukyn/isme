@@ -6,16 +6,16 @@ metadata:
 ---
 
 `config.LoadConfig` uses `godotenv.Load`, which never overrides a variable already set in the
-process env. So `DB_SQLITE_PATH=<scratch>/x.db go run db/migrate.go sqlite up` and
-`DB_DSN=postgres://...@127.0.0.1:<port>/... go run db/migrate.go postgres ...` hit only the
-scratch target even though `.env` sets `DB_SQLITE_PATH`, `DB_DRIVER` and `DB_DSN`.
+process env. So `DB_DSN=postgres://...@127.0.0.1:<port>/... go run db/migrate.go up` hits only
+the scratch target even though `.env` sets `DB_DSN`. (isme is Postgres-only since 2026-11-18:
+no `sqlite`/`postgres` argument and no `DB_SQLITE_PATH` any more.)
 
 **Why:** `.env`'s `DB_DSN` may point at the real Postgres, and `cmd/seed` reads `APP_ENV` from
 `.env` — with `production` it writes `../SEED_CREDENTIALS_PROD.md` in the platform root.
 Verified 2026-11-18 by md5 of `db/app.db` and of the creds file before/after.
 
-**How to apply:** always pass `DB_SQLITE_PATH` / `DB_DSN` (and `APP_ENV=development` for seed)
-explicitly on the command line; prove the dev DB is untouched with an md5 before/after. A
-disposable Postgres works via `docker run --rm -p 127.0.0.1:55432:5432 postgres:16-alpine`.
-As of 2026-11-18 `cmd/seed` on Postgres fails at roles (`is_system` integer into BOOLEAN) —
-a pre-existing bug, separate from the users upsert.
+**How to apply:** always pass `DB_DSN` (and `APP_ENV=development` for seed) explicitly on the
+command line. `db/migrate.go` prints `Target: host=… database=…` first — check it before
+trusting the run. A disposable Postgres works via
+`docker run --rm -p 127.0.0.1:55432:5432 postgres:16-alpine`. The old `cmd/seed` roles bug
+(`is_system` integer into BOOLEAN) was fixed 2026-11-18 by passing the Go bool.

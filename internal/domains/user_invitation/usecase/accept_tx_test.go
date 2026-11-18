@@ -4,11 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"path/filepath"
 	"testing"
 	"time"
 
-	sqliteHistory "github.com/vukyn/isme/db/history/sqlite"
 	appServiceRepo "github.com/vukyn/isme/internal/domains/app_service/repository"
 	roleRepo "github.com/vukyn/isme/internal/domains/role/repository"
 	userRepo "github.com/vukyn/isme/internal/domains/user/repository"
@@ -16,40 +14,20 @@ import (
 	"github.com/vukyn/isme/internal/domains/user_invitation/entity"
 	"github.com/vukyn/isme/internal/domains/user_invitation/models"
 	invitationRepo "github.com/vukyn/isme/internal/domains/user_invitation/repository"
+	"github.com/vukyn/isme/internal/testdb"
 
 	"github.com/uptrace/bun"
-	kueryDb "github.com/vukyn/kuery/bun/db"
 	pkgTx "github.com/vukyn/kuery/bun/tx"
 	"github.com/vukyn/kuery/cryp"
 )
 
-// These tests run Accept against a real file-backed SQLite database opened the
-// way the service opens it, so a repository write that escapes the
-// transaction (by not reading its handle through pkgTx.Conn) is caught: it
-// either commits on its own or blocks on the writer lock and fails.
+// These tests run Accept against a real Postgres database with a connection
+// pool, so a repository write that escapes the transaction (by not reading its
+// handle through pkgTx.Conn) is caught: it commits on its own connection and
+// survives the rollback, or blocks on a row lock the transaction holds and the
+// test times out.
 
 var errInjected = errors.New("injected failure")
-
-// newFileTestDB opens a file SQLite database under t.TempDir() with the
-// service's pool settings and applies every migration.
-func newFileTestDB(t *testing.T) *bun.DB {
-	t.Helper()
-
-	db, err := kueryDb.Open(kueryDb.Config{
-		Driver:     kueryDb.DriverSQLite,
-		SQLitePath: filepath.Join(t.TempDir(), "accept.db"),
-	})
-	if err != nil {
-		t.Fatalf("open sqlite: %v", err)
-	}
-	t.Cleanup(func() { db.Close() })
-	for _, migration := range sqliteHistory.Migrations {
-		if err := migration.Up(db); err != nil {
-			t.Fatalf("migration %s failed: %v", migration.Name, err)
-		}
-	}
-	return db
-}
 
 // failingUserRepository fails the selected write after the real ones before it ran.
 type failingUserRepository struct {
@@ -183,7 +161,7 @@ func TestAcceptRollsBackOnRealDatabase(t *testing.T) {
 
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
-			db := newFileTestDB(t)
+			db := testdb.Open(t)
 			ctx := context.Background()
 			email := "rollback@hasaki.vn"
 			invitationID, rawToken := seedRealInvitation(t, db, email)

@@ -1,27 +1,26 @@
-# Makefile for rainy
+# Makefile for isme
 
 run:
 	go run cmd/main.go
 
+# Unit + database tests. The database tests start a throwaway Postgres
+# container (kuery bun/pgtest), so Docker must be running; `-short` skips them.
+test:
+	go test ./...
+
 migrate-up:
-	go run db/migrate.go $(DB) up
+	go run db/migrate.go up
 
 migrate-down:
-	go run db/migrate.go $(DB) down
+	go run db/migrate.go down
 
 migrate-reset:
-	go run db/migrate.go $(DB) reset
+	go run db/migrate.go reset
 
-# Apply the squashed dual-dialect baseline as the fresh-install path (full
-# schema + seed + stamp 001-029). e.g. make migrate-baseline DB=postgres
-migrate-baseline:
-	go run db/migrate.go $(DB) baseline
-
-# Local Postgres for DB_DRIVER=postgres (docker compose). Dev-only infra — isme
-# itself still runs via `make run`. Host port 5433 (rainy uses 5432). After
-# `make db-up`, uncomment the Postgres block in .env (DB_DRIVER=postgres ...),
-# then `make migrate-up DB=postgres && make run`.
-.PHONY: db-up db-down db-reset db-logs
+# Local Postgres (docker compose, host port 5433 — rainy uses 5432). Local flow:
+# `make db-up`, then `make migrate-up` (a fresh database needs only that), then
+# `make run`. The DB_* values in .env.example match the compose defaults.
+.PHONY: test db-up db-down db-reset db-logs
 
 db-up:
 	docker compose up -d postgres

@@ -76,8 +76,6 @@ export type {
 	UpdateRotationCleanupConfigRequest,
 	ActivityCleanupConfig,
 	UpdateActivityCleanupConfigRequest,
-	DatabaseBackupConfig,
-	UpdateDatabaseBackupConfigRequest,
 	InvitationCleanupConfig,
 	UpdateInvitationCleanupConfigRequest,
 	UnverifiedUserCleanupConfig,

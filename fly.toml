@@ -28,7 +28,6 @@ primary_region = 'sin'
   APP_PORT = '8081'
   LOGGER_MODE = 'json'
   LOGGER_LEVEL = 'warn'
-  DB_DRIVER = 'postgres'
   DB_SSLMODE = 'require'
   MEDIOA_BASE_URL = 'https://medioa.fly.dev'
   # UI API base — injected into the SPA's window.__APP_CONFIG__ at runtime.

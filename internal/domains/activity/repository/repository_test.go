@@ -2,44 +2,20 @@ package repository
 
 import (
 	"context"
-	"database/sql"
 	"testing"
 	"time"
 
-	sqliteHistory "github.com/vukyn/isme/db/history/sqlite"
 	activityConstants "github.com/vukyn/isme/internal/domains/activity/constants"
 	"github.com/vukyn/isme/internal/domains/activity/entity"
+	"github.com/vukyn/isme/internal/testdb"
 
 	"github.com/uptrace/bun"
-	"github.com/uptrace/bun/dialect/sqlitedialect"
-	"github.com/uptrace/bun/driver/sqliteshim"
 )
-
-// newTestDB opens an in-memory SQLite database and applies every migration
-// (including 026, which creates activity_events).
-func newTestDB(t *testing.T) *bun.DB {
-	t.Helper()
-
-	sqldb, err := sql.Open(sqliteshim.ShimName, ":memory:")
-	if err != nil {
-		t.Fatalf("open in-memory sqlite: %v", err)
-	}
-	sqldb.SetMaxOpenConns(1)
-
-	db := bun.NewDB(sqldb, sqlitedialect.New())
-	for _, migration := range sqliteHistory.Migrations {
-		if err := migration.Up(db); err != nil {
-			t.Fatalf("migration %s failed: %v", migration.Name, err)
-		}
-	}
-	t.Cleanup(func() { db.Close() })
-	return db
-}
 
 // TestCreateGeneratesIDAndDefaultsMeta proves an empty id is auto-filled with a
 // ULID and an empty meta defaults to "{}".
 func TestCreateGeneratesIDAndDefaultsMeta(t *testing.T) {
-	db := newTestDB(t)
+	db := testdb.Open(t)
 	repository := NewRepository(db)
 
 	err := repository.Create(context.Background(), entity.ActivityEvent{
@@ -67,7 +43,7 @@ func TestCreateGeneratesIDAndDefaultsMeta(t *testing.T) {
 
 // TestListByUserIDNewestFirst proves results are ordered created_at DESC.
 func TestListByUserIDNewestFirst(t *testing.T) {
-	db := newTestDB(t)
+	db := testdb.Open(t)
 	repository := NewRepository(db)
 
 	// Insert in a known order. BeforeAppendModel stamps created_at at insert time;
@@ -104,7 +80,7 @@ func TestListByUserIDNewestFirst(t *testing.T) {
 
 // TestListByUserIDLimit proves the limit caps the number of rows returned.
 func TestListByUserIDLimit(t *testing.T) {
-	db := newTestDB(t)
+	db := testdb.Open(t)
 	repository := NewRepository(db)
 
 	for i := 0; i < 5; i++ {
@@ -127,7 +103,7 @@ func TestListByUserIDLimit(t *testing.T) {
 
 // TestListByUserIDScopedToUser proves a user only sees their own events.
 func TestListByUserIDScopedToUser(t *testing.T) {
-	db := newTestDB(t)
+	db := testdb.Open(t)
 	repository := NewRepository(db)
 
 	if err := repository.Create(context.Background(), entity.ActivityEvent{UserID: "user-1", Type: activityConstants.ActivityTypeSignIn}); err != nil {
@@ -152,7 +128,7 @@ func TestListByUserIDScopedToUser(t *testing.T) {
 // TestListByUserIDEmptyNonNil proves an empty result is a non-nil slice so the
 // JSON encoder emits [] not null (the FE feed iterates the array).
 func TestListByUserIDEmptyNonNil(t *testing.T) {
-	db := newTestDB(t)
+	db := testdb.Open(t)
 	repository := NewRepository(db)
 
 	events, err := repository.ListByUserID(context.Background(), "nobody", 10)
@@ -190,7 +166,7 @@ func seedEventAt(t *testing.T, db *bun.DB, id string, createdAt time.Time) {
 // TestPruneBeforeDeletesOnlyOlderRows proves the cutoff is exclusive on the
 // recent side: rows created_at < before are deleted, newer rows survive.
 func TestPruneBeforeDeletesOnlyOlderRows(t *testing.T) {
-	db := newTestDB(t)
+	db := testdb.Open(t)
 	repository := NewRepository(db)
 	now := time.Now().UTC()
 
@@ -217,7 +193,7 @@ func TestPruneBeforeDeletesOnlyOlderRows(t *testing.T) {
 
 // TestPruneBeforeEmptyTable proves pruning an empty table is a no-op returning 0.
 func TestPruneBeforeEmptyTable(t *testing.T) {
-	db := newTestDB(t)
+	db := testdb.Open(t)
 	repository := NewRepository(db)
 
 	pruned, err := repository.PruneBefore(context.Background(), time.Now().UTC())

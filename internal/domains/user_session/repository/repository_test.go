@@ -2,38 +2,15 @@ package repository
 
 import (
 	"context"
-	"database/sql"
 	"testing"
 	"time"
 
-	sqliteHistory "github.com/vukyn/isme/db/history/sqlite"
 	"github.com/vukyn/isme/internal/domains/user_session/constants"
 	"github.com/vukyn/isme/internal/domains/user_session/entity"
+	"github.com/vukyn/isme/internal/testdb"
 
 	"github.com/uptrace/bun"
-	"github.com/uptrace/bun/dialect/sqlitedialect"
-	"github.com/uptrace/bun/driver/sqliteshim"
 )
-
-// newTestDB opens an in-memory SQLite database and applies every migration.
-func newTestDB(t *testing.T) *bun.DB {
-	t.Helper()
-
-	sqldb, err := sql.Open(sqliteshim.ShimName, ":memory:")
-	if err != nil {
-		t.Fatalf("open in-memory sqlite: %v", err)
-	}
-	sqldb.SetMaxOpenConns(1)
-
-	db := bun.NewDB(sqldb, sqlitedialect.New())
-	for _, migration := range sqliteHistory.Migrations {
-		if err := migration.Up(db); err != nil {
-			t.Fatalf("migration %s failed: %v", migration.Name, err)
-		}
-	}
-	t.Cleanup(func() { db.Close() })
-	return db
-}
 
 func insertSession(t *testing.T, db *bun.DB, id string, status int32, expiresAt time.Time) {
 	t.Helper()
@@ -61,7 +38,7 @@ func statusOf(t *testing.T, db *bun.DB, id string) int32 {
 }
 
 func TestInactiveExpiredSessions(t *testing.T) {
-	db := newTestDB(t)
+	db := testdb.Open(t)
 	repository := NewRepository(db)
 	now := time.Now().UTC()
 
@@ -92,7 +69,7 @@ func TestInactiveExpiredSessions(t *testing.T) {
 }
 
 func TestInactiveExpiredSessionsNoMatches(t *testing.T) {
-	db := newTestDB(t)
+	db := testdb.Open(t)
 	repository := NewRepository(db)
 	now := time.Now().UTC()
 
@@ -134,7 +111,7 @@ func rotationIDs(t *testing.T, db *bun.DB) map[string]bool {
 }
 
 func TestPruneRotationsBefore(t *testing.T) {
-	db := newTestDB(t)
+	db := testdb.Open(t)
 	repository := NewRepository(db)
 	now := time.Now().UTC()
 	cutoff := now.Add(-48 * time.Hour)

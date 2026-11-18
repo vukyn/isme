@@ -31,7 +31,7 @@ subject wins and the note is the thing to fix.
 
 - [isme app multi-redirect](memory/isme-app-multi-redirect.md) — redirect_urls TEXT JSON cap 3; exact-match
 - [isme auth topology](memory/isme-auth-topology.md) — RS256 not HS256; medioa2 trusts isme
-- [isme db gitignored](memory/isme-db-gitignored.md) — db/app.db untracked (PR#26 leaked, rotated)
+- [isme legacy db/app.db](memory/isme-db-gitignored.md) — legacy SQLite file, isme no longer uses it; never commit (PR#26 leaked, rotated)
 - [isme Profile + avatar shipped](memory/isme-profile-avatar-shipped.md) — avatar via medioa; needs mk_ MEDIOA_API_KEY
 - [isme UI serving](memory/isme-ui-serving.md) — SSO popup loads embedded SPA (needs build-web); root files need route
 - [isme vite8 deferred](memory/isme-vite8-deferred-upgrade.md) — 3 esbuild dev-only highs need Vite 8

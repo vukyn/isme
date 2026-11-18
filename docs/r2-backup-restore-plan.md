@@ -1,6 +1,10 @@
 # Plan: R2 off-host backup + restore (isme)
 
-Status: **PLANNED** (not started). Extends the shipped local `database_backup` job (PR #61).
+Status: **SUPERSEDED** (2026-11-18) — never started. isme moved to Postgres only, and the local
+`database_backup` job this plan extended (a SQLite `VACUUM INTO` snapshot) was deleted with it
+(migration 035 removes its schedule row). Backups are the database host's job now. Kept as a
+record of the design; do not implement it.
+Originally: **PLANNED**, extending the shipped local `database_backup` job (PR #61).
 Author: planning session 2026-06-17.
 
 ## Goal

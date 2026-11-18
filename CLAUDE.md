@@ -23,11 +23,13 @@ second one beside it.
 ## Common Commands
 
 ```bash
+make db-up                  # local Postgres via docker compose (host port 5433)
+make migrate-up             # go run db/migrate.go up (a fresh database needs only this)
+make migrate-down           # rollback the last migration
+make migrate-reset          # rollback every migration
 make run                    # go run cmd/main.go
 make build                  # build to ./bin
-make migrate-up DB=sqlite   # run db/migrate.go <DB> up (dbType is "sqlite", not "app")
-make migrate-down DB=sqlite # rollback
-make migrate-reset DB=sqlite # reset
+make test                   # go test ./... — database tests need Docker; -short skips them
 make gen-key-rsa256         # generate certs/private.pem + public.pem (RSA 2048)
 
 # UI (Vite + React + Chakra)
@@ -38,11 +40,12 @@ make build-web              # builds ui/dist into internal/ui (embedded by Go)
 make tag VERSION=x.y.z      # creates + pushes git tag
 ```
 
-No `go test` targets defined. Run `go test ./...` directly when adding tests.
+Local flow: copy `.env.example` to `.env` (its DB_* values match the compose defaults),
+then `make db-up` → `make migrate-up` → `make run`.
 
 ## Architecture
 
-Clean architecture, domain-driven layout, Fiber HTTP, Bun ORM (SQLite), `sarulabs/di/v2` container.
+Clean architecture, domain-driven layout, Fiber HTTP, Bun ORM (Postgres), `sarulabs/di/v2` container.
 
 Entry: `cmd/main.go` → `internal/app` → `internal/server` (Fiber) + DI build.
 
@@ -137,12 +140,46 @@ container closed on its first `Delete`" *is* "nothing was retained".
 - `AUTH_ACCESS_TOKEN_PRIVATE_KEY` + `AUTH_ACCESS_TOKEN_PUBLIC_KEY` (RS256, access token), `AUTH_REFRESH_TOKEN_SECRET_KEY` (HS256, refresh token), `AUTH_ACCESS_TOKEN_EXPIRE_IN`, `AUTH_REFRESH_TOKEN_EXPIRE_IN`
 - `LOGGER_MODE`, `LOGGER_LEVEL`
 - `GRACEFUL_*` (verbose, step delay, server shutdown timeout)
+- `DB_*` (Postgres connection — see Database below)
+
+`.env.example` lists every key with local defaults.
 
 JWT: **access token = RS256** (signed with `AUTH_ACCESS_TOKEN_PRIVATE_KEY`, verified with `AUTH_ACCESS_TOKEN_PUBLIC_KEY`; consumers like medioa2/rainy verify with the public key only). **Refresh token = HS256** (`AUTH_REFRESH_TOKEN_SECRET_KEY`, isme-internal). Generate an RS256 keypair with `make gen-key-rsa256` (→ `certs/`).
 
 ### Database
 
-SQLite at `db/app.db`. Migrations: `go run db/migrate.go <db-name> up|down|reset`. Migration history under `db/history/`. Bun dialect: `sqlitedialect` with `sqliteshim` driver. Soft-delete via `deleted_at`; standard `created_at`/`updated_at`.
+**Postgres only** (bun `pgdialect` + `pgdriver`, via `kuery/bun/db`). Production runs on
+Neon; locally `docker-compose.yml` starts `postgres:16` on host port **5433** (volume
+`isme-pgdata`). Connection from `DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/DB_NAME/DB_SSLMODE`, or
+`DB_DSN`, which wins when set. Soft-delete via `deleted_at`; standard `created_at`/`updated_at`.
+
+Migrations: `go run db/migrate.go up|down|reset` (it prints the target host and database
+name, never the DSN). The history in `db/history/` is, in order:
+
+1. **`000_baseline`** — the whole schema plus seed rows. ⚠️ **Frozen: never edit it.**
+   Production recorded it as applied and will never re-run it, so an edit only reaches
+   fresh installs and makes them drift from production.
+2. **`001_…` – `034_…`** — no-op stubs (`legacy.go`) that keep the names of the old
+   incremental history. Their effects all live in the baseline.
+3. **The tail (`035_…` onwards)** — every schema or seed change is a new migration
+   appended to `Migrations`, one per file.
+
+⚠️ **Names are frozen.** The runner (`kuery/bun/migrate`) matches by name; a rollback fails
+with "migration <name> not found" when an applied name leaves the slice. Never rename,
+reorder or remove an entry — `TestMigrationNamesFrozen` pins the list. A database must
+already hold `000_baseline` + `001…034` before `up` runs the tail (production does: ids
+1-35); otherwise the stubs would be recorded without anything having run.
+
+The SQLite era left `db/app.db` and `db/backups/` behind in old working copies. Nothing uses
+them, but they hold real secrets: they stay gitignored — never commit or delete them.
+
+**Tests** get a real database from `internal/testdb` (test-only), which wraps kuery
+`bun/pgtest`: one throwaway Postgres container per test binary, the full history migrated
+once into a template, and a fresh clone per `testdb.Open(t)`. Every package that opens a
+database needs `func TestMain(m *testing.M) { os.Exit(testdb.Main(m)) }` (see any
+`main_test.go`). Docker must be running — a missing daemon fails the tests rather than
+skipping them — and `go test -short ./...` skips every database test. `db/history` tests
+the migrations themselves on empty databases (`pgtest.EmptyDB`).
 
 ### External services
 
@@ -183,4 +220,4 @@ The old local `pkg/` directory was consolidated into the `github.com/vukyn/kuery
 - `internal/server/server.go` — Fiber + routes
 - `internal/di/di.go` — DI builder
 - `internal/domains/user/` — canonical domain example
-- `db/migrate.go` — migration runner
+- `db/migrate.go` — migration CLI; `db/history/` — migrations

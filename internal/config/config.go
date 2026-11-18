@@ -28,13 +28,8 @@ type Config struct {
 		ExternalExchangeCodeTTL int    `envconfig:"AUTH_EXTERNAL_EXCHANGE_CODE_TTL"`
 	}
 	DB struct {
-		// Driver selects the backend: "sqlite" (default) or "postgres". SQLite
-		// stays the default so existing .env/prod is unaffected.
-		Driver string `envconfig:"DB_DRIVER" default:"sqlite"`
-		// SQLitePath is the SQLite file path (sqlite driver only).
-		SQLitePath string `envconfig:"DB_SQLITE_PATH" default:"db/app.db"`
 		// Host/Port/User/Password/DBName are the Postgres connection fields,
-		// used when Driver=postgres and DSN is empty.
+		// used when DSN is empty.
 		Host     string `envconfig:"DB_HOST"`
 		Port     int    `envconfig:"DB_PORT"`
 		User     string `envconfig:"DB_USER"`

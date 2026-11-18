@@ -1,4 +1,4 @@
-# Local dev infra only — spins up a Postgres for DB_DRIVER=postgres. Not for production; isme itself still runs via `make run`.
+# Local dev infra only — the Postgres isme runs against locally. Not for production; isme itself runs via `make run`.
 # NOTE: host port 5433 (rainy already uses 5432) so both services' local Postgres can run side by side.
 services:
   postgres:

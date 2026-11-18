@@ -26,7 +26,7 @@ COPY . .
 # Place the built UI where go:embed (internal/web/dist) expects it
 RUN rm -rf ./internal/web/dist
 COPY --from=ui /app/ui/dist ./internal/web/dist
-# Pure-Go build (modernc sqlite + bun pgdriver are CGO-free) → static binary
+# Pure-Go build (bun pgdriver is CGO-free) → static binary
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /app/main ./cmd/main.go
 
 # ---- Stage 3: minimal runtime ----
