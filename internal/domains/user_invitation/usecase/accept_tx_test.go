@@ -122,7 +122,7 @@ func countUsersByEmail(t *testing.T, db *bun.DB, email string) int {
 	if err != nil {
 		t.Fatalf("count users: %v", err)
 	}
-	return count
+	return int(count)
 }
 
 func assertInvitationPending(t *testing.T, db *bun.DB, invitationID string) {

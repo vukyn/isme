@@ -144,7 +144,7 @@ func (f cleanupFixture) seedUser(t *testing.T, email string, age time.Duration, 
 	return userID
 }
 
-func (f cleanupFixture) state(t *testing.T, userID string) (live bool, activeSessions int, memberships int) {
+func (f cleanupFixture) state(t *testing.T, userID string) (live bool, activeSessions int64, memberships int64) {
 	t.Helper()
 	ctx := context.Background()
 	liveCount, err := f.db.NewSelect().TableExpr("users").Where("id = ?", userID).Where("deleted_at IS NULL").Count(ctx)

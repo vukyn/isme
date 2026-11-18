@@ -124,7 +124,7 @@ func (r *repository) CountRotationsByUserIDSince(ctx context.Context, userID str
 	if err != nil {
 		return 0, pkgErr.DatabaseError(err.Error())
 	}
-	return count, nil
+	return int(count), nil
 }
 
 // PruneRotationsBefore deletes token rotation events older than the given time
@@ -287,7 +287,7 @@ func (r *repository) CountActiveByUserIDCreatedAfter(ctx context.Context, userID
 	if err != nil {
 		return 0, pkgErr.DatabaseError(err.Error())
 	}
-	return count, nil
+	return int(count), nil
 }
 
 func (r *repository) InactiveAllUserSessionExcept(ctx context.Context, userID string, exceptTokenID string) error {

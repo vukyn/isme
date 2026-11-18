@@ -202,8 +202,8 @@ func (r *repository) List(ctx context.Context, req models.ListRequest) ([]entity
 	appServices := make([]entity.AppService, 0)
 	offset := (req.Page - 1) * req.PageSize
 	err = query.
-		Offset(offset).
-		Limit(req.PageSize).
+		Offset(int64(offset)).
+		Limit(int64(req.PageSize)).
 		Order("created_at DESC").
 		Scan(ctx, &appServices)
 	if err != nil {

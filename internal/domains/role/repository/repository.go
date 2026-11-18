@@ -594,7 +594,7 @@ func (r *repository) ListMembers(ctx context.Context, roleID string, req models.
 			CreatedAt:    row.CreatedAt.Format(time.RFC3339),
 		})
 	}
-	return items, total, nil
+	return items, int(total), nil
 }
 
 func (r *repository) CountMembersByRoleID(ctx context.Context, roleID string) (int, error) {
@@ -609,7 +609,7 @@ func (r *repository) CountMembersByRoleID(ctx context.Context, roleID string) (i
 	if err != nil {
 		return 0, pkgErr.DatabaseError(err.Error())
 	}
-	return count, nil
+	return int(count), nil
 }
 
 func (r *repository) AddMembers(ctx context.Context, roleID string, userIDs []string, appServiceID *string) error {
