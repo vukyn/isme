@@ -71,7 +71,7 @@ func countActiveSessions(t *testing.T, db *bun.DB, userID string) int {
 	if err != nil {
 		t.Fatalf("count sessions: %v", err)
 	}
-	return count
+	return int(count)
 }
 
 func countLiveUsers(t *testing.T, db *bun.DB, userID string) int {
@@ -84,7 +84,7 @@ func countLiveUsers(t *testing.T, db *bun.DB, userID string) int {
 	if err != nil {
 		t.Fatalf("count users: %v", err)
 	}
-	return count
+	return int(count)
 }
 
 func TestSoftDeleteRollsBackOnRealDatabase(t *testing.T) {

@@ -54,7 +54,7 @@ func (r *repository) ListByUserID(ctx context.Context, userID string, limit int)
 		Model(&events).
 		Where("user_id = ?", userID).
 		Order("created_at DESC").
-		Limit(limit).
+		Limit(int64(limit)).
 		Scan(ctx)
 	if err != nil {
 		return nil, pkgErr.DatabaseError(err.Error())

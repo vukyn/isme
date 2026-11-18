@@ -10,10 +10,10 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/sarulabs/di/v2 v2.5.2
-	github.com/uptrace/bun v1.2.18
-	github.com/uptrace/bun/dialect/sqlitedialect v1.2.18
-	github.com/uptrace/bun/driver/sqliteshim v1.2.18
-	github.com/vukyn/kuery v1.70.0
+	github.com/uptrace/bun v1.3.0
+	github.com/uptrace/bun/dialect/sqlitedialect v1.3.0
+	github.com/uptrace/bun/driver/sqliteshim v1.3.0
+	github.com/vukyn/kuery v1.71.0
 )
 
 require (
@@ -43,8 +43,8 @@ require (
 	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/rs/zerolog v1.35.1 // indirect
 	github.com/tmthrgd/go-hex v0.0.0-20190904060850-447a3041c3bc // indirect
-	github.com/uptrace/bun/dialect/pgdialect v1.2.18 // indirect
-	github.com/uptrace/bun/driver/pgdriver v1.2.18 // indirect
+	github.com/uptrace/bun/dialect/pgdialect v1.3.0 // indirect
+	github.com/uptrace/bun/driver/pgdriver v1.3.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v1.79.0 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
