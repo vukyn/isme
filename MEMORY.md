@@ -34,6 +34,7 @@ subject wins and the note is the thing to fix.
 - [isme legacy db/app.db](memory/isme-db-gitignored.md) — legacy SQLite file, isme no longer uses it; never commit (PR#26 leaked, rotated)
 - [isme Profile + avatar shipped](memory/isme-profile-avatar-shipped.md) — avatar via medioa; needs mk_ MEDIOA_API_KEY
 - [isme UI serving](memory/isme-ui-serving.md) — SSO popup loads embedded SPA (needs build-web); root files need route
+- [SPA catch-all masks removed API route](memory/spa-catchall-masks-removed-api-route.md) — gone GET /api/* = 200 text/html, other methods 405; compare content-type
 - [isme vite8 deferred](memory/isme-vite8-deferred-upgrade.md) — 3 esbuild dev-only highs need Vite 8
 
 ## General — platform habits and language traps that apply here
