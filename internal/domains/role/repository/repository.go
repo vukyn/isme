@@ -14,6 +14,7 @@ import (
 	pkgErr "github.com/vukyn/kuery/http/errors"
 
 	"github.com/uptrace/bun"
+	pkgTx "github.com/vukyn/kuery/bun/tx"
 	"github.com/vukyn/kuery/cryp"
 )
 
@@ -631,7 +632,8 @@ func (r *repository) AddMembers(ctx context.Context, roleID string, userIDs []st
 		})
 	}
 
-	_, err := r.db.NewInsert().
+	// reads its handle through Conn so it joins a caller-owned transaction
+	_, err := pkgTx.Conn(ctx, r.db).NewInsert().
 		Model(&userRoles).
 		Ignore().
 		Exec(ctx)
@@ -660,6 +662,22 @@ func (r *repository) RemoveMember(ctx context.Context, roleID string, userID str
 	}
 
 	_, err := query.Exec(ctx)
+	if err != nil {
+		return pkgErr.DatabaseError(err.Error())
+	}
+	return nil
+}
+
+func (r *repository) RemoveAllMembershipsByUserIDs(ctx context.Context, userIDs []string) error {
+	if len(userIDs) == 0 {
+		return nil
+	}
+
+	// reads its handle through Conn so it joins a caller-owned transaction
+	_, err := pkgTx.Conn(ctx, r.db).NewDelete().
+		Model((*entity.UserRole)(nil)).
+		Where("user_id IN (?)", bun.In(userIDs)).
+		Exec(ctx)
 	if err != nil {
 		return pkgErr.DatabaseError(err.Error())
 	}

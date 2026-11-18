@@ -49,13 +49,14 @@ import {
 	listRoles,
 	listUsers,
 	listUserSessions,
-	revokeInvitation,
 	revokeUserSession,
-	softDeleteUser,
 	updateUserStatus,
 } from "@/apis";
 import { AppRoleChip } from "@/components/AppRoleChip";
+import { type DeleteUsersOutcome, DeleteUsersDialog } from "@/components/DeleteUsersDialog";
 import { InviteUserDialog } from "@/components/InviteUserDialog";
+import { RevokeInvitationDialog } from "@/components/RevokeInvitationDialog";
+import { InvitationAvatar, UserAvatar } from "@/components/UserAvatar";
 import { VerifyUserDialog } from "@/components/VerifyUserDialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toaster } from "@/components/ui/toaster";
@@ -111,13 +112,6 @@ const LAST_LOGIN_WINDOW_MS: Record<string, number> = {
 	"7d": 7 * 24 * 60 * 60 * 1000,
 	"30d": 30 * 24 * 60 * 60 * 1000,
 };
-
-const AVATAR_GRADIENTS = [
-	"conic-gradient(from 200deg, #22D3EE, #6366F1, #8B5CF6, #EC4899, #22D3EE)",
-	"linear-gradient(135deg, #22D3EE, #34D399)",
-	"linear-gradient(135deg, #F59E0B, #EC4899)",
-	"linear-gradient(135deg, #34D399, #22D3EE)",
-];
 
 /** Uppercase micro-label (mock .flabel / thead th). */
 const LABEL_PROPS = {
@@ -175,20 +169,6 @@ const GHOST_BUTTON_PROPS = {
 	css: { backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" },
 	_hover: { bg: "bg.glassHi", borderColor: "rgba(255,255,255,0.28)" },
 } as const;
-
-const initials = (name: string) =>
-	name
-		.split(" ")
-		.filter(Boolean)
-		.map((part) => part[0]?.toUpperCase())
-		.slice(0, 2)
-		.join("") || "?";
-
-const avatarGradient = (id: string) => {
-	let hash = 0;
-	for (const char of id) hash = (hash * 31 + char.charCodeAt(0)) % 997;
-	return AVATAR_GRADIENTS[hash % AVATAR_GRADIENTS.length];
-};
 
 const StatusPill = ({ status }: { status: UserStatus }) => {
 	if (status === USER_STATUS.ACTIVE) {
@@ -283,7 +263,7 @@ const RolesByAppCell = ({ roles }: { roles: AppRole[] }) => {
 	);
 };
 
-/** "expired" is derived — pending rows past expires_at; never stored server-side. */
+/** "expired" is stored (status 4) once swept or superseded; a pending row past expires_at shows as expired too. */
 const invitationDisplayStatus = (invitation: InvitationListItem): InvitationDisplayStatus => {
 	if (invitation.status === 1 && new Date(invitation.expires_at).getTime() < Date.now()) return "expired";
 	return INVITATION_STATUS_LABELS[invitation.status];
@@ -330,92 +310,6 @@ const formatExpiry = (expiresAt: string) => {
 	const hours = Math.floor(remainingMs / (60 * 60 * 1000));
 	const relative = hours >= 48 ? `in ${Math.floor(hours / 24)}d` : `in ${Math.max(hours, 1)}h`;
 	return `${relative} · ${formatDateOnly(expiresAt)}`;
-};
-
-const emailInitials = (email: string) =>
-	email
-		.split("@")[0]
-		.split(/[._-]/)
-		.filter(Boolean)
-		.map((part) => part[0]?.toUpperCase())
-		.slice(0, 2)
-		.join("") || "?";
-
-/** Dashed avatar = no account yet; gradient = accepted (account exists). */
-const InvitationAvatar = ({ invitation }: { invitation: InvitationListItem }) => {
-	if (invitation.status === 2) {
-		return (
-			<Center
-				w="8"
-				h="8"
-				flex="none"
-				borderRadius="full"
-				fontSize="12px"
-				fontWeight="bold"
-				color="white"
-				css={{ background: "linear-gradient(135deg, #22D3EE, #34D399)", boxShadow: "0 0 14px rgba(52,211,153,0.30)" }}
-			>
-				{emailInitials(invitation.email)}
-			</Center>
-		);
-	}
-	return (
-		<Center
-			w="8"
-			h="8"
-			flex="none"
-			borderRadius="full"
-			bg="bg.glass"
-			borderWidth="1.5px"
-			borderStyle="dashed"
-			borderColor="border.strong"
-			fontSize="12px"
-			fontWeight="bold"
-			color="fg.muted"
-		>
-			{emailInitials(invitation.email)}
-		</Center>
-	);
-};
-
-const UserAvatar = ({ user }: { user: UserListItem }) => {
-	if (user.status === USER_STATUS.PENDING) {
-		return (
-			<Center
-				w="8"
-				h="8"
-				flex="none"
-				borderRadius="full"
-				bg="bg.glass"
-				borderWidth="1.5px"
-				borderStyle="dashed"
-				borderColor="border.strong"
-				fontSize="12px"
-				fontWeight="bold"
-				color="fg.muted"
-			>
-				?
-			</Center>
-		);
-	}
-	const inactive = user.status === USER_STATUS.INACTIVE;
-	return (
-		<Center
-			w="8"
-			h="8"
-			flex="none"
-			borderRadius="full"
-			fontSize="12px"
-			fontWeight="bold"
-			color="white"
-			css={{
-				background: inactive ? "linear-gradient(135deg, #3A3F6E, #23264A)" : avatarGradient(user.id),
-				boxShadow: inactive ? "none" : "0 0 14px rgba(99,102,241,0.30)",
-			}}
-		>
-			{initials(user.name)}
-		</Center>
-	);
 };
 
 const QuickActionButton = ({
@@ -478,6 +372,7 @@ const QuickActionButton = ({
 };
 
 const NO_PERMISSION_TOOLTIP = "You don't have permission";
+const SELF_DELETE_TOOLTIP = "You can't delete your own account";
 
 const SessionsPanel = ({
 	sessions,
@@ -611,6 +506,13 @@ export const Users = () => {
 	}>({ status: "all", verified: "all", app: "all", role: "all", lastLogin: "any", at: 0 });
 
 	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+	// Every user row seen on any page, so a selection that spans pages can
+	// still show names and emails in the bulk delete dialog.
+	const [knownUsers, setKnownUsers] = useState<Record<string, UserListItem>>({});
+	// Delete / revoke confirm dialogs. `key` remounts the dialog per open so
+	// every run starts from its confirm view.
+	const [deleteDialog, setDeleteDialog] = useState<{ key: number; users: UserListItem[] } | null>(null);
+	const [revokeDialog, setRevokeDialog] = useState<{ key: number; invitation: InvitationListItem } | null>(null);
 	const [expandedId, setExpandedId] = useState<string | null>(null);
 	const [sessionsByUser, setSessionsByUser] = useState<Record<string, UserSessionItem[]>>({});
 	const [sessionsLoadingFor, setSessionsLoadingFor] = useState<string | null>(null);
@@ -676,6 +578,10 @@ export const Users = () => {
 				if (!active) return;
 				setUsers(response.items);
 				setTotal(response.total);
+				setKnownUsers((previous) => ({
+					...previous,
+					...Object.fromEntries(response.items.map((item) => [item.id, item])),
+				}));
 			})
 			.catch(() => {
 				if (active) toaster.create({ title: "Failed to load users", type: "error", meta: { closable: true } });
@@ -849,16 +755,8 @@ export const Users = () => {
 		});
 	};
 
-	const handleRevokeInvitation = async (invitation: InvitationListItem) => {
-		if (!window.confirm(`Revoke invite for ${invitation.email}? The link stops working immediately.`)) return;
-		try {
-			await revokeInvitation(invitation.id);
-			setReloadKey((previous) => previous + 1);
-			toaster.create({ title: `Invite for ${invitation.email} revoked`, type: "success", meta: { closable: true } });
-		} catch (error: unknown) {
-			const err = error as { response?: { data?: { message?: string } } };
-			toaster.create({ title: err?.response?.data?.message || "Failed to revoke invite", type: "error", meta: { closable: true } });
-		}
+	const handleRevokeInvitation = (invitation: InvitationListItem) => {
+		setRevokeDialog({ key: Date.now(), invitation });
 	};
 
 	// Re-issue: opens the invite dialog prefilled — accepting creates a NEW row.
@@ -873,23 +771,26 @@ export const Users = () => {
 		setInviteOpen(true);
 	};
 
-	const handleDelete = async (user: UserListItem) => {
-		try {
-			await softDeleteUser(user.id);
-		} catch (error: unknown) {
-			const err = error as { response?: { data?: { message?: string } } };
-			toaster.create({ title: err?.response?.data?.message || "Failed to delete user", type: "error", meta: { closable: true } });
-			return;
+	const handleDelete = (user: UserListItem) => {
+		setDeleteDialog({ key: Date.now(), users: [user] });
+	};
+
+	// After every delete run: refetch, then fix the selection. A bulk run
+	// leaves exactly the failed ids selected; a single delete drops its id.
+	const handleDeleteSettled = ({ deletedIds, failedIds }: DeleteUsersOutcome, bulk: boolean) => {
+		if (bulk) {
+			setSelectedIds(new Set(failedIds));
+		} else {
+			setSelectedIds((previous) => {
+				const next = new Set(previous);
+				deletedIds.forEach((id) => next.delete(id));
+				return next;
+			});
 		}
-		setSelectedIds((previous) => {
-			const next = new Set(previous);
-			next.delete(user.id);
-			return next;
-		});
-		// Step back when the last row on this page was removed.
-		if (users.length === 1 && page > 1) setPage(page - 1);
+		// Step back when every row on this page was removed.
+		const remainingOnPage = users.filter((user) => !deletedIds.includes(user.id)).length;
+		if (remainingOnPage === 0 && page > 1) setPage(page - 1);
 		setReloadKey((previous) => previous + 1);
-		toaster.create({ title: `${user.name || user.email} deleted`, type: "success", meta: { closable: true } });
 	};
 
 	const handleEdit = () => {
@@ -919,23 +820,38 @@ export const Users = () => {
 
 	const handleBulkStatus = async (status: UserStatus) => {
 		const ids = [...selectedIds];
-		await Promise.all(ids.map((id) => updateUserStatus(id, status)));
-		mutateUsers(ids, { status });
-		toaster.create({
-			title: `${ids.length} user${ids.length > 1 ? "s" : ""} ${status === USER_STATUS.ACTIVE ? "activated" : "deactivated"}`,
-			type: "success",
-			meta: { closable: true },
-		});
+		const settled = await Promise.allSettled(ids.map((id) => updateUserStatus(id, status)));
+		const updatedIds = ids.filter((_, index) => settled[index].status === "fulfilled");
+		const failures = settled.filter((result): result is PromiseRejectedResult => result.status === "rejected");
+		const verb = status === USER_STATUS.ACTIVE ? "activated" : "deactivated";
+		if (updatedIds.length > 0) {
+			mutateUsers(updatedIds, { status });
+			toaster.create({
+				title: `${updatedIds.length} user${updatedIds.length > 1 ? "s" : ""} ${verb}`,
+				type: "success",
+				meta: { closable: true },
+			});
+		}
+		if (failures.length > 0) {
+			const err = failures[0].reason as { response?: { data?: { message?: string } } };
+			toaster.create({
+				title: `${failures.length} user${failures.length > 1 ? "s" : ""} not ${verb}`,
+				description: err?.response?.data?.message || "The request did not reach the server.",
+				type: "error",
+				meta: { closable: true },
+			});
+			// keep only the failed rows selected so they can be retried
+			setSelectedIds(new Set(ids.filter((_, index) => settled[index].status === "rejected")));
+		}
 	};
 
-	const handleBulkDelete = async () => {
-		const ids = [...selectedIds];
-		await Promise.all(ids.map((id) => softDeleteUser(id)));
-		setSelectedIds(new Set());
-		setPage(1);
-		setReloadKey((previous) => previous + 1);
-		toaster.create({ title: `${ids.length} user${ids.length > 1 ? "s" : ""} deleted`, type: "success", meta: { closable: true } });
+	const handleBulkDelete = () => {
+		const selectedUsers = [...selectedIds].map((id) => knownUsers[id]).filter((user): user is UserListItem => Boolean(user));
+		if (selectedUsers.length === 0) return;
+		setDeleteDialog({ key: Date.now(), users: selectedUsers });
 	};
+
+	const onlySelfSelected = selectedIds.size === 1 && currentUser !== null && selectedIds.has(currentUser.id);
 
 	const handleBulkAssignRole = async (roleCode: string) => {
 		const ids = [...selectedIds];
@@ -1619,8 +1535,14 @@ export const Users = () => {
 														label="Delete"
 														color="aurora.magenta"
 														danger
-														disabled={!canDelete}
-														tooltip={canDelete ? undefined : NO_PERMISSION_TOOLTIP}
+														disabled={!canDelete || user.id === currentUser?.id}
+														tooltip={
+															!canDelete
+																? NO_PERMISSION_TOOLTIP
+																: user.id === currentUser?.id
+																	? SELF_DELETE_TOOLTIP
+																	: undefined
+														}
 														onClick={() => handleDelete(user)}
 													>
 														<LuTrash2 size={14} />
@@ -1757,7 +1679,11 @@ export const Users = () => {
 								</Menu.Positioner>
 							</Portal>
 						</Menu.Root>
-						<Tooltip content={NO_PERMISSION_TOOLTIP} disabled={canDelete} positioning={{ placement: "top" }}>
+						<Tooltip
+							content={canDelete ? SELF_DELETE_TOOLTIP : NO_PERMISSION_TOOLTIP}
+							disabled={canDelete && !onlySelfSelected}
+							positioning={{ placement: "top" }}
+						>
 							<Box as="span">
 								<Button
 									h="8"
@@ -1770,7 +1696,7 @@ export const Users = () => {
 									fontWeight="semibold"
 									color="aurora.magenta"
 									_hover={{ bg: "rgba(236,72,153,0.16)" }}
-									disabled={!canDelete}
+									disabled={!canDelete || onlySelfSelected}
 									onClick={handleBulkDelete}
 								>
 									<LuTrash2 size={13} /> Delete
@@ -2145,6 +2071,32 @@ export const Users = () => {
 				onInvited={() => setReloadKey((previous) => previous + 1)}
 				prefill={invitePrefill}
 			/>
+
+			{deleteDialog && (
+				<DeleteUsersDialog
+					key={deleteDialog.key}
+					open
+					users={deleteDialog.users}
+					currentUserId={currentUser?.id}
+					onOpenChange={(open) => {
+						if (!open) setDeleteDialog(null);
+					}}
+					onSettled={handleDeleteSettled}
+					onDeactivate={canUpdate ? (user) => void handleToggleStatus(user) : undefined}
+				/>
+			)}
+
+			{revokeDialog && (
+				<RevokeInvitationDialog
+					key={revokeDialog.key}
+					open
+					invitation={revokeDialog.invitation}
+					onOpenChange={(open) => {
+						if (!open) setRevokeDialog(null);
+					}}
+					onSettled={() => setReloadKey((previous) => previous + 1)}
+				/>
+			)}
 
 			<VerifyUserDialog
 				open={verifyOpen}

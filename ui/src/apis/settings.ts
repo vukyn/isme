@@ -1,12 +1,16 @@
 import type {
 	ActivityCleanupConfig,
 	DatabaseBackupConfig,
+	InvitationCleanupConfig,
 	RotationCleanupConfig,
 	SessionRevokeConfig,
+	UnverifiedUserCleanupConfig,
 	UpdateActivityCleanupConfigRequest,
 	UpdateDatabaseBackupConfigRequest,
+	UpdateInvitationCleanupConfigRequest,
 	UpdateRotationCleanupConfigRequest,
 	UpdateSessionRevokeConfigRequest,
+	UpdateUnverifiedUserCleanupConfigRequest,
 } from "@/types";
 import { API_ENDPOINTS } from "@/consts";
 import { apiClient } from "@/utils/axios";
@@ -127,5 +131,60 @@ export const updateDatabaseBackupConfig = async (request: UpdateDatabaseBackupCo
 		enabled: request.enabled,
 		cron: request.cron,
 		retain_count: request.retainCount,
+	});
+};
+
+/** Raw backend shape (snake_case) for the invitation-cleanup config. */
+interface InvitationCleanupConfigDTO {
+	enabled: boolean;
+	cron: string;
+	last_run_at: number | null;
+	last_expired_count: number | null;
+}
+
+export const getInvitationCleanupConfig = async (): Promise<InvitationCleanupConfig> => {
+	const response = await apiClient.get<Envelope<InvitationCleanupConfigDTO>>(API_ENDPOINTS.SETTINGS_INVITATION_CLEANUP);
+	const dto = response.data.data;
+	return {
+		enabled: dto.enabled,
+		cron: dto.cron,
+		lastRunAt: dto.last_run_at ?? null,
+		lastExpiredCount: dto.last_expired_count ?? null,
+	};
+};
+
+export const updateInvitationCleanupConfig = async (request: UpdateInvitationCleanupConfigRequest): Promise<void> => {
+	await apiClient.put(API_ENDPOINTS.SETTINGS_INVITATION_CLEANUP, {
+		enabled: request.enabled,
+		cron: request.cron,
+	});
+};
+
+/** Raw backend shape (snake_case) for the unverified-user-cleanup config. */
+interface UnverifiedUserCleanupConfigDTO {
+	enabled: boolean;
+	cron: string;
+	min_age_days: number;
+	last_run_at: number | null;
+	last_deleted_count: number | null;
+}
+
+export const getUnverifiedUserCleanupConfig = async (): Promise<UnverifiedUserCleanupConfig> => {
+	const response = await apiClient.get<Envelope<UnverifiedUserCleanupConfigDTO>>(API_ENDPOINTS.SETTINGS_UNVERIFIED_USER_CLEANUP);
+	const dto = response.data.data;
+	return {
+		enabled: dto.enabled,
+		cron: dto.cron,
+		minAgeDays: dto.min_age_days,
+		lastRunAt: dto.last_run_at ?? null,
+		lastDeletedCount: dto.last_deleted_count ?? null,
+	};
+};
+
+export const updateUnverifiedUserCleanupConfig = async (request: UpdateUnverifiedUserCleanupConfigRequest): Promise<void> => {
+	await apiClient.put(API_ENDPOINTS.SETTINGS_UNVERIFIED_USER_CLEANUP, {
+		enabled: request.enabled,
+		cron: request.cron,
+		min_age_days: request.minAgeDays,
 	});
 };

@@ -13,6 +13,7 @@ import (
 	pkgErr "github.com/vukyn/kuery/http/errors"
 
 	"github.com/uptrace/bun"
+	pkgTx "github.com/vukyn/kuery/bun/tx"
 	"github.com/vukyn/kuery/cryp"
 )
 
@@ -37,7 +38,8 @@ func (r *repository) Create(ctx context.Context, req models.CreateRequest) (stri
 		Email:  req.Email,
 		Status: int32(constants.UserStatusActive),
 	}
-	_, err := r.db.NewInsert().
+	// reads its handle through Conn so it joins a caller-owned transaction
+	_, err := pkgTx.Conn(ctx, r.db).NewInsert().
 		Model(user).
 		Exec(ctx)
 	if err != nil {
@@ -100,7 +102,8 @@ func (r *repository) SetPassword(ctx context.Context, id string, password string
 		Password: cryp.HashArgon2id(password),
 	}
 	columns := []string{"password"}
-	_, err := r.db.NewUpdate().
+	// reads its handle through Conn so it joins a caller-owned transaction
+	_, err := pkgTx.Conn(ctx, r.db).NewUpdate().
 		Model(user).
 		Column(columns...).
 		Where("id = ?", id).
@@ -230,7 +233,8 @@ func (r *repository) Verify(ctx context.Context, id string) error {
 		ID:         id,
 		IsVerified: true,
 	}
-	_, err := r.db.NewUpdate().
+	// reads its handle through Conn so it joins a caller-owned transaction
+	_, err := pkgTx.Conn(ctx, r.db).NewUpdate().
 		Model(user).
 		Column("is_verified").
 		Where("id = ?", id).
@@ -273,7 +277,8 @@ func (r *repository) SoftDelete(ctx context.Context, id string) error {
 		ID:        id,
 		DeletedAt: time.Now().UTC(),
 	}
-	_, err := r.db.NewUpdate().
+	// reads its handle through Conn so it joins a caller-owned transaction
+	_, err := pkgTx.Conn(ctx, r.db).NewUpdate().
 		Model(user).
 		Column("deleted_at").
 		Where("id = ?", id).
@@ -282,4 +287,46 @@ func (r *repository) SoftDelete(ctx context.Context, id string) error {
 		return pkgErr.DatabaseError(err.Error())
 	}
 	return nil
+}
+
+func (r *repository) ListUnverifiedCreatedBefore(ctx context.Context, before time.Time) ([]string, error) {
+	if before.IsZero() {
+		return nil, pkgErr.InvalidRequest("before is required")
+	}
+
+	ids := make([]string, 0)
+	err := r.db.NewSelect().
+		Model((*entity.User)(nil)).
+		Column("id").
+		Where("is_verified = ?", false).
+		Where("created_at < ?", before.UTC()).
+		Scan(ctx, &ids)
+	if err != nil {
+		return nil, pkgErr.DatabaseError(err.Error())
+	}
+	return ids, nil
+}
+
+func (r *repository) SoftDeleteByIDs(ctx context.Context, ids []string, deletedBy string) (int64, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+
+	now := time.Now().UTC()
+	// reads its handle through Conn so it joins a caller-owned transaction
+	result, err := pkgTx.Conn(ctx, r.db).NewUpdate().
+		Model((*entity.User)(nil)).
+		Set("deleted_at = ?", now).
+		Set("deleted_by = ?", deletedBy).
+		Set("updated_at = ?", now).
+		Where("id IN (?)", bun.In(ids)).
+		Exec(ctx)
+	if err != nil {
+		return 0, pkgErr.DatabaseError(err.Error())
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return 0, pkgErr.DatabaseError(err.Error())
+	}
+	return rowsAffected, nil
 }

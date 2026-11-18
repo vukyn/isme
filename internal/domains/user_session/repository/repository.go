@@ -13,6 +13,7 @@ import (
 	pkgErr "github.com/vukyn/kuery/http/errors"
 
 	"github.com/uptrace/bun"
+	pkgTx "github.com/vukyn/kuery/bun/tx"
 	"github.com/vukyn/kuery/cryp"
 )
 
@@ -153,7 +154,8 @@ func (r *repository) InactiveAllUserSession(ctx context.Context, userID string) 
 		Status: constants.UserSessionStatusInactive,
 	}
 
-	_, err := r.db.NewUpdate().
+	// reads its handle through Conn so it joins a caller-owned transaction
+	_, err := pkgTx.Conn(ctx, r.db).NewUpdate().
 		Model(&userSession).
 		Column("status").
 		Where("user_id = ?", userID).

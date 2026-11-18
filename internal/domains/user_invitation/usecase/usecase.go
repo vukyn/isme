@@ -30,6 +30,7 @@ type usecase struct {
 	roleRepo        roleRepo.IRepository
 	appServiceRepo  appServiceRepo.IRepository
 	activityUsecase activityUsecase.IUseCase
+	transactions    TxRunner
 }
 
 func NewUsecase(
@@ -39,6 +40,7 @@ func NewUsecase(
 	roleRepo roleRepo.IRepository,
 	appServiceRepo appServiceRepo.IRepository,
 	activityUsecase activityUsecase.IUseCase,
+	transactions TxRunner,
 ) IUseCase {
 	return &usecase{
 		cfg:             cfg,
@@ -47,6 +49,7 @@ func NewUsecase(
 		roleRepo:        roleRepo,
 		appServiceRepo:  appServiceRepo,
 		activityUsecase: activityUsecase,
+		transactions:    transactions,
 	}
 }
 
@@ -93,7 +96,25 @@ func (u *usecase) Create(ctx context.Context, req models.CreateRequest) (models.
 		return models.CreateResponse{}, err
 	}
 	if pending.ID != "" {
-		return models.CreateResponse{}, pkgErr.InvalidRequest("a pending invitation already exists for this email")
+		if !pending.ExpiresAt.Before(time.Now().UTC()) {
+			return models.CreateResponse{}, pkgErr.InvalidRequest("a pending invitation already exists for this email")
+		}
+		// a pending invite past its expiry is superseded: mark it expired so the
+		// new one can take its place. The update is conditional, so a lost race
+		// is re-checked rather than assumed.
+		expired, err := u.invitationRepo.MarkExpired(ctx, pending.ID)
+		if err != nil {
+			return models.CreateResponse{}, err
+		}
+		if !expired {
+			stillPending, err := u.invitationRepo.GetPendingByEmail(ctx, req.Email)
+			if err != nil {
+				return models.CreateResponse{}, err
+			}
+			if stillPending.ID != "" {
+				return models.CreateResponse{}, pkgErr.InvalidRequest("a pending invitation already exists for this email")
+			}
+		}
 	}
 
 	// generate the one-time token; only its hash is persisted
@@ -142,6 +163,9 @@ func (u *usecase) Revoke(ctx context.Context, id string) error {
 	if invitation.Status == int32(constants.InvitationStatusRevoked) {
 		return pkgErr.InvalidRequest("invitation already revoked")
 	}
+	if invitation.Status == int32(constants.InvitationStatusExpired) {
+		return pkgErr.InvalidRequest("invitation already expired")
+	}
 
 	// conditional update guards against a concurrent accept
 	revoked, err := u.invitationRepo.MarkRevoked(ctx, id)
@@ -187,13 +211,16 @@ func (u *usecase) GetByToken(ctx context.Context, token string) (models.InviteDe
 }
 
 // deriveDisplayStatus maps the stored status (+ expiry) to a stable string the
-// AcceptInvite page switches on. Pending-but-past-expiry collapses to expired.
+// AcceptInvite page switches on. A stored expired status and a pending row
+// past its expiry both show as expired.
 func deriveDisplayStatus(invitation entity.UserInvitation) string {
 	switch invitation.Status {
 	case int32(constants.InvitationStatusAccepted):
 		return constants.DisplayStatusAccepted
 	case int32(constants.InvitationStatusRevoked):
 		return constants.DisplayStatusRevoked
+	case int32(constants.InvitationStatusExpired):
+		return constants.DisplayStatusExpired
 	default:
 		if invitation.ExpiresAt.Before(time.Now().UTC()) {
 			return constants.DisplayStatusExpired
@@ -283,45 +310,45 @@ func (u *usecase) Accept(ctx context.Context, req models.AcceptRequest) error {
 		return pkgErr.InvalidRequest("invitation has no role assignments")
 	}
 
-	// claim the invitation atomically — a lost race means it was already used
-	accepted, err := u.invitationRepo.MarkAccepted(ctx, invitation.ID)
-	if err != nil {
-		return err
-	}
-	if !accepted {
-		return pkgErr.InvalidRequest("invitation already used")
-	}
-
-	// create the user; roll the claim back on failure so the link stays usable.
-	// Roles are assigned per-assignment below, not by user create.
-	userID, err := u.userRepo.Create(ctx, userModels.CreateRequest{
-		Name:  req.Name,
-		Email: invitation.Email,
-	})
-	if err != nil {
-		_ = u.invitationRepo.RevertToPending(ctx, invitation.ID)
-		return err
-	}
-
-	// set user password
-	if err := u.userRepo.SetPassword(ctx, userID, req.Password); err != nil {
-		return err
-	}
-
-	// the inviting admin vouched for this account — no separate verify step
-	if err := u.userRepo.Verify(ctx, userID); err != nil {
-		return err
-	}
-
-	// grant one app-scoped role per assignment (ur.app_service_id = roles.app_id)
-	for _, assignment := range assignments {
-		appServiceID := assignment.AppServiceID
-		if err := u.roleRepo.AddMembers(ctx, assignment.RoleID, []string{userID}, &appServiceID); err != nil {
+	// claim the invitation and create the account in one transaction, so a
+	// failure at any step leaves the link pending and no partial account behind
+	return u.transactions.RunInTx(ctx, func(ctx context.Context) error {
+		// conditional claim — a lost race means it was already used
+		accepted, err := u.invitationRepo.MarkAccepted(ctx, invitation.ID)
+		if err != nil {
 			return err
 		}
-	}
+		if !accepted {
+			return pkgErr.InvalidRequest("invitation already used")
+		}
 
-	return nil
+		// roles are assigned per-assignment below, not by user create
+		userID, err := u.userRepo.Create(ctx, userModels.CreateRequest{
+			Name:  req.Name,
+			Email: invitation.Email,
+		})
+		if err != nil {
+			return err
+		}
+
+		if err := u.userRepo.SetPassword(ctx, userID, req.Password); err != nil {
+			return err
+		}
+
+		// the inviting admin vouched for this account — no separate verify step
+		if err := u.userRepo.Verify(ctx, userID); err != nil {
+			return err
+		}
+
+		// grant one app-scoped role per assignment (ur.app_service_id = roles.app_id)
+		for _, assignment := range assignments {
+			appServiceID := assignment.AppServiceID
+			if err := u.roleRepo.AddMembers(ctx, assignment.RoleID, []string{userID}, &appServiceID); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 // resolveToken maps a raw token to its live pending invitation. Every failure

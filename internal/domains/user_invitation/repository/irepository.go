@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"github.com/vukyn/isme/internal/domains/user_invitation/entity"
 	"github.com/vukyn/isme/internal/domains/user_invitation/models"
@@ -25,6 +26,8 @@ type IRepository interface {
 	MarkAccepted(ctx context.Context, id string) (bool, error)
 	// Atomically flip a pending invitation to revoked; false when it was not pending
 	MarkRevoked(ctx context.Context, id string) (bool, error)
-	// Roll an accepted claim back to pending (compensation when user creation fails)
-	RevertToPending(ctx context.Context, id string) error
+	// Atomically flip a pending invitation past its expiry to expired; false when it was not
+	MarkExpired(ctx context.Context, id string) (bool, error)
+	// Flip every pending invitation whose expiry is before now to expired; returns rows affected
+	ExpirePendingBefore(ctx context.Context, now time.Time) (int64, error)
 }

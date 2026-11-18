@@ -16,6 +16,10 @@ const (
 	JobKeyRotationCleanup = "rotation_cleanup"
 	JobKeyActivityCleanup = "activity_cleanup"
 	JobKeyDatabaseBackup  = "database_backup"
+	// pending invitations past expiry are marked expired
+	JobKeyInvitationCleanup = "invitation_cleanup"
+	// accounts that never finished sign-up are soft-deleted after a minimum age
+	JobKeyUnverifiedUserCleanup = "unverified_user_cleanup"
 )
 
 // ScheduleConfig is the generic, job-keyed config that drives every scheduled

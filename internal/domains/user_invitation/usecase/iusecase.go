@@ -18,3 +18,10 @@ type IUseCase interface {
 	// Accept an invitation: create the user, set password, verify, assign role
 	Accept(ctx context.Context, req models.AcceptRequest) error
 }
+
+// TxRunner runs fn inside ONE database transaction that every repository call
+// made with fn's context joins (kuery/bun/tx). It carries no bun type, so the
+// usecase layer states "these writes are atomic" without holding a handle.
+type TxRunner interface {
+	RunInTx(ctx context.Context, fn func(ctx context.Context) error) error
+}

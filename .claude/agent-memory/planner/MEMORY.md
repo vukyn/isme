@@ -8,3 +8,4 @@ agent could not see them — same knowledge, same agent, different cwd. They liv
 here now, and new ones belong here.
 
 - [isme invite flow](project-isme-invite-flow.md) — public signup replaced by invite links (2026-06-08); UI dialog was a stub; isme uses kuery pkgErr, no exceptions/ dirs
+- [isme Postgres-only](project-isme-postgres-only.md) — PR2 drops SQLite + backup job; keep 001-034 names as no-op stubs; testcontainers helper in kuery

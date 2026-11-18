@@ -340,14 +340,32 @@ func (f *fakeInvitationRepository) MarkRevoked(ctx context.Context, id string) (
 	return true, nil
 }
 
-func (f *fakeInvitationRepository) RevertToPending(ctx context.Context, id string) error {
+func (f *fakeInvitationRepository) MarkExpired(ctx context.Context, id string) (bool, error) {
 	invitation, ok := f.invitations[id]
-	if !ok {
-		return nil
+	if !ok || invitation.Status != int32(constants.InvitationStatusPending) || !invitation.ExpiresAt.Before(time.Now().UTC()) {
+		return false, nil
 	}
-	invitation.Status = int32(constants.InvitationStatusPending)
-	invitation.AcceptedAt = time.Time{}
-	return nil
+	invitation.Status = int32(constants.InvitationStatusExpired)
+	return true, nil
+}
+
+func (f *fakeInvitationRepository) ExpirePendingBefore(ctx context.Context, now time.Time) (int64, error) {
+	var count int64
+	for _, invitation := range f.invitations {
+		if invitation.Status == int32(constants.InvitationStatusPending) && invitation.ExpiresAt.Before(now) {
+			invitation.Status = int32(constants.InvitationStatusExpired)
+			count++
+		}
+	}
+	return count, nil
+}
+
+// fakeTxRunner runs fn directly; transactional rollback is covered by the
+// real-database test, the fakes only model the call sequence.
+type fakeTxRunner struct{}
+
+func (fakeTxRunner) RunInTx(ctx context.Context, fn func(ctx context.Context) error) error {
+	return fn(ctx)
 }
 
 // === helpers ===
@@ -393,7 +411,7 @@ func newTestFixtureWithActivity() (*fakeInvitationRepository, *fakeUserRepositor
 		},
 	}
 	activity := &fakeActivityUsecase{}
-	invitationUsecase := NewUsecase(newTestConfig(), invitationRepository, userRepository, roleRepository, appServiceRepository, activity)
+	invitationUsecase := NewUsecase(newTestConfig(), invitationRepository, userRepository, roleRepository, appServiceRepository, activity, fakeTxRunner{})
 	return invitationRepository, userRepository, roleRepository, invitationUsecase, activity
 }
 
@@ -738,17 +756,16 @@ func TestAcceptInvitationRejections(t *testing.T) {
 		}
 	})
 
-	t.Run("user create failure reverts the claim", func(t *testing.T) {
-		invitationRepository, userRepository, _, invitationUsecase := newTestFixture()
-		invitationID, rawToken := createInvitation(t, invitationUsecase, "fail@hasaki.vn")
+	// rollback of the claim is a database property, asserted by the real-DB
+	// test in accept_tx_test.go; the fake only checks the error surfaces
+	t.Run("user create failure returns the error", func(t *testing.T) {
+		_, userRepository, _, invitationUsecase := newTestFixture()
+		_, rawToken := createInvitation(t, invitationUsecase, "fail@hasaki.vn")
 		userRepository.createErr = errors.New("database unavailable")
 
 		err := invitationUsecase.Accept(context.Background(), models.AcceptRequest{Token: rawToken, Name: "Fail", Password: fixturePassword})
 		if err == nil {
 			t.Fatal("expected accept to fail when user creation fails")
-		}
-		if invitationRepository.invitations[invitationID].Status != int32(constants.InvitationStatusPending) {
-			t.Error("expected invitation to be reverted to pending after user create failure")
 		}
 	})
 }
@@ -890,4 +907,86 @@ func TestGetInvitationByToken(t *testing.T) {
 			t.Errorf("expected accepted display status, got %q", detail.DisplayStatus)
 		}
 	})
+}
+
+func (f *fakeUserRepository) ListUnverifiedCreatedBefore(ctx context.Context, before time.Time) ([]string, error) {
+	return []string{}, nil
+}
+
+func (f *fakeUserRepository) SoftDeleteByIDs(ctx context.Context, ids []string, deletedBy string) (int64, error) {
+	return int64(len(ids)), nil
+}
+
+func (f *fakeRoleRepository) RemoveAllMembershipsByUserIDs(ctx context.Context, userIDs []string) error {
+	return nil
+}
+
+// === Expired invitations ===
+
+func TestCreateInvitationSupersedesExpiredPending(t *testing.T) {
+	t.Run("expired pending is marked expired and a new invite is created", func(t *testing.T) {
+		invitationRepository, _, _, invitationUsecase := newTestFixture()
+		oldID, _ := createInvitation(t, invitationUsecase, "again@hasaki.vn")
+		invitationRepository.invitations[oldID].ExpiresAt = time.Now().UTC().Add(-time.Hour)
+
+		newID, _ := createInvitation(t, invitationUsecase, "again@hasaki.vn")
+		if newID == oldID {
+			t.Fatal("expected a new invitation id")
+		}
+		if status := invitationRepository.invitations[oldID].Status; status != int32(constants.InvitationStatusExpired) {
+			t.Errorf("expected the old invitation to be expired, got status %d", status)
+		}
+		if status := invitationRepository.invitations[newID].Status; status != int32(constants.InvitationStatusPending) {
+			t.Errorf("expected the new invitation to be pending, got status %d", status)
+		}
+	})
+
+	t.Run("live pending is still rejected", func(t *testing.T) {
+		invitationRepository, _, _, invitationUsecase := newTestFixture()
+		oldID, _ := createInvitation(t, invitationUsecase, "live@hasaki.vn")
+
+		_, err := invitationUsecase.Create(context.Background(), models.CreateRequest{Email: "live@hasaki.vn", Assignments: []models.RoleAssignment{memberAssignment}})
+		if err == nil || !strings.Contains(err.Error(), "pending invitation already exists") {
+			t.Fatalf("expected pending-invitation rejection, got: %v", err)
+		}
+		if status := invitationRepository.invitations[oldID].Status; status != int32(constants.InvitationStatusPending) {
+			t.Errorf("expected the live invitation to stay pending, got status %d", status)
+		}
+	})
+}
+
+func TestRevokeExpiredInvitationRejected(t *testing.T) {
+	invitationRepository, _, _, invitationUsecase := newTestFixture()
+	invitationID, _ := createInvitation(t, invitationUsecase, "stale@hasaki.vn")
+	invitationRepository.invitations[invitationID].Status = int32(constants.InvitationStatusExpired)
+
+	err := invitationUsecase.Revoke(context.Background(), invitationID)
+	if err == nil || !strings.Contains(err.Error(), "already expired") {
+		t.Fatalf("expected already-expired rejection, got: %v", err)
+	}
+	if status := invitationRepository.invitations[invitationID].Status; status != int32(constants.InvitationStatusExpired) {
+		t.Errorf("expected the invitation to stay expired, got status %d", status)
+	}
+}
+
+func TestGetByTokenStoredExpiredStatus(t *testing.T) {
+	invitationRepository, _, _, invitationUsecase := newTestFixture()
+	invitationID, rawToken := createInvitation(t, invitationUsecase, "swept@hasaki.vn")
+	// a swept invitation keeps a future expiry only if it was superseded early;
+	// the stored status alone must decide the display
+	invitationRepository.invitations[invitationID].Status = int32(constants.InvitationStatusExpired)
+
+	detail, err := invitationUsecase.GetByToken(context.Background(), rawToken)
+	if err != nil {
+		t.Fatalf("expected expired token to still resolve, got: %v", err)
+	}
+	if detail.DisplayStatus != constants.DisplayStatusExpired {
+		t.Errorf("expected expired display status, got %q", detail.DisplayStatus)
+	}
+
+	// an expired invitation can never be accepted
+	err = invitationUsecase.Accept(context.Background(), models.AcceptRequest{Token: rawToken, Name: "Swept", Password: fixturePassword})
+	if err == nil || !strings.Contains(err.Error(), "invalid or expired") {
+		t.Fatalf("expected accept of an expired invitation to fail, got: %v", err)
+	}
 }

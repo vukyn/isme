@@ -286,7 +286,7 @@ func TestRevokeSession(t *testing.T) {
 			fakeUser := newFakeUserRepository()
 			fakeUserSession := newFakeUserSessionRepository()
 			fakeUserSession.sessionsByID["session-1"] = userSessionEntity.UserSession{ID: "session-1", UserID: "user-a"}
-			testUsecase := NewUsecase(fakeUser, fakeUserSession, &fakeRoleRepository{})
+			testUsecase := NewUsecase(fakeUser, fakeUserSession, &fakeRoleRepository{}, fakeTxRunner{})
 
 			err := testUsecase.RevokeSession(context.Background(), tt.userID, tt.sessionID)
 			if tt.wantErr != "" {
@@ -342,7 +342,7 @@ func TestSoftDelete(t *testing.T) {
 			fakeUser.usersByID["user-a"] = entity.User{ID: "user-a"}
 			fakeUser.usersByID["user-b"] = entity.User{ID: "user-b"}
 			fakeUserSession := newFakeUserSessionRepository()
-			testUsecase := NewUsecase(fakeUser, fakeUserSession, &fakeRoleRepository{})
+			testUsecase := NewUsecase(fakeUser, fakeUserSession, &fakeRoleRepository{}, fakeTxRunner{})
 
 			ctx := context.WithValue(context.Background(), pkgCtx.UserIDKey, tt.callerUserID)
 			err := testUsecase.SoftDelete(ctx, tt.targetUserID)
@@ -386,7 +386,7 @@ func TestVerifyUser(t *testing.T) {
 			fakeUser := newFakeUserRepository()
 			fakeUser.usersByID["user-unverified"] = entity.User{ID: "user-unverified"}
 			fakeUser.usersByID["user-verified"] = entity.User{ID: "user-verified", IsVerified: true}
-			testUsecase := NewUsecase(fakeUser, newFakeUserSessionRepository(), &fakeRoleRepository{})
+			testUsecase := NewUsecase(fakeUser, newFakeUserSessionRepository(), &fakeRoleRepository{}, fakeTxRunner{})
 
 			err := testUsecase.VerifyUser(context.Background(), tt.targetUserID)
 			if tt.wantErr != "" {
@@ -428,7 +428,7 @@ func TestUpdateStatus(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			fakeUser := newFakeUserRepository()
 			fakeUser.usersByID["user-a"] = entity.User{ID: "user-a"}
-			testUsecase := NewUsecase(fakeUser, newFakeUserSessionRepository(), &fakeRoleRepository{})
+			testUsecase := NewUsecase(fakeUser, newFakeUserSessionRepository(), &fakeRoleRepository{}, fakeTxRunner{})
 
 			err := testUsecase.UpdateStatus(context.Background(), tt.targetUserID, models.UpdateStatusRequest{Status: tt.status})
 			if tt.wantErr != "" {
@@ -451,4 +451,24 @@ func TestUpdateStatus(t *testing.T) {
 			}
 		})
 	}
+}
+
+func (f *fakeUserRepository) ListUnverifiedCreatedBefore(ctx context.Context, before time.Time) ([]string, error) {
+	return []string{}, nil
+}
+
+func (f *fakeUserRepository) SoftDeleteByIDs(ctx context.Context, ids []string, deletedBy string) (int64, error) {
+	return int64(len(ids)), nil
+}
+
+func (f *fakeRoleRepository) RemoveAllMembershipsByUserIDs(ctx context.Context, userIDs []string) error {
+	return nil
+}
+
+// fakeTxRunner runs fn directly; transactional rollback is covered by the
+// real-database test, the fakes only model the call sequence.
+type fakeTxRunner struct{}
+
+func (fakeTxRunner) RunInTx(ctx context.Context, fn func(ctx context.Context) error) error {
+	return fn(ctx)
 }

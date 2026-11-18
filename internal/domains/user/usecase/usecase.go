@@ -17,17 +17,20 @@ type usecase struct {
 	userRepo        userRepo.IRepository
 	userSessionRepo userSessionRepo.IRepository
 	roleRepo        roleRepo.IRepository
+	transactions    TxRunner
 }
 
 func NewUsecase(
 	userRepo userRepo.IRepository,
 	userSessionRepo userSessionRepo.IRepository,
 	roleRepo roleRepo.IRepository,
+	transactions TxRunner,
 ) IUseCase {
 	return &usecase{
 		userRepo:        userRepo,
 		userSessionRepo: userSessionRepo,
 		roleRepo:        roleRepo,
+		transactions:    transactions,
 	}
 }
 
@@ -142,11 +145,14 @@ func (u *usecase) SoftDelete(ctx context.Context, id string) error {
 		return pkgErr.NotFound("user not found")
 	}
 
-	// delete user and revoke all sessions
-	if err := u.userRepo.SoftDelete(ctx, id); err != nil {
-		return err
-	}
-	return u.userSessionRepo.InactiveAllUserSession(ctx, id)
+	// delete user and revoke all sessions in one transaction, so a failed
+	// revoke never leaves the account deleted with its sessions still live
+	return u.transactions.RunInTx(ctx, func(ctx context.Context) error {
+		if err := u.userRepo.SoftDelete(ctx, id); err != nil {
+			return err
+		}
+		return u.userSessionRepo.InactiveAllUserSession(ctx, id)
+	})
 }
 
 func (u *usecase) ListSessions(ctx context.Context, userID string) ([]models.SessionItem, error) {

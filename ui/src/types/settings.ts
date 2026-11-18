@@ -93,3 +93,49 @@ export interface UpdateDatabaseBackupConfigRequest {
 	cron: string;
 	retainCount: number;
 }
+
+/**
+ * Invitation-cleanup configuration — the typed config that drives the backend
+ * cronjob marking pending invitations past their expiry as expired. Persisted
+ * as { enabled, cron } on the SSO service; last_run_at / last_expired_count are
+ * read-only run history.
+ */
+export interface InvitationCleanupConfig {
+	enabled: boolean;
+	/** 5-field standard cron expression (minute hour day month weekday). */
+	cron: string;
+	/** Unix seconds of the last scheduler run, or null if it never ran. */
+	lastRunAt: number | null;
+	/** Invitations marked expired on the last run, or null if it never ran. */
+	lastExpiredCount: number | null;
+}
+
+export interface UpdateInvitationCleanupConfigRequest {
+	enabled: boolean;
+	cron: string;
+}
+
+/**
+ * Unverified-user-cleanup configuration — the typed config that drives the
+ * backend cronjob soft-deleting accounts that never finished sign-up once they
+ * are older than a minimum age in DAYS. Persisted as
+ * { enabled, cron, minAgeDays } on the SSO service; last_run_at /
+ * last_deleted_count are read-only run history.
+ */
+export interface UnverifiedUserCleanupConfig {
+	enabled: boolean;
+	/** 5-field standard cron expression (minute hour day month weekday). */
+	cron: string;
+	/** Minimum account age in DAYS before deletion (floor 1). */
+	minAgeDays: number;
+	/** Unix seconds of the last scheduler run, or null if it never ran. */
+	lastRunAt: number | null;
+	/** Accounts deleted on the last run, or null if it never ran. */
+	lastDeletedCount: number | null;
+}
+
+export interface UpdateUnverifiedUserCleanupConfigRequest {
+	enabled: boolean;
+	cron: string;
+	minAgeDays: number;
+}

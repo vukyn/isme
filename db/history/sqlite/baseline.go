@@ -11,7 +11,7 @@ import (
 // BaselineMigration is a squashed, dual-dialect (SQLite + Postgres) snapshot of
 // the entire final schema (all 12 application tables + their indexes) plus the
 // migration-embedded seed data (RBAC roles/permissions/grants, the isme
-// self-app_service row, and the four schedule_config job rows), used as the
+// self-app_service row, and the six schedule_config job rows), used as the
 // fresh-install path for a brand-new database on either dialect.
 //
 // It is intentionally NOT registered in the Migrations slice in migrations.go —
@@ -49,7 +49,7 @@ func baselineSQLiteStatements() []string {
 		`CREATE TABLE IF NOT EXISTS users (
 			id TEXT PRIMARY KEY NOT NULL,
 			name TEXT NOT NULL,
-			email TEXT UNIQUE,
+			email TEXT,
 			password TEXT NOT NULL,
 			status INTEGER NOT NULL,
 			last_login_at DATETIME DEFAULT NULL,
@@ -62,6 +62,8 @@ func baselineSQLiteStatements() []string {
 			is_verified INTEGER NOT NULL DEFAULT 0,
 			avatar_url TEXT
 		)`,
+		// email is unique among live users only (migration 032)
+		`CREATE UNIQUE INDEX IF NOT EXISTS users_email_live_uidx ON users (email) WHERE deleted_at IS NULL`,
 		`CREATE TABLE IF NOT EXISTS user_sessions (
 			id TEXT PRIMARY KEY NOT NULL,
 			user_id TEXT NOT NULL,
@@ -223,7 +225,7 @@ func baselinePostgresStatements() []string {
 		`CREATE TABLE IF NOT EXISTS users (
 			id TEXT PRIMARY KEY NOT NULL,
 			name TEXT NOT NULL,
-			email TEXT UNIQUE,
+			email TEXT,
 			password TEXT NOT NULL,
 			status INTEGER NOT NULL,
 			last_login_at TIMESTAMPTZ DEFAULT NULL,
@@ -367,6 +369,7 @@ func baselinePostgresStatements() []string {
 			created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 		)`,
 		// --- Phase 2: indexes (every referenced table now exists) ---
+		`CREATE UNIQUE INDEX IF NOT EXISTS users_email_live_uidx ON users (email) WHERE deleted_at IS NULL`,
 		`CREATE INDEX IF NOT EXISTS user_sessions_refresh_token_idx ON user_sessions (refresh_token)`,
 		`CREATE INDEX IF NOT EXISTS user_sessions_user_id_idx ON user_sessions (user_id)`,
 		`CREATE INDEX IF NOT EXISTS app_services_app_code_idx ON app_services (app_code)`,
@@ -442,8 +445,9 @@ var baselineReadOnlyCodes = []struct {
 }
 
 // baselineScheduleJobs is the final set of schedule_config rows after migrations
-// 025 (session_revoke + rotation_cleanup), 027 (activity_cleanup) and 029
-// (database_backup). All disabled by default.
+// 025 (session_revoke + rotation_cleanup), 027 (activity_cleanup), 029
+// (database_backup), 033 (invitation_cleanup) and 034 (unverified_user_cleanup).
+// All disabled by default.
 var baselineScheduleJobs = []struct {
 	jobKey string
 	cron   string
@@ -453,6 +457,8 @@ var baselineScheduleJobs = []struct {
 	{"rotation_cleanup", "0 4 * * *", `{"retention_hours":48}`},
 	{"activity_cleanup", "0 5 * * *", `{"retention_days":90}`},
 	{"database_backup", "0 3 * * *", `{"retain_count":10}`},
+	{"invitation_cleanup", "0 6 * * *", "{}"},
+	{"unverified_user_cleanup", "0 7 * * *", `{"min_age_days":30}`},
 }
 
 // baselineSeed reproduces the migration-embedded seed data (010/014/022/025/
@@ -520,7 +526,7 @@ func baselineSeed(ctx context.Context, db bun.IDB) error {
 		return fmt.Errorf("baseline seed app_isme: %w", err)
 	}
 
-	// schedule_config job rows (migrations 025/027/029)
+	// schedule_config job rows (migrations 025/027/029/033/034)
 	scheduleSQL := `INSERT OR IGNORE INTO schedule_config (job_key, enabled, cron, params) VALUES (?, 0, ?, ?)`
 	if pg {
 		scheduleSQL = `INSERT INTO schedule_config (job_key, enabled, cron, params) VALUES (?, FALSE, ?, ?) ON CONFLICT (job_key) DO NOTHING`

@@ -93,11 +93,11 @@ export interface CreateInvitationResponse {
 }
 
 /**
- * Stored invitation status (1 pending / 2 accepted / 3 revoked).
- * "expired" is never stored — it is derived client-side from expires_at
- * on pending rows.
+ * Stored invitation status (1 pending / 2 accepted / 3 revoked / 4 expired).
+ * 4 is stored once the server sweeps or supersedes an expired invite; a
+ * pending row past expires_at is still shown as expired before that.
  */
-export type InvitationStatus = 1 | 2 | 3;
+export type InvitationStatus = 1 | 2 | 3 | 4;
 
 export type InvitationDisplayStatus = "pending" | "accepted" | "revoked" | "expired";
 
@@ -105,6 +105,7 @@ export const INVITATION_STATUS_LABELS: Record<InvitationStatus, InvitationDispla
 	1: "pending",
 	2: "accepted",
 	3: "revoked",
+	4: "expired",
 };
 
 /** One assigned role on a listed invitation. Maps to models.AssignmentItem. */
